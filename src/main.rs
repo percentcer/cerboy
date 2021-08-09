@@ -77,6 +77,14 @@ fn reset() -> CPUState {
     }
 }
 
+fn nop(cpu: CPUState) -> CPUState {
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        ..cpu
+    }
+}
+
 //  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {

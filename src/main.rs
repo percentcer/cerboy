@@ -87,7 +87,7 @@ fn nop(cpu: CPUState) -> CPUState {
 //  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
-        pc: (high as u16) << 8 | (low as u16),
+        pc: (high as Word) << 8 | (low as Word),
         tsc: cpu.tsc + 16,
         ..cpu
     }

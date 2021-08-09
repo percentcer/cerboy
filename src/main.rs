@@ -53,6 +53,9 @@ type Word = u16;
 type SByte = i8;
 type SWord = i16;
 
+const HIGH_MASK: Word = 0xff00;
+const LOW_MASK: Word = 0x00ff;
+
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
     reg_af: Word,
@@ -76,12 +79,64 @@ fn reset() -> CPUState {
     }
 }
 
-fn nop(cpu: CPUState) -> CPUState {
+fn nop(cpu: CPUState) -> CPUState { 
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 4,
         ..cpu
     }
+}
+
+fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
+    let arg: Word = (reg as Word) << 8;
+    let reg_af: Word = (cpu.reg_af ^ arg) & HIGH_MASK;
+    let reg_af: Word = if reg_af == 0 { reg_af } else {
+        // flags
+        // Z N H C
+        // 1 0 0 0
+        reg_af ^ 0x0080
+    };
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg_af: reg_af,
+        ..cpu
+    }
+}
+
+fn xor_a(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_af >> 8) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_b(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_bc >> 8) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_c(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_bc & LOW_MASK) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_d(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_de >> 8) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_e(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_de & LOW_MASK) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_h(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_hl >> 8) as Byte;
+    impl_xor_r(cpu, reg)
+}
+
+fn xor_l(cpu: CPUState) -> CPUState {
+    let reg: Byte = (cpu.reg_hl & LOW_MASK) as Byte;
+    impl_xor_r(cpu, reg)
 }
 
 //  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn

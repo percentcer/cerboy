@@ -18,18 +18,22 @@ const GB_SCREEN_HEIGHT: u32 = 144;
 fn main() -> Result<(), Error> {
     env_logger::init();
 
+    // window management
+    // -----------------
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
-        .with_title("cerboy")
-        .build(&event_loop)
-        .unwrap();
+    .with_title("cerboy")
+    .build(&event_loop)
+    .unwrap();
     let min_size: winit::dpi::LogicalSize<f64> =
-        winit::dpi::PhysicalSize::new(GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
-        .to_logical(window.scale_factor());
+    winit::dpi::PhysicalSize::new(GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
+    .to_logical(window.scale_factor());
     window.set_min_inner_size(Some(min_size));
 
     let mut input = WinitInputHelper::new();
 
+    // surface
+    // -------
     let surface_texture = SurfaceTexture::new(window.inner_size().width, window.inner_size().height, &window);
     let mut pixels = PixelsBuilder::new(GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT, surface_texture)
     .request_adapter_options(wgpu::RequestAdapterOptions {

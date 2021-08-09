@@ -14,6 +14,11 @@ use pixels::{
 
 const GB_SCREEN_WIDTH : u32 = 160;
 const GB_SCREEN_HEIGHT: u32 = 144;
+type Byte = u8;
+type Word = u16;
+type SByte = i8;
+type SWord = i16;
+
 
 fn main() -> Result<(), Error> {
     env_logger::init();

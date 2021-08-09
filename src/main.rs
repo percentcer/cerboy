@@ -24,19 +24,20 @@ type SByte = i8;
 type SWord = i16;
 
 struct CPUState {
-    TSC: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
-    REG_AF: Word,
-    REG_BC: Word,
-    REG_DE: Word,
-    REG_HL: Word,
-    SP: Word,
-    PC: Word,
+    tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
+    reg_af: Word,
+    reg_bc: Word,
+    reg_de: Word,
+    reg_hl: Word,
+    sp: Word,
+    pc: Word,
 }
 
-fn JP(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+//  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
+fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
-        PC: (high as u16) << 8 | (low as u16),
-        TSC: cpu.TSC + 16,
+        pc: (high as u16) << 8 | (low as u16),
+        tsc: cpu.tsc + 16,
         ..cpu
     }
 }

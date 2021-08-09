@@ -12,8 +12,12 @@ use pixels::{
     Error, SurfaceTexture, PixelsBuilder, wgpu
 };
 
+use std::io::Read;
+
 const GB_SCREEN_WIDTH : u32 = 160;
 const GB_SCREEN_HEIGHT: u32 = 144;
+const ROM_MAX: usize = 0x200000;
+
 type Byte = u8;
 type Word = u16;
 type SByte = i8;
@@ -46,6 +50,18 @@ fn main() -> Result<(), Error> {
         compatible_surface: None,
     })
     .build()?;
+
+    // rom stuff
+    // ---------
+    let mut rom: Vec<Byte> = vec![0; ROM_MAX];
+    let args: Vec<String> = std::env::args().collect();
+    println!("{:?}",args);
+    assert_eq!(args.len(), 2, "unexpected number of args (must pass in path to rom)");
+    let mut file = match std::fs::File::open(&args[1]) {
+        Ok(file) => file,
+        Err(file) => panic!("failed to open {}", file)
+    };
+    file.read(&mut rom).expect("failed to read file into memory");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

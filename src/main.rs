@@ -23,6 +23,23 @@ type Word = u16;
 type SByte = i8;
 type SWord = i16;
 
+struct CPUState {
+    TSC: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
+    REG_AF: Word,
+    REG_BC: Word,
+    REG_DE: Word,
+    REG_HL: Word,
+    SP: Word,
+    PC: Word,
+}
+
+fn JP(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+    CPUState {
+        PC: (high as u16) << 8 | (low as u16),
+        TSC: cpu.TSC + 16,
+        ..cpu
+    }
+}
 
 fn main() -> Result<(), Error> {
     env_logger::init();

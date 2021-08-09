@@ -33,6 +33,18 @@ struct CPUState {
     pc: Word,
 }
 
+fn reset() -> CPUState {
+    CPUState {
+        tsc: 0,
+        reg_af: 0x01B0,
+        reg_bc: 0x0013,
+        reg_de: 0x00D8,
+        reg_hl: 0x014D,
+        sp: 0xFFFE,
+        pc: 0
+    }
+}
+
 //  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
@@ -80,6 +92,12 @@ fn main() -> Result<(), Error> {
         Err(file) => panic!("failed to open {}", file)
     };
     file.read(&mut rom).expect("failed to read file into memory");
+
+    // emu loop for testing?
+    // todo: probably need to disassemble entire room and implement everything in it instead of running until panic
+    loop {
+
+    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

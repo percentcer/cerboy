@@ -44,7 +44,6 @@ use std::io::Read;
 // FF80-FFFE   High RAM (HRAM)
 // FFFF        Interrupt Enable Register
 
-
 const GB_SCREEN_WIDTH : u32 = 160;
 const GB_SCREEN_HEIGHT: u32 = 144;
 const ROM_MAX: usize = 0x200000;
@@ -132,12 +131,6 @@ fn main() -> Result<(), Error> {
         Err(file) => panic!("failed to open {}", file)
     };
     file.read(&mut rom).expect("failed to read file into memory");
-
-    // emu loop for testing?
-    // todo: probably need to disassemble entire room and implement everything in it instead of running until panic
-    loop {
-
-    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

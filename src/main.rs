@@ -33,6 +33,7 @@ struct CPUState {
     pc: Word,
 }
 
+// https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
 fn reset() -> CPUState {
     CPUState {
         tsc: 0,

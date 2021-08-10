@@ -252,10 +252,18 @@ mod tests_cpu {
     #[test]
     fn test_xor_bc() {
         let state = CPUState {
-            reg_bc: 0xCD11,
+            reg_bc: 0xcd11,
             ..HARNESS
         };
-        assert_eq!(xor_b(state).reg_af, 0xCC00);
+        assert_eq!(xor_b(state).reg_af, 0xcc00);
         assert_eq!(xor_c(state).reg_af, 0x1000);
+    }
+
+    #[test]
+    fn test_xor_d8() {
+        let result = xor_d8(HARNESS, 0xff);
+        assert_eq!(result.pc, HARNESS.pc + 2, "incorrect program counter");
+        assert_eq!(result.tsc, HARNESS.tsc + 8, "incorrect time stamp counter");
+        assert_eq!(result.reg_af, 0xfe00, "incorrect xor value in reg a");
     }
 }

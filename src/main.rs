@@ -56,6 +56,7 @@ type SWord = i16;
 const HIGH_MASK: Word = 0xff00;
 const LOW_MASK: Word = 0x00ff;
 
+#[derive(Copy, Clone)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
     reg_af: Word,
@@ -67,7 +68,7 @@ struct CPUState {
 }
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
-fn reset() -> CPUState {
+const fn reset() -> CPUState {
     CPUState {
         tsc: 0,
         reg_af: 0x01B0,
@@ -90,8 +91,7 @@ fn nop(cpu: CPUState) -> CPUState {
 fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
     let arg: Word = (reg as Word) << 8;
     let reg_af: Word = (cpu.reg_af ^ arg) & HIGH_MASK;
-    let reg_af: Word = if reg_af == 0 { reg_af } else {
-        // flags
+    let reg_af: Word = if reg_af != 0 { reg_af } else {
         // Z N H C
         // 1 0 0 0
         reg_af ^ 0x0080
@@ -227,4 +227,35 @@ fn main() -> Result<(), Error> {
             },
         }
     });
+}
+
+#[cfg(test)]
+mod tests_cpu {
+    use super::*;
+
+    const HARNESS: CPUState = reset();
+
+    #[test]
+    fn test_impl_xor_r() {
+        let result = impl_xor_r(HARNESS, 0x13);
+        assert_eq!(result.pc, HARNESS.pc + 1, "incorrect program counter");
+        assert_eq!(result.tsc, HARNESS.tsc + 4, "incorrect time stamp counter");
+        assert_eq!(result.reg_af, 0x1200, "incorrect value in reg_af (expected 0x{:X} got 0x{:X})", 0x1200, result.reg_af);
+    }
+
+    #[test]
+    fn test_xor_a() {
+        let result = xor_a(HARNESS);
+        assert_eq!(result.reg_af, 0x0080);
+    }
+
+    #[test]
+    fn test_xor_bc() {
+        let state = CPUState {
+            reg_bc: 0xCD11,
+            ..HARNESS
+        };
+        assert_eq!(xor_b(state).reg_af, 0xCC00);
+        assert_eq!(xor_c(state).reg_af, 0x1000);
+    }
 }

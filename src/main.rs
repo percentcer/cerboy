@@ -53,8 +53,8 @@ type Word = u16;
 type SByte = i8;
 type SWord = i16;
 
-const HIGH_MASK: Word = 0xff00;
-const LOW_MASK: Word = 0x00ff;
+const HIGH_MASK: Word = 0xFF00;
+const LOW_MASK: Word = 0x00FF;
 
 #[derive(Copy, Clone)]
 struct CPUState {
@@ -333,7 +333,7 @@ fn main() -> Result<(), Error> {
         *control_flow = ControlFlow::Wait;
         if let Event::RedrawRequested(_) = event {
             for (i, pixel) in pixels.get_frame().chunks_exact_mut(4).enumerate() {
-                let slice = [(i % 2 * 0xff) as u8, (i % GB_SCREEN_WIDTH as usize) as u8, 0x00, 0xff];
+                let slice = [(i % 2 * 0xFF) as u8, (i % GB_SCREEN_WIDTH as usize) as u8, 0x00, 0xFF];
                 pixel.copy_from_slice(&slice)
             }
             if pixels.render().map_err(|e| error!("pixels.render() has failed: {}", e))
@@ -382,18 +382,18 @@ mod tests_cpu {
     #[test]
     fn test_xor_bc() {
         let state = CPUState {
-            reg_bc: 0xcd11,
+            reg_bc: 0xCD11,
             ..HARNESS
         };
-        assert_eq!(xor_b(state).reg_af, 0xcc00);
+        assert_eq!(xor_b(state).reg_af, 0xCC00);
         assert_eq!(xor_c(state).reg_af, 0x1000);
     }
 
     #[test]
     fn test_xor_d8() {
-        let result = xor_d8(HARNESS, 0xff);
+        let result = xor_d8(HARNESS, 0xFF);
         assert_eq!(result.pc, HARNESS.pc + 2, "incorrect program counter");
         assert_eq!(result.tsc, HARNESS.tsc + 8, "incorrect time stamp counter");
-        assert_eq!(result.reg_af, 0xfe00, "incorrect xor value in reg a");
+        assert_eq!(result.reg_af, 0xFF00, "incorrect xor value in reg a");
     }
 }

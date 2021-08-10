@@ -139,6 +139,18 @@ fn xor_l(cpu: CPUState) -> CPUState {
     impl_xor_r(cpu, reg)
 }
 
+fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    let base: CPUState = impl_xor_r(cpu, d8);
+    // additional machine cycle, additional argument
+    CPUState{
+        pc: base.pc + 1,
+        tsc: base.tsc + 4,
+        ..base
+    }
+}
+
+// todo xor_hl which requires system memory
+
 //  jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {

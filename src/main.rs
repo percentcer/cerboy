@@ -81,6 +81,7 @@ const fn reset() -> CPUState {
 }
 
 // GMB 8bit-Loadcommands
+// ============================================================================
 //   ld   r,r         xx         4 ---- r=r
 //   ld   r,n         xx nn      8 ---- r=n
 //   ld   r,(HL)      xx         8 ---- r=(HL)
@@ -102,12 +103,14 @@ const fn reset() -> CPUState {
 //   ldd  A,(HL)      3A         8 ---- A=(HL), HL=HL-1
 
 // GMB 16bit-Loadcommands
+// ============================================================================
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 //   ld   SP,HL       F9         8 ---- SP=HL
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 //   pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
 
 // GMB 8bit-Arithmetic/logical Commands
+// ============================================================================
 //   add  A,r         8x         4 z0hc A=A+r
 //   add  A,n         C6 nn      8 z0hc A=A+n
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
@@ -123,8 +126,9 @@ const fn reset() -> CPUState {
 //   and  r           Ax         4 z010 A=A & r
 //   and  n           E6 nn      8 z010 A=A & n
 //   and  (HL)        A6         8 z010 A=A & (HL)
-//   xor  r           Ax         4 z000
 
+//   xor  r           Ax         4 z000
+// ----------------------------------------------------------------------------
 const fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
     let arg: Word = (reg as Word) << 8;
     let reg_af: Word = (cpu.reg_af ^ arg) & HIGH_MASK;
@@ -177,7 +181,7 @@ const fn xor_l(cpu: CPUState) -> CPUState {
 }
 
 //   xor  n           EE nn      8 z000
-
+// ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
     let base: CPUState = impl_xor_r(cpu, d8);
     // additional machine cycle, additional argument
@@ -203,6 +207,7 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   cpl              2F         4 -11- A = A xor FF
 
 // GMB 16bit-Arithmetic/logical Commands
+// ============================================================================
 //   add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL,SP
 //   inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
 //   dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL,SP
@@ -210,6 +215,7 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
 
 // GMB Rotate- und Shift-Commands
+// ============================================================================
 //   rlca           07           4 000c rotate akku left
 //   rla            17           4 000c rotate akku left through carry
 //   rrca           0F           4 000c rotate akku right
@@ -232,6 +238,7 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   srl  (HL)      CB 3E       16 z00c shift right logical (b7=0)
 
 // GMB Singlebit Operation Commands
+// ============================================================================
 //   bit  n,r       CB xx        8 z01- test bit n
 //   bit  n,(HL)    CB xx       12 z01- test bit n
 //   set  n,r       CB xx        8 ---- set bit n
@@ -240,10 +247,12 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   res  n,(HL)    CB xx       16 ---- reset bit n
 
 // GMB CPU-Controlcommands
+// ============================================================================
 //   ccf            3F           4 -00c cy=cy xor 1
 //   scf            37           4 -001 cy=1
-//   nop            00           4 ---- no operation
 
+//   nop            00           4 ---- no operation
+// ----------------------------------------------------------------------------
 const fn nop(cpu: CPUState) -> CPUState { 
     CPUState {
         pc: cpu.pc + 1,
@@ -258,8 +267,10 @@ const fn nop(cpu: CPUState) -> CPUState {
 //   ei             FB           4 ---- enable interrupts, IME=1
 
 // GMB Jumpcommands
-//   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
+// ============================================================================
 
+//   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
+// ----------------------------------------------------------------------------
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
         pc: (high as Word) << 8 | (low as Word),

@@ -180,9 +180,8 @@ const fn ld_l_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
-const fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
-    let arg: Word = (reg as Word) << Byte::BITS;
-    let reg_af: Word = (cpu.reg_af ^ arg) & HIGH_MASK;
+const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
+    let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
     let reg_af: Word = if reg_af != 0 { reg_af } else {
         // Z N H C
         // 1 0 0 0
@@ -195,46 +194,18 @@ const fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
         ..cpu
     }
 }
-
-const fn xor_a(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_af >> 8) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_b(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_bc >> 8) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_c(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_bc & LOW_MASK) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_d(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_de >> 8) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_e(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_de & LOW_MASK) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_h(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_hl >> 8) as Byte;
-    impl_xor_r(cpu, reg)
-}
-
-const fn xor_l(cpu: CPUState) -> CPUState {
-    let reg: Byte = (cpu.reg_hl & LOW_MASK) as Byte;
-    impl_xor_r(cpu, reg)
-}
+const fn xor_a(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_af >> Byte::BITS) }
+const fn xor_b(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc >> Byte::BITS) }
+const fn xor_c(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc & LOW_MASK) }
+const fn xor_d(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de >> Byte::BITS) }
+const fn xor_e(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de & LOW_MASK) }
+const fn xor_h(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl >> Byte::BITS) }
+const fn xor_l(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl & LOW_MASK) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    let base: CPUState = impl_xor_r(cpu, d8);
+    let base: CPUState = impl_xor_r(cpu, d8 as Word);
     // additional machine cycle, additional argument
     CPUState{
         pc: base.pc + 1,
@@ -445,7 +416,7 @@ mod tests_cpu {
         let result = xor_d8(HARNESS, 0xFF);
         assert_eq!(result.pc, HARNESS.pc + 2, "incorrect program counter");
         assert_eq!(result.tsc, HARNESS.tsc + 8, "incorrect time stamp counter");
-        assert_eq!(result.reg_af, 0xFF00, "incorrect xor value in reg a");
+        assert_eq!(result.reg_af, 0xFE00, "incorrect xor value in reg a");
     }
     
     #[test]

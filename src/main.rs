@@ -83,6 +83,7 @@ const fn reset() -> CPUState {
 // GMB 8bit-Loadcommands
 // ============================================================================
 //   ld   r,r         xx         4 ---- r=r
+// ----------------------------------------------------------------------------
 const fn ld_b_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
 const fn ld_b_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
 const fn ld_b_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
@@ -140,6 +141,7 @@ const fn ld_a_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc
 const fn ld_a_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
 
 //   ld   r,n         xx nn      8 ---- r=n
+// ----------------------------------------------------------------------------
 const fn ld_b_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
 const fn ld_c_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & HIGH_MASK) | d8, ..cpu} }
 const fn ld_d_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_de: (cpu.reg_de & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
@@ -175,6 +177,21 @@ const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, t
 
 // GMB 8bit-Arithmetic/logical Commands
 // ============================================================================
+const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
+    let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
+    let reg_af: Word = if reg_af != 0 { reg_af } else {
+        // Z N H C
+        // 1 0 0 0
+        reg_af ^ 0x0080
+    };
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg_af: reg_af,
+        ..cpu
+    }
+}
+
 //   add  A,r         8x         4 z0hc A=A+r
 //   add  A,n         C6 nn      8 z0hc A=A+n
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
@@ -193,38 +210,20 @@ const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, t
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
-const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
-    let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
-    let reg_af: Word = if reg_af != 0 { reg_af } else {
-        // Z N H C
-        // 1 0 0 0
-        reg_af ^ 0x0080
-    };
-    CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
-        reg_af: reg_af,
-        ..cpu
-    }
-}
-const fn xor_a(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_af >> Byte::BITS) }
 const fn xor_b(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc >> Byte::BITS) }
 const fn xor_c(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc & LOW_MASK) }
 const fn xor_d(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de >> Byte::BITS) }
 const fn xor_e(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de & LOW_MASK) }
 const fn xor_h(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl >> Byte::BITS) }
 const fn xor_l(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl & LOW_MASK) }
+const fn xor_a(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_af >> Byte::BITS) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
     let base: CPUState = impl_xor_r(cpu, d8 as Word);
     // additional machine cycle, additional argument
-    CPUState{
-        pc: base.pc + 1,
-        tsc: base.tsc + 4,
-        ..base
-    }
+    CPUState{pc: base.pc + 1, tsc: base.tsc + 4, ..base}
 }
 
 //   xor  (HL)        AE         8 z000

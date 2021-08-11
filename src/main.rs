@@ -130,7 +130,7 @@ const fn reset() -> CPUState {
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
 const fn impl_xor_r(cpu: CPUState, reg: Byte) -> CPUState {
-    let arg: Word = (reg as Word) << 8;
+    let arg: Word = (reg as Word) << Byte::BITS;
     let reg_af: Word = (cpu.reg_af ^ arg) & HIGH_MASK;
     let reg_af: Word = if reg_af != 0 { reg_af } else {
         // Z N H C
@@ -273,7 +273,7 @@ const fn nop(cpu: CPUState) -> CPUState {
 // ----------------------------------------------------------------------------
 fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
-        pc: (high as Word) << 8 | (low as Word),
+        pc: (high as Word) << Byte::BITS | (low as Word),
         tsc: cpu.tsc + 16,
         ..cpu
     }

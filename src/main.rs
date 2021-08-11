@@ -135,6 +135,14 @@ const fn ld_l_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc
 const fn ld_l_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
 
 //   ld   r,n         xx nn      8 ---- r=n
+const fn ld_b_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
+const fn ld_c_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & HIGH_MASK) | d8, ..cpu} }
+const fn ld_d_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_de: (cpu.reg_de & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
+const fn ld_e_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_de: (cpu.reg_de & HIGH_MASK) | d8, ..cpu} }
+const fn ld_h_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_hl: (cpu.reg_hl & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
+const fn ld_l_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_hl: (cpu.reg_hl & HIGH_MASK) | d8, ..cpu} }
+const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_af: (cpu.reg_af & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
+
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 //   ld   (HL),r      7x         8 ---- (HL)=r
 //   ld   (HL),n      36 nn     12 ----
@@ -476,5 +484,16 @@ mod tests_cpu {
         assert_eq!(ld_l_e(HARNESS).reg_hl, 0x01D8);
         assert_eq!(ld_l_h(HARNESS).reg_hl, 0x0101);
         assert_eq!(ld_l_l(HARNESS).reg_hl, 0x014D);
+    }
+
+    #[test]
+    fn test_ld_r_d8() {
+        assert_eq!(ld_a_d8(HARNESS, 0xAF).reg_af, 0xAFB0);
+        assert_eq!(ld_b_d8(HARNESS, 0xAF).reg_bc, 0xAF13);
+        assert_eq!(ld_c_d8(HARNESS, 0xAF).reg_bc, 0x00AF);
+        assert_eq!(ld_d_d8(HARNESS, 0xAF).reg_de, 0xAFD8);
+        assert_eq!(ld_e_d8(HARNESS, 0xAF).reg_de, 0x00AF);
+        assert_eq!(ld_h_d8(HARNESS, 0xAF).reg_hl, 0xAF4D);
+        assert_eq!(ld_l_d8(HARNESS, 0xAF).reg_hl, 0x01AF);
     }
 }

@@ -83,6 +83,57 @@ const fn reset() -> CPUState {
 // GMB 8bit-Loadcommands
 // ============================================================================
 //   ld   r,r         xx         4 ---- r=r
+const fn ld_a_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
+const fn ld_a_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
+const fn ld_a_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+const fn ld_a_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_a_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_a_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_a_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_b_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
+const fn ld_b_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
+const fn ld_b_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+const fn ld_b_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_b_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_b_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_b_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_d_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
+const fn ld_d_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
+const fn ld_d_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+const fn ld_d_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_d_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_d_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_d_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_h_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
+const fn ld_h_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
+const fn ld_h_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+const fn ld_h_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_h_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_h_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_h_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+
+const fn ld_c_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
+const fn ld_c_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
+const fn ld_c_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
+const fn ld_c_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_c_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_c_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_c_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+const fn ld_e_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
+const fn ld_e_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
+const fn ld_e_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
+const fn ld_e_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_e_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_e_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_e_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+const fn ld_l_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
+const fn ld_l_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
+const fn ld_l_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
+const fn ld_l_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_l_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_l_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_l_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+
 //   ld   r,n         xx nn      8 ---- r=n
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 //   ld   (HL),r      7x         8 ---- (HL)=r
@@ -395,5 +446,64 @@ mod tests_cpu {
         assert_eq!(result.pc, HARNESS.pc + 2, "incorrect program counter");
         assert_eq!(result.tsc, HARNESS.tsc + 8, "incorrect time stamp counter");
         assert_eq!(result.reg_af, 0xFF00, "incorrect xor value in reg a");
+    }
+    
+    #[test]
+    fn test_ld_r_r() {
+        assert_eq!(ld_a_a(HARNESS).reg_af, 0x01B0);
+        assert_eq!(ld_a_b(HARNESS).reg_af, 0x00B0);
+        assert_eq!(ld_a_c(HARNESS).reg_af, 0x13B0);
+        assert_eq!(ld_a_d(HARNESS).reg_af, 0x00B0);
+        assert_eq!(ld_a_e(HARNESS).reg_af, 0xD8B0);
+        assert_eq!(ld_a_h(HARNESS).reg_af, 0x01B0);
+        assert_eq!(ld_a_l(HARNESS).reg_af, 0x4DB0);
+
+        assert_eq!(ld_b_a(HARNESS).reg_bc, 0x0113);
+        assert_eq!(ld_b_b(HARNESS).reg_bc, 0x0013);
+        assert_eq!(ld_b_c(HARNESS).reg_bc, 0x1313);
+        assert_eq!(ld_b_d(HARNESS).reg_bc, 0x0013);
+        assert_eq!(ld_b_e(HARNESS).reg_bc, 0xD813);
+        assert_eq!(ld_b_h(HARNESS).reg_bc, 0x0113);
+        assert_eq!(ld_b_l(HARNESS).reg_bc, 0x4D13);
+
+        assert_eq!(ld_c_a(HARNESS).reg_bc, 0x0001);
+        assert_eq!(ld_c_b(HARNESS).reg_bc, 0x0000);
+        assert_eq!(ld_c_c(HARNESS).reg_bc, 0x0013);
+        assert_eq!(ld_c_d(HARNESS).reg_bc, 0x0000);
+        assert_eq!(ld_c_e(HARNESS).reg_bc, 0x00D8);
+        assert_eq!(ld_c_h(HARNESS).reg_bc, 0x0001);
+        assert_eq!(ld_c_l(HARNESS).reg_bc, 0x004D);
+
+        assert_eq!(ld_d_a(HARNESS).reg_de, 0x01D8);
+        assert_eq!(ld_d_b(HARNESS).reg_de, 0x00D8);
+        assert_eq!(ld_d_c(HARNESS).reg_de, 0x13D8);
+        assert_eq!(ld_d_d(HARNESS).reg_de, 0x00D8);
+        assert_eq!(ld_d_e(HARNESS).reg_de, 0xD8D8);
+        assert_eq!(ld_d_h(HARNESS).reg_de, 0x01D8);
+        assert_eq!(ld_d_l(HARNESS).reg_de, 0x4DD8);
+
+        assert_eq!(ld_e_a(HARNESS).reg_de, 0x0001);
+        assert_eq!(ld_e_b(HARNESS).reg_de, 0x0000);
+        assert_eq!(ld_e_c(HARNESS).reg_de, 0x0013);
+        assert_eq!(ld_e_d(HARNESS).reg_de, 0x0000);
+        assert_eq!(ld_e_e(HARNESS).reg_de, 0x00D8);
+        assert_eq!(ld_e_h(HARNESS).reg_de, 0x0001);
+        assert_eq!(ld_e_l(HARNESS).reg_de, 0x004D);
+
+        assert_eq!(ld_h_a(HARNESS).reg_hl, 0x014D);
+        assert_eq!(ld_h_b(HARNESS).reg_hl, 0x004D);
+        assert_eq!(ld_h_c(HARNESS).reg_hl, 0x134D);
+        assert_eq!(ld_h_d(HARNESS).reg_hl, 0x004D);
+        assert_eq!(ld_h_e(HARNESS).reg_hl, 0xD84D);
+        assert_eq!(ld_h_h(HARNESS).reg_hl, 0x014D);
+        assert_eq!(ld_h_l(HARNESS).reg_hl, 0x4D4D);
+
+        assert_eq!(ld_l_a(HARNESS).reg_hl, 0x0101);
+        assert_eq!(ld_l_b(HARNESS).reg_hl, 0x0100);
+        assert_eq!(ld_l_c(HARNESS).reg_hl, 0x0113);
+        assert_eq!(ld_l_d(HARNESS).reg_hl, 0x0100);
+        assert_eq!(ld_l_e(HARNESS).reg_hl, 0x01D8);
+        assert_eq!(ld_l_h(HARNESS).reg_hl, 0x0101);
+        assert_eq!(ld_l_l(HARNESS).reg_hl, 0x014D);
     }
 }

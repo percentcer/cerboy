@@ -83,56 +83,61 @@ const fn reset() -> CPUState {
 // GMB 8bit-Loadcommands
 // ============================================================================
 //   ld   r,r         xx         4 ---- r=r
-const fn ld_a_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_a_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_a_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
-const fn ld_a_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
-const fn ld_a_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
-const fn ld_a_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
-const fn ld_a_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
-const fn ld_b_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_b_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_b_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
 const fn ld_b_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_b_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
 const fn ld_b_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_b_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
 const fn ld_b_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_b_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
 const fn ld_b_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
-const fn ld_d_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_d_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_d_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+
+const fn ld_c_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_c_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
+const fn ld_c_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_c_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
+const fn ld_c_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_c_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
+const fn ld_c_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+
 const fn ld_d_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_d_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
 const fn ld_d_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_d_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
 const fn ld_d_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_d_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
 const fn ld_d_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
-const fn ld_h_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_h_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_h_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+
+const fn ld_e_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_e_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
+const fn ld_e_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_e_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
+const fn ld_e_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_e_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
+const fn ld_e_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+
 const fn ld_h_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_h_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
 const fn ld_h_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_h_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
 const fn ld_h_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_h_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
 const fn ld_h_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
 
-const fn ld_c_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_c_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_c_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
-const fn ld_c_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
-const fn ld_c_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
-const fn ld_c_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
-const fn ld_c_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
-const fn ld_e_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_e_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_e_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
-const fn ld_e_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
-const fn ld_e_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
-const fn ld_e_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
-const fn ld_e_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
-const fn ld_l_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_l_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_l_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
 const fn ld_l_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
+const fn ld_l_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
 const fn ld_l_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
+const fn ld_l_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
 const fn ld_l_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
+const fn ld_l_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
 const fn ld_l_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+
+const fn ld_a_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
+const fn ld_a_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
+const fn ld_a_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
+const fn ld_a_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
+const fn ld_a_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
+const fn ld_a_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
+const fn ld_a_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
 
 //   ld   r,n         xx nn      8 ---- r=n
 const fn ld_b_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }

@@ -85,6 +85,9 @@ const fn reset() -> CPUState {
     }
 }
 
+const fn hi_b(reg: Word) -> Byte { (reg >> Byte::BITS) as Byte }
+const fn lo_b(reg: Word) -> Byte { (reg & LOW_MASK) as Byte }
+
 // GMB 8bit-Loadcommands
 // ============================================================================
 //   ld   r,r         xx         4 ---- r=r

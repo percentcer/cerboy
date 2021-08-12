@@ -202,8 +202,9 @@ const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
     }
 }
 
-const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
+const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     // z000
+    let reg: Word = arg as Word;
     let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
     let reg_af: Word = if reg_af != 0 { reg_af } else {
         reg_af | FL_Z
@@ -249,18 +250,18 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
-const fn xor_b(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc >> Byte::BITS) }
-const fn xor_c(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_bc & LOW_MASK) }
-const fn xor_d(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de >> Byte::BITS) }
-const fn xor_e(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_de & LOW_MASK) }
-const fn xor_h(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl >> Byte::BITS) }
-const fn xor_l(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_hl & LOW_MASK) }
-const fn xor_a(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_af >> Byte::BITS) }
+const fn xor_b(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_bc)) }
+const fn xor_c(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_bc)) }
+const fn xor_d(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_de)) }
+const fn xor_e(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_de)) }
+const fn xor_h(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_hl)) }
+const fn xor_l(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_hl)) }
+const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_af)) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
-const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    let res: CPUState = impl_xor_r(cpu, d8 as Word);
+const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
+    let res: CPUState = impl_xor(cpu, arg);
     CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
 }
 
@@ -439,7 +440,7 @@ mod tests_cpu {
 
     #[test]
     fn test_impl_xor_r() {
-        let result = impl_xor_r(HARNESS, 0x13);
+        let result = impl_xor(HARNESS, 0x13);
         assert_eq!(result.pc, HARNESS.pc + 1, "incorrect program counter");
         assert_eq!(result.tsc, HARNESS.tsc + 4, "incorrect time stamp counter");
         assert_eq!(result.reg_af, 0x1200, "incorrect value in reg_af (expected 0x{:X} got 0x{:X})", 0x1200, result.reg_af);

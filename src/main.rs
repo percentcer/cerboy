@@ -185,6 +185,23 @@ const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, t
 
 // GMB 8bit-Arithmetic/logical Commands
 // ============================================================================
+const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
+    // z0hc
+    let reg_a: Byte = hi_b(cpu.reg_af);
+    let half_carry: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 > 0;
+    let (result, carry) = reg_a.overflowing_add(arg);
+    let reg_af: Word = (result as Word) << Byte::BITS
+    | if result == 0 {FL_Z} else {0} 
+    | if half_carry {FL_H} else {0}
+    | if carry {FL_C} else {0};
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg_af,
+        ..cpu
+    }
+}
+
 const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
     // z000
     let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
@@ -200,6 +217,15 @@ const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
 }
 
 //   add  A,r         8x         4 z0hc A=A+r
+// ----------------------------------------------------------------------------
+const fn add_b(cpu: CPUState) -> CPUState { impl_add(cpu, hi_b(cpu.reg_bc)) }
+const fn add_c(cpu: CPUState) -> CPUState { impl_add(cpu, lo_b(cpu.reg_bc)) }
+const fn add_d(cpu: CPUState) -> CPUState { impl_add(cpu, hi_b(cpu.reg_de)) }
+const fn add_e(cpu: CPUState) -> CPUState { impl_add(cpu, lo_b(cpu.reg_de)) }
+const fn add_h(cpu: CPUState) -> CPUState { impl_add(cpu, hi_b(cpu.reg_hl)) }
+const fn add_l(cpu: CPUState) -> CPUState { impl_add(cpu, lo_b(cpu.reg_hl)) }
+const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, hi_b(cpu.reg_af)) }
+
 //   add  A,n         C6 nn      8 z0hc A=A+n
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 //   adc  A,r         8x         4 z0hc A=A+r+cy
@@ -506,5 +532,13 @@ mod tests_cpu {
         assert_eq!(ld_e_d8(HARNESS, 0xAF).reg_de, 0x00AF);
         assert_eq!(ld_h_d8(HARNESS, 0xAF).reg_hl, 0xAF4D);
         assert_eq!(ld_l_d8(HARNESS, 0xAF).reg_hl, 0x01AF);
+    }
+
+    #[test]
+    fn test_add() {
+        // reg a inits to 0x01
+        assert_eq!(impl_add(HARNESS, 0xff).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed 0xff");
+        assert_eq!(impl_add(HARNESS, 0x0f).reg_af, 0x1000 | FL_H, "failed 0x0f");
+        assert_eq!(impl_add(HARNESS, 0x01).reg_af, 0x0200, "failed 0x01");
     }
 }

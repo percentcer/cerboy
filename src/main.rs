@@ -227,6 +227,12 @@ const fn add_l(cpu: CPUState) -> CPUState { impl_add(cpu, lo(cpu.reg_hl)) }
 const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, hi(cpu.reg_af)) }
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
+// ----------------------------------------------------------------------------
+const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState { 
+    let res = impl_add(cpu, arg);
+    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+}
+
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 //   adc  A,r         8x         4 z0hc A=A+r+cy
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
@@ -254,9 +260,8 @@ const fn xor_a(cpu: CPUState) -> CPUState { impl_xor_r(cpu, cpu.reg_af >> Byte::
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    let base: CPUState = impl_xor_r(cpu, d8 as Word);
-    // additional machine cycle, additional argument
-    CPUState{pc: base.pc + 1, tsc: base.tsc + 4, ..base}
+    let res: CPUState = impl_xor_r(cpu, d8 as Word);
+    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
 }
 
 //   xor  (HL)        AE         8 z000

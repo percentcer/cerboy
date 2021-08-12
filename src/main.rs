@@ -56,6 +56,11 @@ type SWord = i16;
 const HIGH_MASK: Word = 0xFF00;
 const LOW_MASK: Word = 0x00FF;
 
+const FL_Z: Word = 1 << 7;
+const FL_N: Word = 1 << 6;
+const FL_H: Word = 1 << 5;
+const FL_C: Word = 1 << 4;
+
 #[derive(Copy, Clone)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
@@ -178,11 +183,10 @@ const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, t
 // GMB 8bit-Arithmetic/logical Commands
 // ============================================================================
 const fn impl_xor_r(cpu: CPUState, reg: Word) -> CPUState {
+    // z000
     let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
     let reg_af: Word = if reg_af != 0 { reg_af } else {
-        // Z N H C
-        // 1 0 0 0
-        reg_af ^ 0x0080
+        reg_af | FL_Z
     };
     CPUState {
         pc: cpu.pc + 1,

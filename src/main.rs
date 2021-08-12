@@ -427,9 +427,9 @@ fn main() {
     // loop
     // ------------
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let mut c: u32 = 0;
+        let mut c: usize = 0;
         for i in buffer.iter_mut() {
-            *i = (c % 2 * 0xff00ff);
+            *i = rom[c] as u32;
             c += 1;
         }
 

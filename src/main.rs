@@ -415,7 +415,7 @@ const fn nop(cpu: CPUState) -> CPUState {
 
 //   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 // ----------------------------------------------------------------------------
-fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+const fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
         pc: (high as Word) << Byte::BITS | (low as Word),
         tsc: cpu.tsc + 16,

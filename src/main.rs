@@ -53,7 +53,7 @@ const FL_N: Word = 1 << 6;
 const FL_H: Word = 1 << 5;
 const FL_C: Word = 1 << 4;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
     reg_af: Word,

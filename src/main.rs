@@ -282,6 +282,15 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 }
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
+// ----------------------------------------------------------------------------
+const fn add_aHL(cpu: CPUState, mem: &[Byte; MEM_SIZE]) -> CPUState {
+    let res = impl_add(cpu, mem[cpu.reg_hl as usize]);
+    CPUState {
+        tsc: res.tsc + 4,
+        ..res
+    }
+}
+
 //   adc  A,r         8x         4 z0hc A=A+r+cy
 // ----------------------------------------------------------------------------
 const fn adc_b(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_bc)) }
@@ -606,5 +615,17 @@ mod tests_cpu {
         assert_eq!(impl_adc(cpu_c, 0x0F).reg_af, 0x1100 | FL_H, "failed carry 0x0F");
         assert_eq!(impl_adc(cpu, 0x01).reg_af, 0x0200, "failed plain 0x01");
         assert_eq!(impl_adc(cpu_c, 0x01).reg_af, 0x0300, "failed carry 0x01");
+    }
+
+    #[test]
+    fn test_add_aHL() {
+        let mut mem = init_mem();
+        let cpu = CPUState {
+            reg_af: 0x0100,
+            reg_hl: 0x0001,
+            ..INITIAL
+        };
+        mem[cpu.reg_hl as usize] = 0x0F;
+        assert_eq!(add_aHL(cpu, &mem).reg_af, 0x1000 | FL_H);
     }
 }

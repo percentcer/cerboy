@@ -229,7 +229,25 @@ const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
         ..cpu
     }
 }
-
+const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
+    // z0hc
+    if cpu.reg_af & FL_C > 0 {
+        let cpu_pre = impl_add(cpu, arg);
+        let cpu_post = impl_add(cpu_pre, 0x01);
+        // ignore Z from pre but keep it in post
+        // keep H and C flags if they were set in either operation
+        let flags: Word = (cpu_post.reg_af & LOW_MASK)
+        | (cpu_pre.reg_af & (FL_H | FL_C));
+        CPUState {
+            pc: cpu.pc + 1,
+            tsc: cpu.tsc + 4,
+            reg_af: (cpu_post.reg_af & HIGH_MASK) | flags,
+            ..cpu_post
+        }
+    } else {
+        impl_add(cpu, arg)
+    }
+}
 const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     // z000
     let reg: Word = arg as Word;
@@ -264,7 +282,22 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 //   adc  A,r         8x         4 z0hc A=A+r+cy
+// ----------------------------------------------------------------------------
+const fn adc_b(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_bc)) }
+const fn adc_c(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_bc)) }
+const fn adc_d(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_de)) }
+const fn adc_e(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_de)) }
+const fn adc_h(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_hl)) }
+const fn adc_l(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_hl)) }
+const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_af)) }
+
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
+// ----------------------------------------------------------------------------
+const fn adc_d8(cpu: CPUState, arg: Byte) -> CPUState {  
+    let res = impl_adc(cpu, arg);
+    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+}
+
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
 //   sub  r           9x         4 z1hc A=A-r
 //   sub  n           D6 nn      8 z1hc A=A-n
@@ -555,5 +588,22 @@ mod tests_cpu {
         assert_eq!(impl_add(INITIAL, 0x0F).reg_af, 0x1000 | FL_H, "failed 0x0f");
         assert_eq!(impl_add(INITIAL, 0x01).reg_af, 0x0200, "failed 0x01");
     }
+
+    #[test]
+    fn test_adc() {
+        let cpu = CPUState {
+            reg_af: 0x0100,
+            ..INITIAL
+        };
+        let cpu_c = CPUState {
+            reg_af: 0x0100 | FL_C,
+            ..INITIAL
+        };
+        assert_eq!(impl_adc(cpu, 0xFE).reg_af, 0xFF00, "failed plain 0xFE");
+        assert_eq!(impl_adc(cpu_c, 0xFE).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed carry 0xFE");
+        assert_eq!(impl_adc(cpu, 0x0F).reg_af, 0x1000 | FL_H, "failed plain 0x0F");
+        assert_eq!(impl_adc(cpu_c, 0x0F).reg_af, 0x1100 | FL_H, "failed carry 0x0F");
+        assert_eq!(impl_adc(cpu, 0x01).reg_af, 0x0200, "failed plain 0x01");
+        assert_eq!(impl_adc(cpu_c, 0x01).reg_af, 0x0300, "failed carry 0x01");
     }
 }

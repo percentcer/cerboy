@@ -444,19 +444,19 @@ fn main() {
 mod tests_cpu {
     use super::*;
 
-    const HARNESS: CPUState = reset();
+    const INITIAL: CPUState = reset();
 
     #[test]
     fn test_impl_xor_r() {
-        let result = impl_xor(HARNESS, 0x13);
-        assert_eq!(result.pc, HARNESS.pc + 1, "incorrect program counter");
-        assert_eq!(result.tsc, HARNESS.tsc + 4, "incorrect time stamp counter");
+        let result = impl_xor(INITIAL, 0x13);
+        assert_eq!(result.pc, INITIAL.pc + 1, "incorrect program counter");
+        assert_eq!(result.tsc, INITIAL.tsc + 4, "incorrect time stamp counter");
         assert_eq!(result.reg_af, 0x1200, "incorrect value in reg_af (expected 0x{:X} got 0x{:X})", 0x1200, result.reg_af);
     }
 
     #[test]
     fn test_xor_a() {
-        let result = xor_a(HARNESS);
+        let result = xor_a(INITIAL);
         assert_eq!(result.reg_af, 0x0080);
     }
 
@@ -464,7 +464,7 @@ mod tests_cpu {
     fn test_xor_bc() {
         let state = CPUState {
             reg_bc: 0xCD11,
-            ..HARNESS
+            ..INITIAL
         };
         assert_eq!(xor_b(state).reg_af, 0xCC00);
         assert_eq!(xor_c(state).reg_af, 0x1000);
@@ -472,87 +472,88 @@ mod tests_cpu {
 
     #[test]
     fn test_xor_d8() {
-        let result = xor_d8(HARNESS, 0xFF);
-        assert_eq!(result.pc, HARNESS.pc + 2, "incorrect program counter");
-        assert_eq!(result.tsc, HARNESS.tsc + 8, "incorrect time stamp counter");
+        let result = xor_d8(INITIAL, 0xFF);
+        assert_eq!(result.pc, INITIAL.pc + 2, "incorrect program counter");
+        assert_eq!(result.tsc, INITIAL.tsc + 8, "incorrect time stamp counter");
         assert_eq!(result.reg_af, 0xFE00, "incorrect xor value in reg a");
     }
     
     #[test]
     fn test_ld_r_r() {
-        assert_eq!(ld_a_a(HARNESS).reg_af, 0x01B0);
-        assert_eq!(ld_a_b(HARNESS).reg_af, 0x00B0);
-        assert_eq!(ld_a_c(HARNESS).reg_af, 0x13B0);
-        assert_eq!(ld_a_d(HARNESS).reg_af, 0x00B0);
-        assert_eq!(ld_a_e(HARNESS).reg_af, 0xD8B0);
-        assert_eq!(ld_a_h(HARNESS).reg_af, 0x01B0);
-        assert_eq!(ld_a_l(HARNESS).reg_af, 0x4DB0);
+        assert_eq!(ld_a_a(INITIAL).reg_af, 0x01B0);
+        assert_eq!(ld_a_b(INITIAL).reg_af, 0x00B0);
+        assert_eq!(ld_a_c(INITIAL).reg_af, 0x13B0);
+        assert_eq!(ld_a_d(INITIAL).reg_af, 0x00B0);
+        assert_eq!(ld_a_e(INITIAL).reg_af, 0xD8B0);
+        assert_eq!(ld_a_h(INITIAL).reg_af, 0x01B0);
+        assert_eq!(ld_a_l(INITIAL).reg_af, 0x4DB0);
 
-        assert_eq!(ld_b_a(HARNESS).reg_bc, 0x0113);
-        assert_eq!(ld_b_b(HARNESS).reg_bc, 0x0013);
-        assert_eq!(ld_b_c(HARNESS).reg_bc, 0x1313);
-        assert_eq!(ld_b_d(HARNESS).reg_bc, 0x0013);
-        assert_eq!(ld_b_e(HARNESS).reg_bc, 0xD813);
-        assert_eq!(ld_b_h(HARNESS).reg_bc, 0x0113);
-        assert_eq!(ld_b_l(HARNESS).reg_bc, 0x4D13);
+        assert_eq!(ld_b_a(INITIAL).reg_bc, 0x0113);
+        assert_eq!(ld_b_b(INITIAL).reg_bc, 0x0013);
+        assert_eq!(ld_b_c(INITIAL).reg_bc, 0x1313);
+        assert_eq!(ld_b_d(INITIAL).reg_bc, 0x0013);
+        assert_eq!(ld_b_e(INITIAL).reg_bc, 0xD813);
+        assert_eq!(ld_b_h(INITIAL).reg_bc, 0x0113);
+        assert_eq!(ld_b_l(INITIAL).reg_bc, 0x4D13);
 
-        assert_eq!(ld_c_a(HARNESS).reg_bc, 0x0001);
-        assert_eq!(ld_c_b(HARNESS).reg_bc, 0x0000);
-        assert_eq!(ld_c_c(HARNESS).reg_bc, 0x0013);
-        assert_eq!(ld_c_d(HARNESS).reg_bc, 0x0000);
-        assert_eq!(ld_c_e(HARNESS).reg_bc, 0x00D8);
-        assert_eq!(ld_c_h(HARNESS).reg_bc, 0x0001);
-        assert_eq!(ld_c_l(HARNESS).reg_bc, 0x004D);
+        assert_eq!(ld_c_a(INITIAL).reg_bc, 0x0001);
+        assert_eq!(ld_c_b(INITIAL).reg_bc, 0x0000);
+        assert_eq!(ld_c_c(INITIAL).reg_bc, 0x0013);
+        assert_eq!(ld_c_d(INITIAL).reg_bc, 0x0000);
+        assert_eq!(ld_c_e(INITIAL).reg_bc, 0x00D8);
+        assert_eq!(ld_c_h(INITIAL).reg_bc, 0x0001);
+        assert_eq!(ld_c_l(INITIAL).reg_bc, 0x004D);
 
-        assert_eq!(ld_d_a(HARNESS).reg_de, 0x01D8);
-        assert_eq!(ld_d_b(HARNESS).reg_de, 0x00D8);
-        assert_eq!(ld_d_c(HARNESS).reg_de, 0x13D8);
-        assert_eq!(ld_d_d(HARNESS).reg_de, 0x00D8);
-        assert_eq!(ld_d_e(HARNESS).reg_de, 0xD8D8);
-        assert_eq!(ld_d_h(HARNESS).reg_de, 0x01D8);
-        assert_eq!(ld_d_l(HARNESS).reg_de, 0x4DD8);
+        assert_eq!(ld_d_a(INITIAL).reg_de, 0x01D8);
+        assert_eq!(ld_d_b(INITIAL).reg_de, 0x00D8);
+        assert_eq!(ld_d_c(INITIAL).reg_de, 0x13D8);
+        assert_eq!(ld_d_d(INITIAL).reg_de, 0x00D8);
+        assert_eq!(ld_d_e(INITIAL).reg_de, 0xD8D8);
+        assert_eq!(ld_d_h(INITIAL).reg_de, 0x01D8);
+        assert_eq!(ld_d_l(INITIAL).reg_de, 0x4DD8);
 
-        assert_eq!(ld_e_a(HARNESS).reg_de, 0x0001);
-        assert_eq!(ld_e_b(HARNESS).reg_de, 0x0000);
-        assert_eq!(ld_e_c(HARNESS).reg_de, 0x0013);
-        assert_eq!(ld_e_d(HARNESS).reg_de, 0x0000);
-        assert_eq!(ld_e_e(HARNESS).reg_de, 0x00D8);
-        assert_eq!(ld_e_h(HARNESS).reg_de, 0x0001);
-        assert_eq!(ld_e_l(HARNESS).reg_de, 0x004D);
+        assert_eq!(ld_e_a(INITIAL).reg_de, 0x0001);
+        assert_eq!(ld_e_b(INITIAL).reg_de, 0x0000);
+        assert_eq!(ld_e_c(INITIAL).reg_de, 0x0013);
+        assert_eq!(ld_e_d(INITIAL).reg_de, 0x0000);
+        assert_eq!(ld_e_e(INITIAL).reg_de, 0x00D8);
+        assert_eq!(ld_e_h(INITIAL).reg_de, 0x0001);
+        assert_eq!(ld_e_l(INITIAL).reg_de, 0x004D);
 
-        assert_eq!(ld_h_a(HARNESS).reg_hl, 0x014D);
-        assert_eq!(ld_h_b(HARNESS).reg_hl, 0x004D);
-        assert_eq!(ld_h_c(HARNESS).reg_hl, 0x134D);
-        assert_eq!(ld_h_d(HARNESS).reg_hl, 0x004D);
-        assert_eq!(ld_h_e(HARNESS).reg_hl, 0xD84D);
-        assert_eq!(ld_h_h(HARNESS).reg_hl, 0x014D);
-        assert_eq!(ld_h_l(HARNESS).reg_hl, 0x4D4D);
+        assert_eq!(ld_h_a(INITIAL).reg_hl, 0x014D);
+        assert_eq!(ld_h_b(INITIAL).reg_hl, 0x004D);
+        assert_eq!(ld_h_c(INITIAL).reg_hl, 0x134D);
+        assert_eq!(ld_h_d(INITIAL).reg_hl, 0x004D);
+        assert_eq!(ld_h_e(INITIAL).reg_hl, 0xD84D);
+        assert_eq!(ld_h_h(INITIAL).reg_hl, 0x014D);
+        assert_eq!(ld_h_l(INITIAL).reg_hl, 0x4D4D);
 
-        assert_eq!(ld_l_a(HARNESS).reg_hl, 0x0101);
-        assert_eq!(ld_l_b(HARNESS).reg_hl, 0x0100);
-        assert_eq!(ld_l_c(HARNESS).reg_hl, 0x0113);
-        assert_eq!(ld_l_d(HARNESS).reg_hl, 0x0100);
-        assert_eq!(ld_l_e(HARNESS).reg_hl, 0x01D8);
-        assert_eq!(ld_l_h(HARNESS).reg_hl, 0x0101);
-        assert_eq!(ld_l_l(HARNESS).reg_hl, 0x014D);
+        assert_eq!(ld_l_a(INITIAL).reg_hl, 0x0101);
+        assert_eq!(ld_l_b(INITIAL).reg_hl, 0x0100);
+        assert_eq!(ld_l_c(INITIAL).reg_hl, 0x0113);
+        assert_eq!(ld_l_d(INITIAL).reg_hl, 0x0100);
+        assert_eq!(ld_l_e(INITIAL).reg_hl, 0x01D8);
+        assert_eq!(ld_l_h(INITIAL).reg_hl, 0x0101);
+        assert_eq!(ld_l_l(INITIAL).reg_hl, 0x014D);
     }
 
     #[test]
     fn test_ld_r_d8() {
-        assert_eq!(ld_a_d8(HARNESS, 0xAF).reg_af, 0xAFB0);
-        assert_eq!(ld_b_d8(HARNESS, 0xAF).reg_bc, 0xAF13);
-        assert_eq!(ld_c_d8(HARNESS, 0xAF).reg_bc, 0x00AF);
-        assert_eq!(ld_d_d8(HARNESS, 0xAF).reg_de, 0xAFD8);
-        assert_eq!(ld_e_d8(HARNESS, 0xAF).reg_de, 0x00AF);
-        assert_eq!(ld_h_d8(HARNESS, 0xAF).reg_hl, 0xAF4D);
-        assert_eq!(ld_l_d8(HARNESS, 0xAF).reg_hl, 0x01AF);
+        assert_eq!(ld_a_d8(INITIAL, 0xAF).reg_af, 0xAFB0);
+        assert_eq!(ld_b_d8(INITIAL, 0xAF).reg_bc, 0xAF13);
+        assert_eq!(ld_c_d8(INITIAL, 0xAF).reg_bc, 0x00AF);
+        assert_eq!(ld_d_d8(INITIAL, 0xAF).reg_de, 0xAFD8);
+        assert_eq!(ld_e_d8(INITIAL, 0xAF).reg_de, 0x00AF);
+        assert_eq!(ld_h_d8(INITIAL, 0xAF).reg_hl, 0xAF4D);
+        assert_eq!(ld_l_d8(INITIAL, 0xAF).reg_hl, 0x01AF);
     }
 
     #[test]
     fn test_add() {
         // reg a inits to 0x01
-        assert_eq!(impl_add(HARNESS, 0xff).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed 0xff");
-        assert_eq!(impl_add(HARNESS, 0x0f).reg_af, 0x1000 | FL_H, "failed 0x0f");
-        assert_eq!(impl_add(HARNESS, 0x01).reg_af, 0x0200, "failed 0x01");
+        assert_eq!(impl_add(INITIAL, 0xFF).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed 0xff");
+        assert_eq!(impl_add(INITIAL, 0x0F).reg_af, 0x1000 | FL_H, "failed 0x0f");
+        assert_eq!(impl_add(INITIAL, 0x01).reg_af, 0x0200, "failed 0x01");
+    }
     }
 }

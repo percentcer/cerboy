@@ -39,6 +39,7 @@ use std::io::Read;
 const GB_SCREEN_WIDTH : usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
 const ROM_MAX: usize = 0x200000;
+const MEM_SIZE: usize = 0xFFFF + 1;
 
 type Byte = u8;
 type Word = u16;
@@ -77,8 +78,8 @@ const fn init_cpu() -> CPUState {
     }
 }
 
-fn reset_mem() -> Vec<Byte> {
-    let mut mem: Vec<Byte> = vec![0; Word::MAX as usize + 1];
+fn init_mem() -> Box<[Byte; MEM_SIZE]> {
+    let mut mem = Box::new([0; MEM_SIZE]);
     mem[0xFF05] = 0x00; //TIMA
     mem[0xFF06] = 0x00; //TMA
     mem[0xFF07] = 0x00; //TAC
@@ -455,7 +456,7 @@ fn main() {
 
     // memory stuff
     // ------------
-    let mut mem: Vec<Byte> = reset_mem();
+    let mut mem: Box<[Byte; MEM_SIZE]> = init_mem();
 
     // loop
     // ------------

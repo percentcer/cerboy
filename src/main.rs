@@ -65,7 +65,7 @@ struct CPUState {
 }
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
-const fn reset() -> CPUState {
+const fn init_cpu() -> CPUState {
     CPUState {
         tsc: 0,
         reg_af: 0x01B0,
@@ -477,7 +477,7 @@ fn main() {
 mod tests_cpu {
     use super::*;
 
-    const INITIAL: CPUState = reset();
+    const INITIAL: CPUState = init_cpu();
 
     #[test]
     fn test_impl_xor_r() {

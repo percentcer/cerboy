@@ -427,7 +427,20 @@ const fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   jp   f,nn      xx nn nn 16;12 ---- conditional jump if nz,z,nc,c
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
+
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
+// ----------------------------------------------------------------------------
+fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUState {
+    mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
+    mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
+    CPUState {
+        tsc: cpu.tsc + 24,
+        sp: cpu.sp - 2,
+        pc: (high as Word) << Byte::BITS | (low as Word),
+        ..cpu
+    }
+}
+
 //   call f,nn      xx nn nn 24;12 ---- conditional call if nz,z,nc,c
 //   ret            C9          16 ---- return, PC=(SP), SP=SP+2
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
@@ -627,5 +640,14 @@ mod tests_cpu {
         };
         mem[cpu.reg_hl as usize] = 0x0F;
         assert_eq!(add_aHL(cpu, &mem).reg_af, 0x1000 | FL_H);
+    }
+
+    #[test]
+    fn test_call_d16() {
+        let mut mem = init_mem();
+        let result = call_d16(INITIAL, &mut mem, 0x01, 0x02);
+        assert_eq!(mem[(INITIAL.sp - 0) as usize], hi(INITIAL.pc), "failed high check");
+        assert_eq!(mem[(INITIAL.sp - 1) as usize], lo(INITIAL.pc), "failed low check");
+        assert_eq!(result.pc, 0x0201, "failed sp check")
     }
 }

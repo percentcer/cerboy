@@ -49,18 +49,25 @@ type SWord = i16;
 const HIGH_MASK: Word = 0xFF00;
 const LOW_MASK: Word = 0x00FF;
 
-const FL_Z: Word = 1 << 7;
-const FL_N: Word = 1 << 6;
-const FL_H: Word = 1 << 5;
-const FL_C: Word = 1 << 4;
+const FL_Z: Byte = 1 << 7;
+const FL_N: Byte = 1 << 6;
+const FL_H: Byte = 1 << 5;
+const FL_C: Byte = 1 << 4;
+
+// indices
+const REG_B: usize = 0;
+const REG_C: usize = 1;
+const REG_D: usize = 2;
+const REG_E: usize = 3;
+const REG_H: usize = 4;
+const REG_L: usize = 5;
+const FLAGS: usize = 6;
+const REG_A: usize = 7;
 
 #[derive(Copy, Clone, Debug)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
-    reg_af: Word,
-    reg_bc: Word,
-    reg_de: Word,
-    reg_hl: Word,
+    reg: [Byte;8],
     sp: Word,
     pc: Word,
 }
@@ -69,13 +76,15 @@ struct CPUState {
 const fn init_cpu() -> CPUState {
     CPUState {
         tsc: 0,
-        reg_af: 0x01B0,
-        reg_bc: 0x0013,
-        reg_de: 0x00D8,
-        reg_hl: 0x014D,
+        //    B     C     D     E     H     L     F     A
+        reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
         sp: 0xFFFE,
         pc: 0
     }
+}
+
+const fn combine(high: Byte, low: Byte) -> Word {
+    (high as Word) << Byte::BITS | (low as Word)
 }
 
 fn init_mem() -> Vec<Byte> {
@@ -121,71 +130,82 @@ const fn lo(reg: Word) -> Byte { (reg & LOW_MASK) as Byte }
 // ============================================================================
 //   ld   r,r         xx         4 ---- r=r
 // ----------------------------------------------------------------------------
-const fn ld_b_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
-const fn ld_b_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_b_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
-const fn ld_b_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_b_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
-const fn ld_b_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
-const fn ld_b_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[dst] = val;
+    CPUState{
+        pc: cpu.pc+1, 
+        tsc: cpu.tsc+4,
+        reg,
+        ..cpu}
+}
 
-const fn ld_c_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
-const fn ld_c_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_c_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
-const fn ld_c_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_c_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
-const fn ld_c_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
-const fn ld_c_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_bc: (cpu.reg_bc & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+// todo: the index arguments could be extracted from the opcode
+const fn ld_b_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B]) }
+const fn ld_b_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C]) }
+const fn ld_b_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D]) }
+const fn ld_b_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E]) }
+const fn ld_b_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H]) }
+const fn ld_b_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L]) }
+const fn ld_b_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A]) }
 
-const fn ld_d_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
-const fn ld_d_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_d_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
-const fn ld_d_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_d_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
-const fn ld_d_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
-const fn ld_d_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_c_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B]) }
+const fn ld_c_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C]) }
+const fn ld_c_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D]) }
+const fn ld_c_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E]) }
+const fn ld_c_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H]) }
+const fn ld_c_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L]) }
+const fn ld_c_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A]) }
 
-const fn ld_e_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
-const fn ld_e_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_e_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
-const fn ld_e_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_e_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
-const fn ld_e_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
-const fn ld_e_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_de: (cpu.reg_de & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+const fn ld_d_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B]) }
+const fn ld_d_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C]) }
+const fn ld_d_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D]) }
+const fn ld_d_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E]) }
+const fn ld_d_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H]) }
+const fn ld_d_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L]) }
+const fn ld_d_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A]) }
 
-const fn ld_h_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
-const fn ld_h_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_h_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
-const fn ld_h_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_h_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
-const fn ld_h_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
-const fn ld_h_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_e_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B]) }
+const fn ld_e_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C]) }
+const fn ld_e_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D]) }
+const fn ld_e_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E]) }
+const fn ld_e_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H]) }
+const fn ld_e_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L]) }
+const fn ld_e_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A]) }
 
-const fn ld_l_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc >> Byte::BITS), ..cpu} }
-const fn ld_l_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_bc & LOW_MASK), ..cpu} }
-const fn ld_l_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de >> Byte::BITS), ..cpu} }
-const fn ld_l_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_de & LOW_MASK), ..cpu} }
-const fn ld_l_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl >> Byte::BITS), ..cpu} }
-const fn ld_l_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_hl & LOW_MASK), ..cpu} }
-const fn ld_l_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_hl: (cpu.reg_hl & HIGH_MASK) | (cpu.reg_af >> Byte::BITS), ..cpu} }
+const fn ld_h_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B]) }
+const fn ld_h_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C]) }
+const fn ld_h_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D]) }
+const fn ld_h_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E]) }
+const fn ld_h_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H]) }
+const fn ld_h_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L]) }
+const fn ld_h_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A]) }
 
-const fn ld_a_b(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc & HIGH_MASK), ..cpu} }
-const fn ld_a_c(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_bc << Byte::BITS), ..cpu} }
-const fn ld_a_d(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de & HIGH_MASK), ..cpu} }
-const fn ld_a_e(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_de << Byte::BITS), ..cpu} }
-const fn ld_a_h(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl & HIGH_MASK), ..cpu} }
-const fn ld_a_l(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_hl << Byte::BITS), ..cpu} }
-const fn ld_a_a(cpu: CPUState) -> CPUState { CPUState{pc: cpu.pc+1, tsc: cpu.tsc+4, reg_af: (cpu.reg_af & LOW_MASK) | (cpu.reg_af & HIGH_MASK), ..cpu} }
+const fn ld_l_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B]) }
+const fn ld_l_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C]) }
+const fn ld_l_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D]) }
+const fn ld_l_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E]) }
+const fn ld_l_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H]) }
+const fn ld_l_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L]) }
+const fn ld_l_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A]) }
+
+const fn ld_a_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B]) }
+const fn ld_a_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C]) }
+const fn ld_a_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D]) }
+const fn ld_a_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E]) }
+const fn ld_a_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H]) }
+const fn ld_a_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L]) }
+const fn ld_a_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A]) }
 
 //   ld   r,n         xx nn      8 ---- r=n
 // ----------------------------------------------------------------------------
-const fn ld_b_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
-const fn ld_c_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_bc: (cpu.reg_bc & HIGH_MASK) | d8, ..cpu} }
-const fn ld_d_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_de: (cpu.reg_de & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
-const fn ld_e_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_de: (cpu.reg_de & HIGH_MASK) | d8, ..cpu} }
-const fn ld_h_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_hl: (cpu.reg_hl & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
-const fn ld_l_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_hl: (cpu.reg_hl & HIGH_MASK) | d8, ..cpu} }
-const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, tsc: cpu.tsc+8, reg_af: (cpu.reg_af & LOW_MASK) | (d8 << Byte::BITS), ..cpu} }
+const fn ld_b_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_B, d8) }
+const fn ld_c_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_C, d8) }
+const fn ld_d_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_D, d8) }
+const fn ld_e_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_E, d8) }
+const fn ld_h_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_H, d8) }
+const fn ld_l_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_L, d8) }
+const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_A, d8) }
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 //   ld   (HL),r      7x         8 ---- (HL)=r
@@ -216,33 +236,42 @@ const fn ld_a_d8(cpu: CPUState, d8: Word) -> CPUState { CPUState{pc: cpu.pc+2, t
 // ============================================================================
 const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
     // z0hc
-    let reg_a: Byte = hi(cpu.reg_af);
-    let half_carry: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 > 0;
-    let (result, carry) = reg_a.overflowing_add(arg);
-    let reg_af: Word = (result as Word) << Byte::BITS
-    | if result == 0 {FL_Z} else {0} 
-    | if half_carry {FL_H} else {0}
-    | if carry {FL_C} else {0};
+    let mut reg = cpu.reg;
+    let reg_a: Byte = cpu.reg[REG_A];
+
+    let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 > 0;
+    let (result, c) = reg_a.overflowing_add(arg);
+    let flags: Byte = if result == 0 {FL_Z} else {0} 
+                    | if h {FL_H} else {0}
+                    | if c {FL_C} else {0};
+    
+    reg[REG_A] = result;
+    reg[FLAGS] = flags;
+
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 4,
-        reg_af,
+        reg,
         ..cpu
     }
 }
 const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
     // z0hc
-    if cpu.reg_af & FL_C > 0 {
+    if cpu.reg[FLAGS] & FL_C > 0 {
         let cpu_pre = impl_add(cpu, arg);
         let cpu_post = impl_add(cpu_pre, 0x01);
         // ignore Z from pre but keep it in post
         // keep H and C flags if they were set in either operation
-        let flags: Word = (cpu_post.reg_af & LOW_MASK)
-        | (cpu_pre.reg_af & (FL_H | FL_C));
+        let flags: Byte = cpu_post.reg[FLAGS]
+        | (cpu_pre.reg[FLAGS] & (FL_H | FL_C));
+
+        let mut reg = cpu_post.reg;
+        reg[FLAGS] = flags;
+
         CPUState {
             pc: cpu.pc + 1,
             tsc: cpu.tsc + 4,
-            reg_af: (cpu_post.reg_af & HIGH_MASK) | flags,
+            reg,
             ..cpu_post
         }
     } else {
@@ -251,37 +280,47 @@ const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
 }
 const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     // z000
-    let reg: Word = arg as Word;
-    let reg_af: Word = (cpu.reg_af ^ (reg << Byte::BITS)) & HIGH_MASK;
-    let reg_af: Word = if reg_af != 0 { reg_af } else {
-        reg_af | FL_Z
+    let mut reg = cpu.reg;
+
+    reg[REG_A] = reg[REG_A] ^ arg;
+    reg[FLAGS] = if reg[REG_A] == 0 {
+        FL_Z
+    } else {
+        0x00
     };
+
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 4,
-        reg_af: reg_af,
+        reg,
         ..cpu
     }
 }
-const fn impl_inc(cpu: CPUState, arg: Byte) -> (CPUState, Byte) {
+const fn impl_inc(cpu: CPUState, dst: usize) -> CPUState {
     // z0h-
-    let (res, z) = arg.overflowing_add(1);
-    let h = arg & 0x0F == 0x0F;
-    let reg_af = cpu.reg_af & 0xFF10 // maintain the carry, we'll set the rest
+    let mut reg = cpu.reg;
+    
+    let h = reg[dst] & 0x0F == 0x0F;
+    let (res, z) = reg[dst].overflowing_add(1);
+    let flags = reg[FLAGS] & 0x10 // maintain the carry, we'll set the rest
     | if z {FL_Z} else {0}
     | if h {FL_H} else {0};
-    (CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg_af, ..cpu}, res)
+
+    reg[dst] = res;
+    reg[FLAGS] = flags;
+
+    CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu}
 }
 
 //   add  A,r         8x         4 z0hc A=A+r
 // ----------------------------------------------------------------------------
-const fn add_b(cpu: CPUState) -> CPUState { impl_add(cpu, hi(cpu.reg_bc)) }
-const fn add_c(cpu: CPUState) -> CPUState { impl_add(cpu, lo(cpu.reg_bc)) }
-const fn add_d(cpu: CPUState) -> CPUState { impl_add(cpu, hi(cpu.reg_de)) }
-const fn add_e(cpu: CPUState) -> CPUState { impl_add(cpu, lo(cpu.reg_de)) }
-const fn add_h(cpu: CPUState) -> CPUState { impl_add(cpu, hi(cpu.reg_hl)) }
-const fn add_l(cpu: CPUState) -> CPUState { impl_add(cpu, lo(cpu.reg_hl)) }
-const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, hi(cpu.reg_af)) }
+const fn add_b(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_B]) }
+const fn add_c(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_C]) }
+const fn add_d(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_D]) }
+const fn add_e(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_E]) }
+const fn add_h(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_H]) }
+const fn add_l(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_L]) }
+const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_A]) }
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
 // ----------------------------------------------------------------------------
@@ -293,7 +332,8 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
 const fn add_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    let res = impl_add(cpu, mem[cpu.reg_hl as usize]);
+    let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
+    let res = impl_add(cpu, mem[addr]);
     CPUState {
         tsc: res.tsc + 4,
         ..res
@@ -302,13 +342,13 @@ const fn add_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   adc  A,r         8x         4 z0hc A=A+r+cy
 // ----------------------------------------------------------------------------
-const fn adc_b(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_bc)) }
-const fn adc_c(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_bc)) }
-const fn adc_d(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_de)) }
-const fn adc_e(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_de)) }
-const fn adc_h(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_hl)) }
-const fn adc_l(cpu: CPUState) -> CPUState { impl_adc(cpu, lo(cpu.reg_hl)) }
-const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, hi(cpu.reg_af)) }
+const fn adc_b(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_B]) }
+const fn adc_c(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_C]) }
+const fn adc_d(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_D]) }
+const fn adc_e(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_E]) }
+const fn adc_h(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_H]) }
+const fn adc_l(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_L]) }
+const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_A]) }
 
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
 // ----------------------------------------------------------------------------
@@ -330,13 +370,13 @@ const fn adc_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
-const fn xor_b(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_bc)) }
-const fn xor_c(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_bc)) }
-const fn xor_d(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_de)) }
-const fn xor_e(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_de)) }
-const fn xor_h(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_hl)) }
-const fn xor_l(cpu: CPUState) -> CPUState { impl_xor(cpu, lo(cpu.reg_hl)) }
-const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, hi(cpu.reg_af)) }
+const fn xor_b(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_B]) }
+const fn xor_c(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_C]) }
+const fn xor_d(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_D]) }
+const fn xor_e(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_E]) }
+const fn xor_h(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_H]) }
+const fn xor_l(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_L]) }
+const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_A]) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
@@ -355,34 +395,13 @@ const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   inc  r           xx         4 z0h- r=r+1
 // ----------------------------------------------------------------------------
-const fn inc_b(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_bc));
-    CPUState { reg_bc: (res as Word) << Byte::BITS | (cpu.reg_bc & LOW_MASK), ..cpu }
-}
-const fn inc_c(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_bc));
-    CPUState { reg_bc: (cpu.reg_bc & HIGH_MASK) | (res as Word), ..cpu }
-}
-const fn inc_d(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_de));
-    CPUState { reg_de: (res as Word) << Byte::BITS | (cpu.reg_de & LOW_MASK), ..cpu }
-}
-const fn inc_e(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_de));
-    CPUState { reg_de: (cpu.reg_de & HIGH_MASK) | (res as Word), ..cpu }
-}
-const fn inc_h(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_hl));
-    CPUState { reg_hl: (res as Word) << Byte::BITS | (cpu.reg_hl & LOW_MASK), ..cpu }
-}
-const fn inc_l(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_hl));
-    CPUState { reg_hl: (cpu.reg_hl & HIGH_MASK) | (res as Word), ..cpu }
-}
-const fn inc_a(cpu: CPUState) -> CPUState {
-    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_af));
-    CPUState { reg_af: (res as Word) << Byte::BITS | (cpu.reg_af & LOW_MASK), ..cpu }
-}
+const fn inc_b(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_B) }
+const fn inc_c(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_C) }
+const fn inc_d(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_D) }
+const fn inc_e(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_E) }
+const fn inc_h(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_H) }
+const fn inc_l(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_L) }
+const fn inc_a(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_A) }
 
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
 //   dec  r           xx         4 z1h- r=r-1
@@ -547,23 +566,25 @@ mod tests_cpu {
         let result = impl_xor(INITIAL, 0x13);
         assert_eq!(result.pc, INITIAL.pc + 1, "incorrect program counter");
         assert_eq!(result.tsc, INITIAL.tsc + 4, "incorrect time stamp counter");
-        assert_eq!(result.reg_af, 0x1200, "incorrect value in reg_af (expected 0x{:X} got 0x{:X})", 0x1200, result.reg_af);
+        assert_eq!(result.reg[REG_A], 0x12, "incorrect value in reg_a (expected 0x{:X} got 0x{:X})", 0x12, result.reg[REG_A]);
+        assert_eq!(result.reg[FLAGS], 0x00, "incorrect flags (expected 0x{:X} got 0x{:X})", 0x00, result.reg[FLAGS]);
     }
 
     #[test]
     fn test_xor_a() {
         let result = xor_a(INITIAL);
-        assert_eq!(result.reg_af, 0x0080);
+        assert_eq!(result.reg[REG_A], 0x00);
+        assert_eq!(result.reg[FLAGS], 0x80);
     }
 
     #[test]
     fn test_xor_bc() {
         let state = CPUState {
-            reg_bc: 0xCD11,
+            reg: [0xCD, 0x11, 0, 0, 0, 0, 0x80, 0x01],
             ..INITIAL
         };
-        assert_eq!(xor_b(state).reg_af, 0xCC00);
-        assert_eq!(xor_c(state).reg_af, 0x1000);
+        assert_eq!(xor_b(state).reg[REG_A], 0xCC);
+        assert_eq!(xor_c(state).reg[REG_A], 0x10);
     }
 
     #[test]
@@ -571,115 +592,130 @@ mod tests_cpu {
         let result = xor_d8(INITIAL, 0xFF);
         assert_eq!(result.pc, INITIAL.pc + 2, "incorrect program counter");
         assert_eq!(result.tsc, INITIAL.tsc + 8, "incorrect time stamp counter");
-        assert_eq!(result.reg_af, 0xFE00, "incorrect xor value in reg a");
+        assert_eq!(result.reg[REG_A], 0xFE, "incorrect xor value in reg a");
     }
     
     #[test]
     fn test_ld_r_r() {
-        assert_eq!(ld_a_a(INITIAL).reg_af, 0x01B0);
-        assert_eq!(ld_a_b(INITIAL).reg_af, 0x00B0);
-        assert_eq!(ld_a_c(INITIAL).reg_af, 0x13B0);
-        assert_eq!(ld_a_d(INITIAL).reg_af, 0x00B0);
-        assert_eq!(ld_a_e(INITIAL).reg_af, 0xD8B0);
-        assert_eq!(ld_a_h(INITIAL).reg_af, 0x01B0);
-        assert_eq!(ld_a_l(INITIAL).reg_af, 0x4DB0);
+        assert_eq!(ld_b_a(INITIAL).reg[REG_B], 0x01);
+        assert_eq!(ld_b_b(INITIAL).reg[REG_B], 0x00);
+        assert_eq!(ld_b_c(INITIAL).reg[REG_B], 0x13);
+        assert_eq!(ld_b_d(INITIAL).reg[REG_B], 0x00);
+        assert_eq!(ld_b_e(INITIAL).reg[REG_B], 0xD8);
+        assert_eq!(ld_b_h(INITIAL).reg[REG_B], 0x01);
+        assert_eq!(ld_b_l(INITIAL).reg[REG_B], 0x4D);
 
-        assert_eq!(ld_b_a(INITIAL).reg_bc, 0x0113);
-        assert_eq!(ld_b_b(INITIAL).reg_bc, 0x0013);
-        assert_eq!(ld_b_c(INITIAL).reg_bc, 0x1313);
-        assert_eq!(ld_b_d(INITIAL).reg_bc, 0x0013);
-        assert_eq!(ld_b_e(INITIAL).reg_bc, 0xD813);
-        assert_eq!(ld_b_h(INITIAL).reg_bc, 0x0113);
-        assert_eq!(ld_b_l(INITIAL).reg_bc, 0x4D13);
+        assert_eq!(ld_c_a(INITIAL).reg[REG_C], 0x01);
+        assert_eq!(ld_c_b(INITIAL).reg[REG_C], 0x00);
+        assert_eq!(ld_c_c(INITIAL).reg[REG_C], 0x13);
+        assert_eq!(ld_c_d(INITIAL).reg[REG_C], 0x00);
+        assert_eq!(ld_c_e(INITIAL).reg[REG_C], 0xD8);
+        assert_eq!(ld_c_h(INITIAL).reg[REG_C], 0x01);
+        assert_eq!(ld_c_l(INITIAL).reg[REG_C], 0x4D);
 
-        assert_eq!(ld_c_a(INITIAL).reg_bc, 0x0001);
-        assert_eq!(ld_c_b(INITIAL).reg_bc, 0x0000);
-        assert_eq!(ld_c_c(INITIAL).reg_bc, 0x0013);
-        assert_eq!(ld_c_d(INITIAL).reg_bc, 0x0000);
-        assert_eq!(ld_c_e(INITIAL).reg_bc, 0x00D8);
-        assert_eq!(ld_c_h(INITIAL).reg_bc, 0x0001);
-        assert_eq!(ld_c_l(INITIAL).reg_bc, 0x004D);
+        assert_eq!(ld_d_a(INITIAL).reg[REG_D], 0x01);
+        assert_eq!(ld_d_b(INITIAL).reg[REG_D], 0x00);
+        assert_eq!(ld_d_c(INITIAL).reg[REG_D], 0x13);
+        assert_eq!(ld_d_d(INITIAL).reg[REG_D], 0x00);
+        assert_eq!(ld_d_e(INITIAL).reg[REG_D], 0xD8);
+        assert_eq!(ld_d_h(INITIAL).reg[REG_D], 0x01);
+        assert_eq!(ld_d_l(INITIAL).reg[REG_D], 0x4D);
 
-        assert_eq!(ld_d_a(INITIAL).reg_de, 0x01D8);
-        assert_eq!(ld_d_b(INITIAL).reg_de, 0x00D8);
-        assert_eq!(ld_d_c(INITIAL).reg_de, 0x13D8);
-        assert_eq!(ld_d_d(INITIAL).reg_de, 0x00D8);
-        assert_eq!(ld_d_e(INITIAL).reg_de, 0xD8D8);
-        assert_eq!(ld_d_h(INITIAL).reg_de, 0x01D8);
-        assert_eq!(ld_d_l(INITIAL).reg_de, 0x4DD8);
+        assert_eq!(ld_e_a(INITIAL).reg[REG_E], 0x01);
+        assert_eq!(ld_e_b(INITIAL).reg[REG_E], 0x00);
+        assert_eq!(ld_e_c(INITIAL).reg[REG_E], 0x13);
+        assert_eq!(ld_e_d(INITIAL).reg[REG_E], 0x00);
+        assert_eq!(ld_e_e(INITIAL).reg[REG_E], 0xD8);
+        assert_eq!(ld_e_h(INITIAL).reg[REG_E], 0x01);
+        assert_eq!(ld_e_l(INITIAL).reg[REG_E], 0x4D);
 
-        assert_eq!(ld_e_a(INITIAL).reg_de, 0x0001);
-        assert_eq!(ld_e_b(INITIAL).reg_de, 0x0000);
-        assert_eq!(ld_e_c(INITIAL).reg_de, 0x0013);
-        assert_eq!(ld_e_d(INITIAL).reg_de, 0x0000);
-        assert_eq!(ld_e_e(INITIAL).reg_de, 0x00D8);
-        assert_eq!(ld_e_h(INITIAL).reg_de, 0x0001);
-        assert_eq!(ld_e_l(INITIAL).reg_de, 0x004D);
+        assert_eq!(ld_h_a(INITIAL).reg[REG_H], 0x01);
+        assert_eq!(ld_h_b(INITIAL).reg[REG_H], 0x00);
+        assert_eq!(ld_h_c(INITIAL).reg[REG_H], 0x13);
+        assert_eq!(ld_h_d(INITIAL).reg[REG_H], 0x00);
+        assert_eq!(ld_h_e(INITIAL).reg[REG_H], 0xD8);
+        assert_eq!(ld_h_h(INITIAL).reg[REG_H], 0x01);
+        assert_eq!(ld_h_l(INITIAL).reg[REG_H], 0x4D);
 
-        assert_eq!(ld_h_a(INITIAL).reg_hl, 0x014D);
-        assert_eq!(ld_h_b(INITIAL).reg_hl, 0x004D);
-        assert_eq!(ld_h_c(INITIAL).reg_hl, 0x134D);
-        assert_eq!(ld_h_d(INITIAL).reg_hl, 0x004D);
-        assert_eq!(ld_h_e(INITIAL).reg_hl, 0xD84D);
-        assert_eq!(ld_h_h(INITIAL).reg_hl, 0x014D);
-        assert_eq!(ld_h_l(INITIAL).reg_hl, 0x4D4D);
+        assert_eq!(ld_l_a(INITIAL).reg[REG_L], 0x01);
+        assert_eq!(ld_l_b(INITIAL).reg[REG_L], 0x00);
+        assert_eq!(ld_l_c(INITIAL).reg[REG_L], 0x13);
+        assert_eq!(ld_l_d(INITIAL).reg[REG_L], 0x00);
+        assert_eq!(ld_l_e(INITIAL).reg[REG_L], 0xD8);
+        assert_eq!(ld_l_h(INITIAL).reg[REG_L], 0x01);
+        assert_eq!(ld_l_l(INITIAL).reg[REG_L], 0x4D);
 
-        assert_eq!(ld_l_a(INITIAL).reg_hl, 0x0101);
-        assert_eq!(ld_l_b(INITIAL).reg_hl, 0x0100);
-        assert_eq!(ld_l_c(INITIAL).reg_hl, 0x0113);
-        assert_eq!(ld_l_d(INITIAL).reg_hl, 0x0100);
-        assert_eq!(ld_l_e(INITIAL).reg_hl, 0x01D8);
-        assert_eq!(ld_l_h(INITIAL).reg_hl, 0x0101);
-        assert_eq!(ld_l_l(INITIAL).reg_hl, 0x014D);
+        assert_eq!(ld_a_a(INITIAL).reg[REG_A], 0x01);
+        assert_eq!(ld_a_b(INITIAL).reg[REG_A], 0x00);
+        assert_eq!(ld_a_c(INITIAL).reg[REG_A], 0x13);
+        assert_eq!(ld_a_d(INITIAL).reg[REG_A], 0x00);
+        assert_eq!(ld_a_e(INITIAL).reg[REG_A], 0xD8);
+        assert_eq!(ld_a_h(INITIAL).reg[REG_A], 0x01);
+        assert_eq!(ld_a_l(INITIAL).reg[REG_A], 0x4D);
     }
 
     #[test]
     fn test_ld_r_d8() {
-        assert_eq!(ld_a_d8(INITIAL, 0xAF).reg_af, 0xAFB0);
-        assert_eq!(ld_b_d8(INITIAL, 0xAF).reg_bc, 0xAF13);
-        assert_eq!(ld_c_d8(INITIAL, 0xAF).reg_bc, 0x00AF);
-        assert_eq!(ld_d_d8(INITIAL, 0xAF).reg_de, 0xAFD8);
-        assert_eq!(ld_e_d8(INITIAL, 0xAF).reg_de, 0x00AF);
-        assert_eq!(ld_h_d8(INITIAL, 0xAF).reg_hl, 0xAF4D);
-        assert_eq!(ld_l_d8(INITIAL, 0xAF).reg_hl, 0x01AF);
+        assert_eq!(ld_a_d8(INITIAL, 0xAF).reg[REG_B], 0xAF);
+        assert_eq!(ld_b_d8(INITIAL, 0xAF).reg[REG_C], 0xAF);
+        assert_eq!(ld_c_d8(INITIAL, 0xAF).reg[REG_D], 0xAF);
+        assert_eq!(ld_d_d8(INITIAL, 0xAF).reg[REG_E], 0xAF);
+        assert_eq!(ld_e_d8(INITIAL, 0xAF).reg[REG_H], 0xAF);
+        assert_eq!(ld_h_d8(INITIAL, 0xAF).reg[REG_L], 0xAF);
+        assert_eq!(ld_l_d8(INITIAL, 0xAF).reg[REG_A], 0xAF);
     }
 
     #[test]
     fn test_add() {
         // reg a inits to 0x01
-        assert_eq!(impl_add(INITIAL, 0xFF).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed 0xff");
-        assert_eq!(impl_add(INITIAL, 0x0F).reg_af, 0x1000 | FL_H, "failed 0x0f");
-        assert_eq!(impl_add(INITIAL, 0x01).reg_af, 0x0200, "failed 0x01");
+        assert_eq!(impl_add(INITIAL, 0xFF).reg[REG_A], 0x00, "failed 0xff");
+        assert_eq!(impl_add(INITIAL, 0xFF).reg[FLAGS], FL_Z | FL_H | FL_C, "failed 0xff flags");
+
+        assert_eq!(impl_add(INITIAL, 0x0F).reg[REG_A], 0x10, "failed 0x0f");
+        assert_eq!(impl_add(INITIAL, 0x0F).reg[FLAGS], FL_H, "failed 0x0f flags");
+
+        assert_eq!(impl_add(INITIAL, 0x01).reg[REG_A], 0x02, "failed 0x01");
+        assert_eq!(impl_add(INITIAL, 0x01).reg[FLAGS], 0x00, "failed 0x01 flags");
     }
 
     #[test]
     fn test_adc() {
         let cpu = CPUState {
-            reg_af: 0x0100,
+            reg: [0xCD, 0x11, 0, 0, 0, 0, 0x00, 0x01],
             ..INITIAL
         };
         let cpu_c = CPUState {
-            reg_af: 0x0100 | FL_C,
+            reg: [0xCD, 0x11, 0, 0, 0, 0, FL_C, 0x01],
             ..INITIAL
         };
-        assert_eq!(impl_adc(cpu, 0xFE).reg_af, 0xFF00, "failed plain 0xFE");
-        assert_eq!(impl_adc(cpu_c, 0xFE).reg_af, 0x0000 | FL_Z | FL_H | FL_C, "failed carry 0xFE");
-        assert_eq!(impl_adc(cpu, 0x0F).reg_af, 0x1000 | FL_H, "failed plain 0x0F");
-        assert_eq!(impl_adc(cpu_c, 0x0F).reg_af, 0x1100 | FL_H, "failed carry 0x0F");
-        assert_eq!(impl_adc(cpu, 0x01).reg_af, 0x0200, "failed plain 0x01");
-        assert_eq!(impl_adc(cpu_c, 0x01).reg_af, 0x0300, "failed carry 0x01");
+
+        assert_eq!(impl_adc(cpu, 0xFE).reg[REG_A], 0xFF, "failed plain 0xFE");
+        assert_eq!(impl_adc(cpu_c, 0xFE).reg[REG_A], 0x00);
+        assert_eq!(impl_adc(cpu_c, 0xFE).reg[FLAGS], FL_Z | FL_H | FL_C, "failed carry 0xFE");
+
+        assert_eq!(impl_adc(cpu, 0x0F).reg[REG_A], 0x10);
+        assert_eq!(impl_adc(cpu, 0x0F).reg[FLAGS], FL_H, "failed plain 0x0F");
+
+        assert_eq!(impl_adc(cpu_c, 0x0F).reg[REG_A], 0x11);
+        assert_eq!(impl_adc(cpu_c, 0x0F).reg[FLAGS], FL_H, "failed carry 0x0F");
+
+        assert_eq!(impl_adc(cpu, 0x01).reg[REG_A], 0x02, "failed plain 0x01");
+        assert_eq!(impl_adc(cpu, 0x01).reg[FLAGS], 0, "failed plain 0x01");
+
+        assert_eq!(impl_adc(cpu_c, 0x01).reg[REG_A], 0x03, "failed carry 0x01");
+        assert_eq!(impl_adc(cpu_c, 0x01).reg[FLAGS], 0, "failed carry flags 0x01");
     }
 
     #[test]
     fn test_add_aHL() {
         let mut mem = init_mem();
         let cpu = CPUState {
-            reg_af: 0x0100,
-            reg_hl: 0x0001,
+            reg: [0, 0, 0, 0, 0, 0x01, 0, 0x01],
             ..INITIAL
         };
-        mem[cpu.reg_hl as usize] = 0x0F;
-        assert_eq!(add_aHL(cpu, &mem).reg_af, 0x1000 | FL_H);
+        mem[combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize] = 0x0F;
+        assert_eq!(add_aHL(cpu, &mem).reg[REG_A], 0x10);
+        assert_eq!(add_aHL(cpu, &mem).reg[FLAGS], FL_H);
     }
 
     #[test]
@@ -693,25 +729,30 @@ mod tests_cpu {
 
     #[test]
     fn test_inc() {
-        let cpu = CPUState{ reg_af: 0x0110, reg_bc: 0x0FFF, reg_de: 0x0E00, reg_hl: 0x0203, ..INITIAL };
-        assert_eq!(inc_a(cpu).reg_af, 0x0210);
-
-        assert_eq!(inc_b(cpu).reg_bc, 0x10FF);
-        assert_eq!(inc_b(cpu).reg_af, 0x0110 | FL_H);
-
-        assert_eq!(inc_c(cpu).reg_bc, 0x0F00);
-        assert_eq!(inc_c(cpu).reg_af, 0x0110 | FL_H | FL_Z);
-
-        assert_eq!(inc_d(cpu).reg_de, 0x0F00);
-        assert_eq!(inc_d(cpu).reg_af, 0x0110);
-
-        assert_eq!(inc_e(cpu).reg_de, 0x0E01);
-        assert_eq!(inc_e(cpu).reg_af, 0x0110);
-
-        assert_eq!(inc_h(cpu).reg_hl, 0x0303);
-        assert_eq!(inc_h(cpu).reg_af, 0x0110);
-
-        assert_eq!(inc_l(cpu).reg_hl, 0x0204);
-        assert_eq!(inc_l(cpu).reg_af, 0x0110);
+        let cpu = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x0F, 0xFF, 0x0E, 0x00, 0x02, 0x03, 0x10, 0x01],
+            ..INITIAL 
+        };
+        
+        assert_eq!(inc_b(cpu).reg[REG_B], 0x10);
+        assert_eq!(inc_b(cpu).reg[FLAGS], 0x10 | FL_H);
+        
+        assert_eq!(inc_c(cpu).reg[REG_C], 0x00);
+        assert_eq!(inc_c(cpu).reg[FLAGS], 0x10 | FL_H | FL_Z);
+        
+        assert_eq!(inc_d(cpu).reg[REG_D], 0x0F);
+        assert_eq!(inc_d(cpu).reg[FLAGS], 0x10);
+        
+        assert_eq!(inc_e(cpu).reg[REG_E], 0x01);
+        assert_eq!(inc_e(cpu).reg[FLAGS], 0x10);
+        
+        assert_eq!(inc_h(cpu).reg[REG_H], 0x03);
+        assert_eq!(inc_h(cpu).reg[FLAGS], 0x10);
+        
+        assert_eq!(inc_l(cpu).reg[REG_L], 0x04);
+        assert_eq!(inc_l(cpu).reg[FLAGS], 0x10);
+        
+        assert_eq!(inc_a(cpu).reg[REG_A], 0x02);
     }
 }

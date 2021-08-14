@@ -263,6 +263,15 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
         ..cpu
     }
 }
+const fn impl_inc(cpu: CPUState, arg: Byte) -> (CPUState, Byte) {
+    // z0h-
+    let (res, z) = arg.overflowing_add(1);
+    let h = arg & 0x0F == 0x0F;
+    let reg_af = cpu.reg_af & 0xFF10 // maintain the carry, we'll set the rest
+    | if z {FL_Z} else {0}
+    | if h {FL_H} else {0};
+    (CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg_af, ..cpu}, res)
+}
 
 //   add  A,r         8x         4 z0hc A=A+r
 // ----------------------------------------------------------------------------
@@ -343,7 +352,38 @@ const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
 //   cp   r           Bx         4 z1hc compare A-r
 //   cp   n           FE nn      8 z1hc compare A-n
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
+
 //   inc  r           xx         4 z0h- r=r+1
+// ----------------------------------------------------------------------------
+const fn inc_b(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_bc));
+    CPUState { reg_bc: (res as Word) << Byte::BITS | (cpu.reg_bc & LOW_MASK), ..cpu }
+}
+const fn inc_c(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_bc));
+    CPUState { reg_bc: (cpu.reg_bc & HIGH_MASK) | (res as Word), ..cpu }
+}
+const fn inc_d(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_de));
+    CPUState { reg_de: (res as Word) << Byte::BITS | (cpu.reg_de & LOW_MASK), ..cpu }
+}
+const fn inc_e(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_de));
+    CPUState { reg_de: (cpu.reg_de & HIGH_MASK) | (res as Word), ..cpu }
+}
+const fn inc_h(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_hl));
+    CPUState { reg_hl: (res as Word) << Byte::BITS | (cpu.reg_hl & LOW_MASK), ..cpu }
+}
+const fn inc_l(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, lo(cpu.reg_hl));
+    CPUState { reg_hl: (cpu.reg_hl & HIGH_MASK) | (res as Word), ..cpu }
+}
+const fn inc_a(cpu: CPUState) -> CPUState {
+    let (cpu, res) = impl_inc(cpu, hi(cpu.reg_af));
+    CPUState { reg_af: (res as Word) << Byte::BITS | (cpu.reg_af & LOW_MASK), ..cpu }
+}
+
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
 //   dec  r           xx         4 z1h- r=r-1
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
@@ -649,5 +689,29 @@ mod tests_cpu {
         assert_eq!(mem[(INITIAL.sp - 0) as usize], hi(INITIAL.pc), "failed high check");
         assert_eq!(mem[(INITIAL.sp - 1) as usize], lo(INITIAL.pc), "failed low check");
         assert_eq!(result.pc, 0x0201, "failed sp check")
+    }
+
+    #[test]
+    fn test_inc() {
+        let cpu = CPUState{ reg_af: 0x0110, reg_bc: 0x0FFF, reg_de: 0x0E00, reg_hl: 0x0203, ..INITIAL };
+        assert_eq!(inc_a(cpu).reg_af, 0x0210);
+
+        assert_eq!(inc_b(cpu).reg_bc, 0x10FF);
+        assert_eq!(inc_b(cpu).reg_af, 0x0110 | FL_H);
+
+        assert_eq!(inc_c(cpu).reg_bc, 0x0F00);
+        assert_eq!(inc_c(cpu).reg_af, 0x0110 | FL_H | FL_Z);
+
+        assert_eq!(inc_d(cpu).reg_de, 0x0F00);
+        assert_eq!(inc_d(cpu).reg_af, 0x0110);
+
+        assert_eq!(inc_e(cpu).reg_de, 0x0E01);
+        assert_eq!(inc_e(cpu).reg_af, 0x0110);
+
+        assert_eq!(inc_h(cpu).reg_hl, 0x0303);
+        assert_eq!(inc_h(cpu).reg_af, 0x0110);
+
+        assert_eq!(inc_l(cpu).reg_hl, 0x0204);
+        assert_eq!(inc_l(cpu).reg_af, 0x0110);
     }
 }

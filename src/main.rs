@@ -78,8 +78,8 @@ const fn init_cpu() -> CPUState {
     }
 }
 
-fn init_mem() -> Box<[Byte; MEM_SIZE]> {
-    let mut mem = Box::new([0; MEM_SIZE]);
+fn init_mem() -> Vec<Byte> {
+    let mut mem = vec![0;MEM_SIZE];
     mem[0xFF05] = 0x00; //TIMA
     mem[0xFF06] = 0x00; //TMA
     mem[0xFF07] = 0x00; //TAC
@@ -283,7 +283,7 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
-const fn add_aHL(cpu: CPUState, mem: &[Byte; MEM_SIZE]) -> CPUState {
+const fn add_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let res = impl_add(cpu, mem[cpu.reg_hl as usize]);
     CPUState {
         tsc: res.tsc + 4,
@@ -465,7 +465,7 @@ fn main() {
 
     // memory stuff
     // ------------
-    let mut mem: Box<[Byte; MEM_SIZE]> = init_mem();
+    let mut mem: Vec<Byte> = init_mem();
 
     // loop
     // ------------

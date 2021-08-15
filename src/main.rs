@@ -322,6 +322,19 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
 
     CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu}
 }
+// todo: cp is just sub without storing the result in A
+const fn impl_cp(cpu: CPUState, d8: Byte) -> CPUState {
+    // z1hc
+    let mut reg = cpu.reg;
+    let (_, h) = (cpu.reg[REG_A] & 0x0F).overflowing_sub(d8 & 0x0F);
+    let c = d8 > cpu.reg[REG_A];
+    let z = d8 == cpu.reg[REG_A];
+    reg[FLAGS] = if z {FL_Z} else {0}
+    | FL_N
+    | if h {FL_H} else {0}
+    | if c {FL_C} else {0};
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu }
+}
 
 //   add  A,r         8x         4 z0hc A=A+r
 // ----------------------------------------------------------------------------
@@ -400,9 +413,34 @@ const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
 //   or   r           Bx         4 z000 A=A | r
 //   or   n           F6 nn      8 z000 A=A | n
 //   or   (HL)        B6         8 z000 A=A | (HL)
+
 //   cp   r           Bx         4 z1hc compare A-r
+// ----------------------------------------------------------------------------
+const fn cp_b(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_B]) }
+const fn cp_c(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_C]) }
+const fn cp_d(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_D]) }
+const fn cp_e(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_E]) }
+const fn cp_h(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_H]) }
+const fn cp_l(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_L]) }
+const fn cp_a(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_A]) }
+
 //   cp   n           FE nn      8 z1hc compare A-n
+// ----------------------------------------------------------------------------
+const fn cp_d8(cpu: CPUState, arg: Byte) -> CPUState {
+    let res: CPUState = impl_cp(cpu, arg);
+    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+}
+
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
+// ----------------------------------------------------------------------------
+const fn cp_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
+    let res = impl_cp(cpu, mem[addr]);
+    CPUState {
+        tsc: res.tsc + 4,
+        ..res
+    }
+}
 
 //   inc  r           xx         4 z0h- r=r+1
 // ----------------------------------------------------------------------------
@@ -789,5 +827,26 @@ mod tests_cpu {
         assert_eq!(inc_a(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_a(cpu).reg[REG_A], 0x00);
         assert_eq!(dec_a(cpu).reg[FLAGS], FL_Z | FL_N | FL_C);
+    }
+    
+    #[test]
+    fn test_cp() {
+        let cpu = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x12, FL_C, 0x11],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize] = cpu.reg[REG_L];
+
+        assert_eq!(cp_b(cpu).reg[FLAGS], FL_N);
+        assert_eq!(cp_c(cpu).reg[FLAGS], FL_N);
+        assert_eq!(cp_d(cpu).reg[FLAGS], FL_N|FL_H);
+        assert_eq!(cp_e(cpu).reg[FLAGS], FL_N|FL_H);
+        assert_eq!(cp_h(cpu).reg[FLAGS], FL_Z|FL_N);
+        assert_eq!(cp_l(cpu).reg[FLAGS], FL_N|FL_H|FL_C);
+        assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z|FL_N);
+        assert_eq!(cp_d8(cpu,0x12).reg[FLAGS], FL_N|FL_H|FL_C);
+        assert_eq!(cp_aHL(cpu, &mem).reg[FLAGS], FL_N|FL_H|FL_C);
     }
 }

@@ -322,6 +322,19 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
 
     CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu}
 }
+const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let operand: Word = combine(reg[high], reg[low]);
+    let (res, _) = operand.overflowing_add(1);
+    reg[high] = hi(res);
+    reg[low]  = lo(res);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
 // todo: cp is just sub without storing the result in A
 const fn impl_cp(cpu: CPUState, d8: Byte) -> CPUState {
     // z1hc
@@ -470,7 +483,22 @@ const fn dec_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, FL_N) }
 // GMB 16bit-Arithmetic/logical Commands
 // ============================================================================
 //   add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL,SP
+
 //   inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
+// ----------------------------------------------------------------------------
+const fn inc_bc(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_B, REG_C) }
+const fn inc_de(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_D, REG_E) }
+const fn inc_hl(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_H, REG_L) }
+const fn inc_sp(cpu: CPUState) -> CPUState {
+    let (res, _) = cpu.sp.overflowing_add(1);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        sp: res,
+        ..cpu
+    }
+}
+
 //   dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL,SP
 //   add  SP,dd     E8          16 00hc SP = SP +/- dd ;dd is 8bit signed number
 //   ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
@@ -848,5 +876,22 @@ mod tests_cpu {
         assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z|FL_N);
         assert_eq!(cp_d8(cpu,0x12).reg[FLAGS], FL_N|FL_H|FL_C);
         assert_eq!(cp_aHL(cpu, &mem).reg[FLAGS], FL_N|FL_H|FL_C);
+    }
+
+    #[test]
+    fn test_inc16() {
+        let cpu = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0x11],
+            sp: 0x00FF,
+            ..INITIAL 
+        };
+        assert_eq!(inc_bc(cpu).reg[REG_B], 0x00);
+        assert_eq!(inc_bc(cpu).reg[REG_C], 0x02);
+        assert_eq!(inc_de(cpu).reg[REG_D], 0x02);
+        assert_eq!(inc_de(cpu).reg[REG_E], 0x04);
+        assert_eq!(inc_hl(cpu).reg[REG_H], 0x12);
+        assert_eq!(inc_hl(cpu).reg[REG_L], 0x00);
+        assert_eq!(inc_sp(cpu).sp, 0x0100);
     }
 }

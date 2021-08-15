@@ -296,14 +296,25 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
         ..cpu
     }
 }
-const fn impl_inc(cpu: CPUState, dst: usize) -> CPUState {
-    // z0h-
+const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
+    // z0h- for inc
+    // z1h- for dec
     let mut reg = cpu.reg;
-    
-    let h = reg[dst] & 0x0F == 0x0F;
-    let (res, z) = reg[dst].overflowing_add(1);
-    let flags = reg[FLAGS] & 0x10 // maintain the carry, we'll set the rest
-    | if z {FL_Z} else {0}
+    let (h, (res, _c)) = if flag_n > 0 {
+        (
+            reg[dst] & 0x0F == 0x00,
+            reg[dst].overflowing_sub(1)
+        )
+    } else {
+        (
+            reg[dst] & 0x0F == 0x0F,
+            reg[dst].overflowing_add(1)
+        )
+    };
+
+    let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
+    | if res == 0x00 {FL_Z} else {0}
+    | flag_n
     | if h {FL_H} else {0};
 
     reg[dst] = res;
@@ -395,16 +406,25 @@ const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   inc  r           xx         4 z0h- r=r+1
 // ----------------------------------------------------------------------------
-const fn inc_b(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_B) }
-const fn inc_c(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_C) }
-const fn inc_d(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_D) }
-const fn inc_e(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_E) }
-const fn inc_h(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_H) }
-const fn inc_l(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_L) }
-const fn inc_a(cpu: CPUState) -> CPUState { impl_inc(cpu, REG_A) }
+const fn inc_b(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_B, 0) }
+const fn inc_c(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_C, 0) }
+const fn inc_d(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_D, 0) }
+const fn inc_e(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_E, 0) }
+const fn inc_h(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_H, 0) }
+const fn inc_l(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_L, 0) }
+const fn inc_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, 0) }
 
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
 //   dec  r           xx         4 z1h- r=r-1
+// ----------------------------------------------------------------------------
+const fn dec_b(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_B, FL_N) }
+const fn dec_c(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_C, FL_N) }
+const fn dec_d(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_D, FL_N) }
+const fn dec_e(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_E, FL_N) }
+const fn dec_h(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_H, FL_N) }
+const fn dec_l(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_L, FL_N) }
+const fn dec_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, FL_N) }
+
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
 //   daa              27         4 z-0x decimal adjust akku
 //   cpl              2F         4 -11- A = A xor FF
@@ -728,31 +748,46 @@ mod tests_cpu {
     }
 
     #[test]
-    fn test_inc() {
+    fn test_inc_dec() {
         let cpu = CPUState{
             //    B     C     D     E     H     L     fl    A
-            reg: [0x0F, 0xFF, 0x0E, 0x00, 0x02, 0x03, 0x10, 0x01],
+            reg: [0x0F, 0xFF, 0x0E, 0x00, 0x02, 0x03, FL_C, 0x01],
             ..INITIAL 
         };
         
         assert_eq!(inc_b(cpu).reg[REG_B], 0x10);
-        assert_eq!(inc_b(cpu).reg[FLAGS], 0x10 | FL_H);
+        assert_eq!(inc_b(cpu).reg[FLAGS], FL_H | FL_C);
+        assert_eq!(dec_b(cpu).reg[REG_B], 0x0E);
+        assert_eq!(dec_b(cpu).reg[FLAGS], FL_N | FL_C);
         
         assert_eq!(inc_c(cpu).reg[REG_C], 0x00);
-        assert_eq!(inc_c(cpu).reg[FLAGS], 0x10 | FL_H | FL_Z);
+        assert_eq!(inc_c(cpu).reg[FLAGS], FL_Z | FL_H | FL_C);
+        assert_eq!(dec_c(cpu).reg[REG_C], 0xFE);
+        assert_eq!(dec_c(cpu).reg[FLAGS], FL_N | FL_C);
         
         assert_eq!(inc_d(cpu).reg[REG_D], 0x0F);
-        assert_eq!(inc_d(cpu).reg[FLAGS], 0x10);
+        assert_eq!(inc_d(cpu).reg[FLAGS], FL_C);
+        assert_eq!(dec_d(cpu).reg[REG_D], 0x0D);
+        assert_eq!(dec_d(cpu).reg[FLAGS], FL_N | FL_C);
         
         assert_eq!(inc_e(cpu).reg[REG_E], 0x01);
-        assert_eq!(inc_e(cpu).reg[FLAGS], 0x10);
+        assert_eq!(inc_e(cpu).reg[FLAGS], FL_C);
+        assert_eq!(dec_e(cpu).reg[REG_E], 0xFF);
+        assert_eq!(dec_e(cpu).reg[FLAGS], FL_N | FL_H | FL_C);
         
         assert_eq!(inc_h(cpu).reg[REG_H], 0x03);
-        assert_eq!(inc_h(cpu).reg[FLAGS], 0x10);
+        assert_eq!(inc_h(cpu).reg[FLAGS], FL_C);
+        assert_eq!(dec_h(cpu).reg[REG_H], 0x01);
+        assert_eq!(dec_h(cpu).reg[FLAGS], FL_N | FL_C);
         
         assert_eq!(inc_l(cpu).reg[REG_L], 0x04);
-        assert_eq!(inc_l(cpu).reg[FLAGS], 0x10);
+        assert_eq!(inc_l(cpu).reg[FLAGS], FL_C);
+        assert_eq!(dec_l(cpu).reg[REG_L], 0x02);
+        assert_eq!(dec_l(cpu).reg[FLAGS], FL_N | FL_C);
         
         assert_eq!(inc_a(cpu).reg[REG_A], 0x02);
+        assert_eq!(inc_a(cpu).reg[FLAGS], FL_C);
+        assert_eq!(dec_a(cpu).reg[REG_A], 0x00);
+        assert_eq!(dec_a(cpu).reg[FLAGS], FL_Z | FL_N | FL_C);
     }
 }

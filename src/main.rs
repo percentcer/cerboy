@@ -581,7 +581,7 @@ fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
     CPUState {
         tsc: cpu.tsc + 24,
         sp: cpu.sp - 2,
-        pc: (high as Word) << Byte::BITS | (low as Word),
+        pc: combine(high, low),
         ..cpu
     }
 }

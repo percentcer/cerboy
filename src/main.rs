@@ -245,11 +245,49 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 }
 
 //   ld   A,(BC)      0A         8 ----
+// ----------------------------------------------------------------------------
+const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = mem[combine(reg[REG_B], reg[REG_C]) as usize];
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+}
+
 //   ld   A,(DE)      1A         8 ----
 //   ld   A,(nn)      FA        16 ----
+// ----------------------------------------------------------------------------
+const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = mem[combine(reg[REG_D], reg[REG_E]) as usize];
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+}
+
+//   ld   A,(nn)      FA nn nn        16 ----
+
 //   ld   (BC),A      02         8 ----
+// ----------------------------------------------------------------------------
+fn ld_BC_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let addr = combine(cpu.reg[REG_B], cpu.reg[REG_C]) as usize;
+    mem[addr] = cpu.reg[REG_A];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        ..cpu
+    }
+}
+
 //   ld   (DE),A      12         8 ----
 //   ld   (nn),A      EA        16 ----
+// ----------------------------------------------------------------------------
+fn ld_DE_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let addr = combine(cpu.reg[REG_D], cpu.reg[REG_E]) as usize;
+    mem[addr] = cpu.reg[REG_A];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        ..cpu
+    }
+}
+
 //   ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
 const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {

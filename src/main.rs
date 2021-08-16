@@ -755,7 +755,18 @@ fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
 }
 
 //   call f,nn      xx nn nn 24;12 ---- conditional call if nz,z,nc,c
+
 //   ret            C9          16 ---- return, PC=(SP), SP=SP+2
+// ----------------------------------------------------------------------------
+const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    CPUState {
+        pc: combine(mem[(cpu.sp+1) as usize], mem[(cpu.sp) as usize]),
+        tsc: cpu.tsc + 16,
+        sp: cpu.sp + 2,
+        ..cpu
+    }
+}
+
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
 //   reti           D9          16 ---- return and enable interrupts (IME=1)
 //   rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38

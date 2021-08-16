@@ -372,18 +372,20 @@ const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_A]) }
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
 // ----------------------------------------------------------------------------
-const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState { 
-    let res = impl_add(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_add(cpu, d8)
+    }
 }
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
 const fn add_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    let res = impl_add(cpu, mem[cpu.HL()]);
     CPUState {
-        tsc: res.tsc + 4,
-        ..res
+        tsc: cpu.tsc + 8, 
+        ..impl_add(cpu, mem[cpu.HL()])
     }
 }
 
@@ -399,9 +401,12 @@ const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_A]) }
 
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
 // ----------------------------------------------------------------------------
-const fn adc_d8(cpu: CPUState, arg: Byte) -> CPUState {  
-    let res = impl_adc(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState { 
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_adc(cpu, d8)
+    } 
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
@@ -427,9 +432,12 @@ const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_A]) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
-const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
-    let res: CPUState = impl_xor(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_xor(cpu, d8)
+    }
 }
 
 //   xor  (HL)        AE         8 z000
@@ -449,18 +457,20 @@ const fn cp_a(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_A]) }
 
 //   cp   n           FE nn      8 z1hc compare A-n
 // ----------------------------------------------------------------------------
-const fn cp_d8(cpu: CPUState, arg: Byte) -> CPUState {
-    let res: CPUState = impl_cp(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn cp_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_cp(cpu, d8)
+    }
 }
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
 const fn cp_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    let res = impl_cp(cpu, mem[cpu.HL()]);
     CPUState {
-        tsc: res.tsc + 4,
-        ..res
+        tsc: cpu.tsc + 8,
+        ..impl_cp(cpu, mem[cpu.HL()])
     }
 }
 

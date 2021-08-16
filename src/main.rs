@@ -255,8 +255,40 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 //   ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
 //   ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
+// ----------------------------------------------------------------------------
+fn ldi(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let mut reg = cpu.reg;
+    let hl = combine(reg[REG_H], reg[REG_L]);
+    let (hli, _) = hl.overflowing_add(1);
+    mem[hl as usize] = reg[REG_A];
+    reg[REG_H] = hi(hli);
+    reg[REG_L] = lo(hli);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
+
 //   ldi  A,(HL)      2A         8 ---- A=(HL), HL=HL+1
 //   ldd  (HL),A      32         8 ---- (HL)=A, HL=HL-1
+// ----------------------------------------------------------------------------
+fn ldd(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let mut reg = cpu.reg;
+    let hl = combine(reg[REG_H], reg[REG_L]);
+    let (hld, _) = hl.overflowing_sub(1);
+    mem[hl as usize] = reg[REG_A];
+    reg[REG_H] = hi(hld);
+    reg[REG_L] = lo(hld);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
+
 //   ldd  A,(HL)      3A         8 ---- A=(HL), HL=HL-1
 
 // GMB 16bit-Loadcommands

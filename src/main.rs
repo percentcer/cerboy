@@ -979,6 +979,17 @@ mod tests_cpu {
     }
 
     #[test]
+    fn test_ld_rr_d16() {
+        assert_eq!(ld_bc_d16(INITIAL, 0xEF, 0xBE).reg[REG_B], 0xBE);
+        assert_eq!(ld_bc_d16(INITIAL, 0xEF, 0xBE).reg[REG_C], 0xEF);
+        assert_eq!(ld_de_d16(INITIAL, 0xAD, 0xDE).reg[REG_D], 0xDE);
+        assert_eq!(ld_de_d16(INITIAL, 0xAD, 0xDE).reg[REG_E], 0xAD);
+        assert_eq!(ld_hl_d16(INITIAL, 0xCE, 0xFA).reg[REG_H], 0xFA);
+        assert_eq!(ld_hl_d16(INITIAL, 0xCE, 0xFA).reg[REG_L], 0xCE);
+        assert_eq!(ld_sp_d16(INITIAL, 0xED, 0xFE).sp, 0xFEED);
+    }
+
+    #[test]
     fn test_add() {
         // reg a inits to 0x01
         assert_eq!(impl_add(INITIAL, 0xFF).reg[REG_A], 0x00, "failed 0xff");

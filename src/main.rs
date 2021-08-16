@@ -76,7 +76,7 @@ struct CPUState {
 const fn init_cpu() -> CPUState {
     CPUState {
         tsc: 0,
-        //    B     C     D     E     H     L     F     A
+        //    B     C     D     E     H     L     fl    A
         reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
         sp: 0xFFFE,
         pc: 0

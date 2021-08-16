@@ -1169,4 +1169,33 @@ mod tests_cpu {
         impl_ld_HL_d8(cpu, &mut mem, 0x22);
         assert_eq!(mem[cpu.HL()], 0x22);
     }
+
+    #[test]
+    fn test_push() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
+        assert_eq!(mem[cpu.sp as usize], cpu.reg[REG_B]);
+        assert_eq!(mem[(cpu.sp - 1) as usize], cpu.reg[REG_C]);
+    }
+
+    #[test]
+    fn test_pop() {
+        let cpu = CPUState {
+            sp: 0xDEAD,
+            ..INITIAL 
+        };
+        
+        let mut mem = init_mem();
+        mem[0xDEAD] = 0xAD;
+        mem[0xDEAD+1] = 0xDE;
+
+        assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
+        assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);
+        assert_eq!(pop_bc(cpu, &mem).reg[REG_C], 0xAD);
+    }
 }

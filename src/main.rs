@@ -330,11 +330,10 @@ fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
 // ----------------------------------------------------------------------------
-fn ldi(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldi_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
     let mut reg = cpu.reg;
-    let hl = combine(reg[REG_H], reg[REG_L]);
-    let (hli, _) = hl.overflowing_add(1);
-    mem[hl as usize] = reg[REG_A];
+    let (hli, _) = combine(reg[REG_H], reg[REG_L]).overflowing_add(1);
+    mem[cpu.HL()] = reg[REG_A];
     reg[REG_H] = hi(hli);
     reg[REG_L] = lo(hli);
     CPUState {
@@ -348,11 +347,10 @@ fn ldi(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 //   ldi  A,(HL)      2A         8 ---- A=(HL), HL=HL+1
 //   ldd  (HL),A      32         8 ---- (HL)=A, HL=HL-1
 // ----------------------------------------------------------------------------
-fn ldd(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
     let mut reg = cpu.reg;
-    let hl = combine(reg[REG_H], reg[REG_L]);
-    let (hld, _) = hl.overflowing_sub(1);
-    mem[hl as usize] = reg[REG_A];
+    let (hld, _) = combine(reg[REG_H], reg[REG_L]).overflowing_sub(1);
+    mem[cpu.HL()] = reg[REG_A];
     reg[REG_H] = hi(hld);
     reg[REG_L] = lo(hld);
     CPUState {
@@ -1179,6 +1177,34 @@ mod tests_cpu {
         let mut mem = init_mem();
         impl_ld_HL_d8(cpu, &mut mem, 0x22);
         assert_eq!(mem[cpu.HL()], 0x22);
+    }
+
+    #[test]
+    fn test_ldi() {
+        let cpu = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[cpu.HL()] = 0x0F;
+        assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
+        assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] + 1);
+        assert_eq!(mem[cpu.HL()], cpu.reg[REG_A]);
+    }
+
+    #[test]
+    fn test_ldd() {
+        let cpu = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[cpu.HL()] = 0x0F;
+        assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
+        assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] - 1);
+        assert_eq!(mem[cpu.HL()], cpu.reg[REG_A]);
     }
 
     #[test]

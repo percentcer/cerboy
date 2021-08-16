@@ -1252,7 +1252,7 @@ mod tests_cpu {
     }
 
     #[test]
-    fn test_16b_register_loads() {
+    fn test_16b_loads() {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0xBB, 0xCC, 0xDD, 0xEE, 0x11, 0x22, FL_C, 0xAA],
@@ -1269,6 +1269,9 @@ mod tests_cpu {
 
         ld_DE_a(cpu, &mut mem);
         assert_eq!(mem[0xDDEE], 0xAA);
+
+        ld_A16_a(cpu, &mut mem, 0xCE, 0xFA);
+        assert_eq!(mem[0xFACE], 0xAA);
     }
 
     #[test]

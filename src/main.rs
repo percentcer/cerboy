@@ -557,12 +557,21 @@ const fn nop(cpu: CPUState) -> CPUState {
 
 // GMB Jumpcommands
 // ============================================================================
+const fn impl_jr(cpu: CPUState, arg: SByte, do_it: bool) -> CPUState {
+    let offset = if do_it {arg as Word} else {0};
+    let time = if do_it {12} else {8};
+    CPUState {
+        pc: cpu.pc.wrapping_add(offset),
+        tsc: cpu.tsc + time,
+        ..cpu
+    }
+}
 
 //   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 // ----------------------------------------------------------------------------
-const fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
-        pc: (high as Word) << Byte::BITS | (low as Word),
+        pc: combine(high, low),
         tsc: cpu.tsc + 16,
         ..cpu
     }
@@ -570,8 +579,17 @@ const fn jp(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 
 //   jp   HL        E9           4 ---- jump to HL, PC=HL
 //   jp   f,nn      xx nn nn 16;12 ---- conditional jump if nz,z,nc,c
+
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
+// ----------------------------------------------------------------------------
+const fn jr_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, true) }
+
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
+// ----------------------------------------------------------------------------
+const fn jr_nz_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_Z == 0) }
+const fn jr_z_r8(cpu: CPUState, arg: SByte)  -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_Z != 0) }
+const fn jr_nc_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_C == 0) }
+const fn jr_c_r8(cpu: CPUState, arg: SByte)  -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_C != 0) }
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
 // ----------------------------------------------------------------------------
@@ -893,5 +911,41 @@ mod tests_cpu {
         assert_eq!(inc_hl(cpu).reg[REG_H], 0x12);
         assert_eq!(inc_hl(cpu).reg[REG_L], 0x00);
         assert_eq!(inc_sp(cpu).sp, 0x0100);
+    }
+
+    #[test]
+    fn test_jp() {
+        let cpu_c = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0x11],
+            pc: 0xFF,
+            ..INITIAL 
+        };
+        let cpu_z = CPUState{
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_Z, 0x11],
+            ..cpu_c
+        };
+
+        assert_eq!(jp_d16(cpu_c, 0x03, 0x02).pc, 0x0203);
+        assert_eq!(jp_d16(cpu_c, 0x03, 0x02).tsc, 16);
+        
+        assert_eq!(jr_z_r8(cpu_z, 1).pc, 0x100);
+        assert_eq!(jr_z_r8(cpu_z, -0xF).pc, 0xF0);
+        assert_eq!(jr_z_r8(cpu_c, 1).pc, cpu_c.pc);
+        
+        assert_eq!(jr_nz_r8(cpu_c, 1).pc, cpu_c.pc + 1);
+        assert_eq!(jr_nz_r8(cpu_z, 1).pc, cpu_z.pc);
+        assert_eq!(jr_nz_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
+
+        assert_eq!(jr_c_r8(cpu_c, 1).pc, cpu_c.pc + 1);
+        assert_eq!(jr_c_r8(cpu_c, 1).tsc, cpu_c.tsc + 12);
+        assert_eq!(jr_c_r8(cpu_z, 1).pc, cpu_z.pc);
+        assert_eq!(jr_c_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
+
+        assert_eq!(jr_nc_r8(cpu_c, 1).pc, cpu_c.pc);
+        assert_eq!(jr_nc_r8(cpu_c, 1).tsc, cpu_c.tsc + 8);
+        assert_eq!(jr_nc_r8(cpu_z, 1).pc, cpu_z.pc + 1);
+        assert_eq!(jr_nc_r8(cpu_z, 1).tsc, cpu_z.tsc + 12);
     }
 }

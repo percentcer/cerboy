@@ -251,9 +251,35 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 //   ld   (DE),A      12         8 ----
 //   ld   (nn),A      EA        16 ----
 //   ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)
+// ----------------------------------------------------------------------------
+const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = mem[(0xFF00 + off as Word) as usize];
+    CPUState { pc: cpu.pc + 2, tsc: cpu.tsc + 12, reg, ..cpu }
+}
+
 //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
+// ----------------------------------------------------------------------------
+fn ld_FF00_A8_a(cpu: CPUState, mem: &mut Vec<Byte>, off: Byte) -> CPUState {
+    mem[(0xFF00 + off as Word) as usize] = cpu.reg[REG_A];
+    CPUState { pc: cpu.pc + 2, tsc: cpu.tsc + 12, ..cpu }
+}
+
 //   ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
+// ----------------------------------------------------------------------------
+const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = mem[(0xFF00 + reg[REG_C] as Word) as usize];
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+}
+
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
+// ----------------------------------------------------------------------------
+fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    mem[(0xFF00 + cpu.reg[REG_C] as Word) as usize] = cpu.reg[REG_A];
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, ..cpu }
+}
+
 //   ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
 // ----------------------------------------------------------------------------
 fn ldi(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {

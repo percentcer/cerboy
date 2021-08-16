@@ -770,14 +770,14 @@ const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 // ----------------------------------------------------------------------------
-const fn jr_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, true) }
+const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, true) }
 
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
 // ----------------------------------------------------------------------------
-const fn jr_nz_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_Z == 0) }
-const fn jr_z_r8(cpu: CPUState, arg: SByte)  -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_Z != 0) }
-const fn jr_nc_r8(cpu: CPUState, arg: SByte) -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_C == 0) }
-const fn jr_c_r8(cpu: CPUState, arg: SByte)  -> CPUState { impl_jr(cpu, arg, cpu.reg[FLAGS] & FL_C != 0) }
+const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z == 0) }
+const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C == 0) }
+const fn jr_z_r8(cpu: CPUState, r8: SByte)  -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z != 0) }
+const fn jr_c_r8(cpu: CPUState, r8: SByte)  -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C != 0) }
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
 // ----------------------------------------------------------------------------
@@ -1138,13 +1138,13 @@ mod tests_cpu {
         assert_eq!(jr_nz_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
 
         assert_eq!(jr_c_r8(cpu_c, 1).pc, cpu_c.pc + 1);
-        assert_eq!(jr_c_r8(cpu_c, 1).tsc, cpu_c.tsc + 12);
         assert_eq!(jr_c_r8(cpu_z, 1).pc, cpu_z.pc);
+        assert_eq!(jr_c_r8(cpu_c, 1).tsc, cpu_c.tsc + 12);
         assert_eq!(jr_c_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
 
         assert_eq!(jr_nc_r8(cpu_c, 1).pc, cpu_c.pc);
-        assert_eq!(jr_nc_r8(cpu_c, 1).tsc, cpu_c.tsc + 8);
         assert_eq!(jr_nc_r8(cpu_z, 1).pc, cpu_z.pc + 1);
+        assert_eq!(jr_nc_r8(cpu_c, 1).tsc, cpu_c.tsc + 8);
         assert_eq!(jr_nc_r8(cpu_z, 1).tsc, cpu_z.tsc + 12);
     }
 }

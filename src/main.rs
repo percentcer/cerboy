@@ -368,7 +368,7 @@ const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
-const fn add_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn add_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
     let res = impl_add(cpu, mem[addr]);
     CPUState {
@@ -446,7 +446,7 @@ const fn cp_d8(cpu: CPUState, arg: Byte) -> CPUState {
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
-const fn cp_aHL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn cp_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
     let res = impl_cp(cpu, mem[addr]);
     CPUState {
@@ -811,15 +811,15 @@ mod tests_cpu {
     }
 
     #[test]
-    fn test_add_aHL() {
+    fn test_add_HL() {
         let mut mem = init_mem();
         let cpu = CPUState {
             reg: [0, 0, 0, 0, 0, 0x01, 0, 0x01],
             ..INITIAL
         };
         mem[combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize] = 0x0F;
-        assert_eq!(add_aHL(cpu, &mem).reg[REG_A], 0x10);
-        assert_eq!(add_aHL(cpu, &mem).reg[FLAGS], FL_H);
+        assert_eq!(add_HL(cpu, &mem).reg[REG_A], 0x10);
+        assert_eq!(add_HL(cpu, &mem).reg[FLAGS], FL_H);
     }
 
     #[test]
@@ -893,7 +893,7 @@ mod tests_cpu {
         assert_eq!(cp_l(cpu).reg[FLAGS], FL_N|FL_H|FL_C);
         assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z|FL_N);
         assert_eq!(cp_d8(cpu,0x12).reg[FLAGS], FL_N|FL_H|FL_C);
-        assert_eq!(cp_aHL(cpu, &mem).reg[FLAGS], FL_N|FL_H|FL_C);
+        assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N|FL_H|FL_C);
     }
 
     #[test]

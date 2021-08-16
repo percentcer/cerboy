@@ -72,19 +72,27 @@ struct CPUState {
     pc: Word,
 }
 
-// https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
-const fn init_cpu() -> CPUState {
-    CPUState {
-        tsc: 0,
-        //    B     C     D     E     H     L     F     A
-        reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
-        sp: 0xFFFE,
-        pc: 0
+impl CPUState {
+    /// Initializes a new CPUState struct
+    /// 
+    /// Starting values should match original gb hardware, more here:
+    /// https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
+    const fn new() -> CPUState {
+        CPUState {
+            tsc: 0,
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
+            sp: 0xFFFE,
+            pc: 0
+        }
     }
-}
 
-const fn combine(high: Byte, low: Byte) -> Word {
-    (high as Word) << Byte::BITS | (low as Word)
+    /// Commonly used for addresses
+    /// 
+    /// Combines the H and L registers into a usize for mem indexing
+    const fn HL(&self) -> usize {
+        combine(self.reg[REG_H], self.reg[REG_L]) as usize
+    }
 }
 
 fn init_mem() -> Vec<Byte> {
@@ -125,6 +133,9 @@ fn init_mem() -> Vec<Byte> {
 
 const fn hi(reg: Word) -> Byte { (reg >> Byte::BITS) as Byte }
 const fn lo(reg: Word) -> Byte { (reg & LOW_MASK) as Byte }
+const fn combine(high: Byte, low: Byte) -> Word {
+    (high as Word) << Byte::BITS | (low as Word)
+}
 
 // GMB 8bit-Loadcommands
 // ============================================================================
@@ -361,19 +372,20 @@ const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_A]) }
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
 // ----------------------------------------------------------------------------
-const fn add_d8(cpu: CPUState, arg: Byte) -> CPUState { 
-    let res = impl_add(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_add(cpu, d8)
+    }
 }
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
 const fn add_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
-    let res = impl_add(cpu, mem[addr]);
     CPUState {
-        tsc: res.tsc + 4,
-        ..res
+        tsc: cpu.tsc + 8, 
+        ..impl_add(cpu, mem[cpu.HL()])
     }
 }
 
@@ -389,9 +401,12 @@ const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_A]) }
 
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
 // ----------------------------------------------------------------------------
-const fn adc_d8(cpu: CPUState, arg: Byte) -> CPUState {  
-    let res = impl_adc(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState { 
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_adc(cpu, d8)
+    } 
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
@@ -417,9 +432,12 @@ const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_A]) }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
-const fn xor_d8(cpu: CPUState, arg: Byte) -> CPUState {
-    let res: CPUState = impl_xor(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState{
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_xor(cpu, d8)
+    }
 }
 
 //   xor  (HL)        AE         8 z000
@@ -439,19 +457,20 @@ const fn cp_a(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_A]) }
 
 //   cp   n           FE nn      8 z1hc compare A-n
 // ----------------------------------------------------------------------------
-const fn cp_d8(cpu: CPUState, arg: Byte) -> CPUState {
-    let res: CPUState = impl_cp(cpu, arg);
-    CPUState{pc: res.pc + 1, tsc: res.tsc + 4, ..res}
+const fn cp_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_cp(cpu, d8)
+    }
 }
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
 const fn cp_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    let addr: usize = combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize;
-    let res = impl_cp(cpu, mem[addr]);
     CPUState {
-        tsc: res.tsc + 4,
-        ..res
+        tsc: cpu.tsc + 8,
+        ..impl_cp(cpu, mem[cpu.HL()])
     }
 }
 
@@ -663,7 +682,7 @@ fn main() {
 mod tests_cpu {
     use super::*;
 
-    const INITIAL: CPUState = init_cpu();
+    const INITIAL: CPUState = CPUState::new();
 
     #[test]
     fn test_impl_xor_r() {
@@ -817,7 +836,7 @@ mod tests_cpu {
             reg: [0, 0, 0, 0, 0, 0x01, 0, 0x01],
             ..INITIAL
         };
-        mem[combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize] = 0x0F;
+        mem[cpu.HL()] = 0x0F;
         assert_eq!(add_HL(cpu, &mem).reg[REG_A], 0x10);
         assert_eq!(add_HL(cpu, &mem).reg[FLAGS], FL_H);
     }
@@ -883,7 +902,7 @@ mod tests_cpu {
             ..INITIAL 
         };
         let mut mem = init_mem();
-        mem[combine(cpu.reg[REG_H], cpu.reg[REG_L]) as usize] = cpu.reg[REG_L];
+        mem[cpu.HL()] = cpu.reg[REG_L];
 
         assert_eq!(cp_b(cpu).reg[FLAGS], FL_N);
         assert_eq!(cp_c(cpu).reg[FLAGS], FL_N);

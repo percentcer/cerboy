@@ -95,10 +95,6 @@ impl CPUState {
     }
 }
 
-const fn combine(high: Byte, low: Byte) -> Word {
-    (high as Word) << Byte::BITS | (low as Word)
-}
-
 fn init_mem() -> Vec<Byte> {
     let mut mem = vec![0;MEM_SIZE];
     mem[0xFF05] = 0x00; //TIMA
@@ -137,6 +133,9 @@ fn init_mem() -> Vec<Byte> {
 
 const fn hi(reg: Word) -> Byte { (reg >> Byte::BITS) as Byte }
 const fn lo(reg: Word) -> Byte { (reg & LOW_MASK) as Byte }
+const fn combine(high: Byte, low: Byte) -> Word {
+    (high as Word) << Byte::BITS | (low as Word)
+}
 
 // GMB 8bit-Loadcommands
 // ============================================================================

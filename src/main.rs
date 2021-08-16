@@ -253,7 +253,6 @@ const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
 }
 
 //   ld   A,(DE)      1A         8 ----
-//   ld   A,(nn)      FA        16 ----
 // ----------------------------------------------------------------------------
 const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
@@ -276,7 +275,6 @@ fn ld_BC_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 }
 
 //   ld   (DE),A      12         8 ----
-//   ld   (nn),A      EA        16 ----
 // ----------------------------------------------------------------------------
 fn ld_DE_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
     let addr = combine(cpu.reg[REG_D], cpu.reg[REG_E]) as usize;
@@ -284,6 +282,18 @@ fn ld_DE_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
+        ..cpu
+    }
+}
+
+//   ld   (nn),A      EA nn nn        16 ----
+// ----------------------------------------------------------------------------
+fn ld_A16_a(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUState {
+    let addr = combine(high, low) as usize;
+    mem[addr] = cpu.reg[REG_A];
+    CPUState {
+        pc: cpu.pc + 3,
+        tsc: cpu.tsc + 16,
         ..cpu
     }
 }

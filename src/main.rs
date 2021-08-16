@@ -150,6 +150,10 @@ const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
         reg,
         ..cpu}
 }
+fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
+    mem[cpu.HL()] = val;
+    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, ..cpu }
+}
 
 // todo: the index arguments could be extracted from the opcode
 const fn ld_b_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B]) }
@@ -219,8 +223,27 @@ const fn ld_l_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_L,
 const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_A, d8) }
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
+
 //   ld   (HL),r      7x         8 ---- (HL)=r
+// ----------------------------------------------------------------------------
+fn ld_HL_b(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B]) }
+fn ld_HL_c(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C]) }
+fn ld_HL_d(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D]) }
+fn ld_HL_e(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E]) }
+fn ld_HL_h(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H]) }
+fn ld_HL_l(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L]) }
+fn ld_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A]) }
+
 //   ld   (HL),n      36 nn     12 ----
+// ----------------------------------------------------------------------------
+fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState { 
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 12,
+        ..impl_ld_HL_d8(cpu, mem, val)
+    }
+}
+
 //   ld   A,(BC)      0A         8 ----
 //   ld   A,(DE)      1A         8 ----
 //   ld   A,(nn)      FA        16 ----

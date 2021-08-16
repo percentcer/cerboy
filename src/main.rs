@@ -969,13 +969,13 @@ mod tests_cpu {
 
     #[test]
     fn test_ld_r_d8() {
-        assert_eq!(ld_a_d8(INITIAL, 0xAF).reg[REG_B], 0xAF);
-        assert_eq!(ld_b_d8(INITIAL, 0xAF).reg[REG_C], 0xAF);
-        assert_eq!(ld_c_d8(INITIAL, 0xAF).reg[REG_D], 0xAF);
-        assert_eq!(ld_d_d8(INITIAL, 0xAF).reg[REG_E], 0xAF);
-        assert_eq!(ld_e_d8(INITIAL, 0xAF).reg[REG_H], 0xAF);
-        assert_eq!(ld_h_d8(INITIAL, 0xAF).reg[REG_L], 0xAF);
-        assert_eq!(ld_l_d8(INITIAL, 0xAF).reg[REG_A], 0xAF);
+        assert_eq!(ld_b_d8(INITIAL, 0xAF).reg[REG_B], 0xAF);
+        assert_eq!(ld_c_d8(INITIAL, 0xAF).reg[REG_C], 0xAF);
+        assert_eq!(ld_d_d8(INITIAL, 0xAF).reg[REG_D], 0xAF);
+        assert_eq!(ld_e_d8(INITIAL, 0xAF).reg[REG_E], 0xAF);
+        assert_eq!(ld_h_d8(INITIAL, 0xAF).reg[REG_H], 0xAF);
+        assert_eq!(ld_l_d8(INITIAL, 0xAF).reg[REG_L], 0xAF);
+        assert_eq!(ld_a_d8(INITIAL, 0xAF).reg[REG_A], 0xAF);
     }
 
     #[test]

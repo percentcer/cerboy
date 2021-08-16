@@ -1221,6 +1221,29 @@ mod tests_cpu {
     }
 
     #[test]
+    fn test_FF00_offsets() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[0xFF00] = 0;
+        mem[0xFF01] = 1;
+        mem[0xFF02] = 2;
+        mem[0xFF03] = 3;
+        mem[0xFFCC] = 0xCC;
+        assert_eq!(ld_a_FF00_A8(cpu, &mem, 0x02).reg[REG_A], 0x02);
+        assert_eq!(ld_a_FF00_C(cpu, &mem).reg[REG_A], 0xCC);
+        
+        ld_FF00_A8_a(cpu, &mut mem, 0x01);
+        assert_eq!(mem[0xFF01], cpu.reg[REG_A]);
+
+        ld_FF00_C_a(cpu, &mut mem);
+        assert_eq!(mem[0xFFCC], cpu.reg[REG_A]);
+    }
+
+    #[test]
     fn test_pop() {
         let cpu = CPUState {
             sp: 0xDEAD,

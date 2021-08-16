@@ -1252,6 +1252,26 @@ mod tests_cpu {
     }
 
     #[test]
+    fn test_16b_register_loads() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0xBB, 0xCC, 0xDD, 0xEE, 0x11, 0x22, FL_C, 0xAA],
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[0xBBCC] = 0xAB;
+        mem[0xDDEE] = 0xAD;
+        assert_eq!(ld_a_BC(cpu, &mem).reg[REG_A], mem[0xBBCC]);
+        assert_eq!(ld_a_DE(cpu, &mem).reg[REG_A], mem[0xDDEE]);
+
+        ld_BC_a(cpu, &mut mem);
+        assert_eq!(mem[0xBBCC], 0xAA);
+
+        ld_DE_a(cpu, &mut mem);
+        assert_eq!(mem[0xDDEE], 0xAA);
+    }
+
+    #[test]
     fn test_FF00_offsets() {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A

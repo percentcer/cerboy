@@ -264,7 +264,32 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 //   ld   SP,HL       F9         8 ---- SP=HL
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
+// ----------------------------------------------------------------------------
+fn push_bc(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    mem[(cpu.sp - 0) as usize] = cpu.reg[REG_B];
+    mem[(cpu.sp - 1) as usize] = cpu.reg[REG_C];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 16,
+        sp: cpu.sp - 2,
+        ..cpu
+    }
+}
+
 //   pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
+// ----------------------------------------------------------------------------
+const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_C] = mem[(cpu.sp + 0) as usize];
+    reg[REG_B] = mem[(cpu.sp + 1) as usize];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 12,
+        sp: cpu.sp + 2,
+        reg,
+        ..cpu
+    }
+}
 
 // GMB 8bit-Arithmetic/logical Commands
 // ============================================================================

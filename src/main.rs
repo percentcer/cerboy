@@ -395,8 +395,8 @@ const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
 fn push_bc(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(cpu.sp - 0) as usize] = cpu.reg[REG_B];
-    mem[(cpu.sp - 1) as usize] = cpu.reg[REG_C];
+    mem[(cpu.sp - 1) as usize] = cpu.reg[REG_B];
+    mem[(cpu.sp - 2) as usize] = cpu.reg[REG_C];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 16,
@@ -409,8 +409,8 @@ fn push_bc(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 // ----------------------------------------------------------------------------
 const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_C] = mem[(cpu.sp + 0) as usize];
     reg[REG_B] = mem[(cpu.sp + 1) as usize];
+    reg[REG_C] = mem[(cpu.sp) as usize];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
@@ -806,7 +806,7 @@ fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
 // ----------------------------------------------------------------------------
 const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
     CPUState {
-        pc: combine(mem[(cpu.sp+1) as usize], mem[(cpu.sp) as usize]),
+        pc: combine(mem[(cpu.sp+1) as usize], mem[(cpu.sp+0) as usize]),
         tsc: cpu.tsc + 16,
         sp: cpu.sp + 2,
         ..cpu
@@ -1216,8 +1216,39 @@ mod tests_cpu {
         };
         let mut mem = init_mem();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
-        assert_eq!(mem[cpu.sp as usize], cpu.reg[REG_B]);
-        assert_eq!(mem[(cpu.sp - 1) as usize], cpu.reg[REG_C]);
+        assert_eq!(mem[(cpu.sp - 1) as usize], cpu.reg[REG_B]);
+        assert_eq!(mem[(cpu.sp - 2) as usize], cpu.reg[REG_C]);
+    }
+
+    #[test]
+    fn test_pop() {
+        let cpu = CPUState {
+            sp: 0xDEAD,
+            ..INITIAL 
+        };
+        
+        let mut mem = init_mem();
+        mem[0xDEAD] = 0xAD;
+        mem[0xDEAD+1] = 0xDE;
+
+        assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
+        assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);
+        assert_eq!(pop_bc(cpu, &mem).reg[REG_C], 0xAD);
+    }
+
+    #[test]
+    fn test_ret() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
+            sp: 0xFFFC,
+            ..INITIAL 
+        };
+        let mut mem = init_mem();
+        mem[0xFFFD] = 0xBE;
+        mem[0xFFFC] = 0xEF;
+        assert_eq!(ret(cpu,&mem).pc, 0xBEEF);
+        assert_eq!(ret(cpu,&mem).sp, 0xFFFE);
     }
 
     #[test]
@@ -1241,21 +1272,5 @@ mod tests_cpu {
 
         ld_FF00_C_a(cpu, &mut mem);
         assert_eq!(mem[0xFFCC], cpu.reg[REG_A]);
-    }
-
-    #[test]
-    fn test_pop() {
-        let cpu = CPUState {
-            sp: 0xDEAD,
-            ..INITIAL 
-        };
-        
-        let mut mem = init_mem();
-        mem[0xDEAD] = 0xAD;
-        mem[0xDEAD+1] = 0xDE;
-
-        assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
-        assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);
-        assert_eq!(pop_bc(cpu, &mem).reg[REG_C], 0xAD);
     }
 }

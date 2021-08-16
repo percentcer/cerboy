@@ -261,7 +261,32 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 
 // GMB 16bit-Loadcommands
 // ============================================================================
+const fn impl_ld_rr_d16(cpu: CPUState, reg_high: usize, reg_low: usize, high: Byte, low: Byte) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[reg_high] = high;
+    reg[reg_low] = low;
+    CPUState {
+        pc: cpu.pc + 3,
+        tsc: cpu.tsc + 12,
+        reg,
+        ..cpu
+    }
+}
+
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
+// ----------------------------------------------------------------------------
+const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_B, REG_C, high, low) }
+const fn ld_de_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_D, REG_E, high, low) }
+const fn ld_hl_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_H, REG_L, high, low) }
+const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { 
+    CPUState {
+        pc: cpu.pc + 3,
+        tsc: cpu.tsc + 12,
+        sp: combine(high, low),
+        ..cpu
+    }
+}
+
 //   ld   SP,HL       F9         8 ---- SP=HL
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------

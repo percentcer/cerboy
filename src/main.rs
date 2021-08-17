@@ -1247,7 +1247,7 @@ fn main() {
         2,
         "unexpected number of args (must pass in path to rom)"
     );
-    let rom_path = &args[1];
+    let rom_path: &str = &args[1];
 
     // memory stuff
     // ------------

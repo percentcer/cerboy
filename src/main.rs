@@ -1,7 +1,7 @@
 extern crate minifb;
 use minifb::{Key, Window, WindowOptions};
 
-use log::{error};
+use log::error;
 extern crate env_logger;
 
 use std::io::Read;
@@ -36,7 +36,7 @@ use std::io::Read;
 // FF80-FFFE   High RAM (HRAM)
 // FFFF        Interrupt Enable Register
 
-const GB_SCREEN_WIDTH : usize = 160;
+const GB_SCREEN_WIDTH: usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
 const ROM_MAX: usize = 0x200000;
 const MEM_SIZE: usize = 0xFFFF + 1;
@@ -67,14 +67,14 @@ const REG_A: usize = 7;
 #[derive(Copy, Clone, Debug)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
-    reg: [Byte;8],
+    reg: [Byte; 8],
     sp: Word,
     pc: Word,
 }
 
 impl CPUState {
     /// Initializes a new CPUState struct
-    /// 
+    ///
     /// Starting values should match original gb hardware, more here:
     /// https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#powerupsequence
     const fn new() -> CPUState {
@@ -83,12 +83,12 @@ impl CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
             sp: 0xFFFE,
-            pc: 0
+            pc: 0,
         }
     }
 
     /// Commonly used for addresses
-    /// 
+    ///
     /// Combines the H and L registers into a usize for mem indexing
     const fn HL(&self) -> usize {
         combine(self.reg[REG_H], self.reg[REG_L]) as usize
@@ -96,7 +96,7 @@ impl CPUState {
 }
 
 fn init_mem() -> Vec<Byte> {
-    let mut mem = vec![0;MEM_SIZE];
+    let mut mem = vec![0; MEM_SIZE];
     mem[0xFF05] = 0x00; //TIMA
     mem[0xFF06] = 0x00; //TMA
     mem[0xFF07] = 0x00; //TAC
@@ -131,8 +131,12 @@ fn init_mem() -> Vec<Byte> {
     mem
 }
 
-const fn hi(reg: Word) -> Byte { (reg >> Byte::BITS) as Byte }
-const fn lo(reg: Word) -> Byte { (reg & LOW_MASK) as Byte }
+const fn hi(reg: Word) -> Byte {
+    (reg >> Byte::BITS) as Byte
+}
+const fn lo(reg: Word) -> Byte {
+    (reg & LOW_MASK) as Byte
+}
 const fn combine(high: Byte, low: Byte) -> Word {
     (high as Word) << Byte::BITS | (low as Word)
 }
@@ -144,99 +148,230 @@ const fn combine(high: Byte, low: Byte) -> Word {
 const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
     let mut reg = cpu.reg;
     reg[dst] = val;
-    CPUState{
-        pc: cpu.pc+1, 
-        tsc: cpu.tsc+4,
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
         reg,
-        ..cpu}
+        ..cpu
+    }
 }
 fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
     mem[cpu.HL()] = val;
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, ..cpu }
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        ..cpu
+    }
 }
 
 // todo: the index arguments could be extracted from the opcode
-const fn ld_b_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B]) }
-const fn ld_b_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C]) }
-const fn ld_b_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D]) }
-const fn ld_b_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E]) }
-const fn ld_b_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H]) }
-const fn ld_b_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L]) }
-const fn ld_b_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A]) }
+const fn ld_b_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B])
+}
+const fn ld_b_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C])
+}
+const fn ld_b_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D])
+}
+const fn ld_b_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E])
+}
+const fn ld_b_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H])
+}
+const fn ld_b_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L])
+}
+const fn ld_b_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A])
+}
 
-const fn ld_c_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B]) }
-const fn ld_c_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C]) }
-const fn ld_c_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D]) }
-const fn ld_c_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E]) }
-const fn ld_c_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H]) }
-const fn ld_c_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L]) }
-const fn ld_c_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A]) }
+const fn ld_c_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B])
+}
+const fn ld_c_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C])
+}
+const fn ld_c_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D])
+}
+const fn ld_c_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E])
+}
+const fn ld_c_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H])
+}
+const fn ld_c_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L])
+}
+const fn ld_c_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A])
+}
 
-const fn ld_d_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B]) }
-const fn ld_d_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C]) }
-const fn ld_d_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D]) }
-const fn ld_d_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E]) }
-const fn ld_d_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H]) }
-const fn ld_d_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L]) }
-const fn ld_d_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A]) }
+const fn ld_d_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B])
+}
+const fn ld_d_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C])
+}
+const fn ld_d_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D])
+}
+const fn ld_d_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E])
+}
+const fn ld_d_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H])
+}
+const fn ld_d_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L])
+}
+const fn ld_d_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A])
+}
 
-const fn ld_e_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B]) }
-const fn ld_e_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C]) }
-const fn ld_e_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D]) }
-const fn ld_e_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E]) }
-const fn ld_e_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H]) }
-const fn ld_e_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L]) }
-const fn ld_e_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A]) }
+const fn ld_e_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B])
+}
+const fn ld_e_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C])
+}
+const fn ld_e_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D])
+}
+const fn ld_e_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E])
+}
+const fn ld_e_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H])
+}
+const fn ld_e_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L])
+}
+const fn ld_e_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A])
+}
 
-const fn ld_h_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B]) }
-const fn ld_h_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C]) }
-const fn ld_h_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D]) }
-const fn ld_h_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E]) }
-const fn ld_h_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H]) }
-const fn ld_h_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L]) }
-const fn ld_h_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A]) }
+const fn ld_h_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B])
+}
+const fn ld_h_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C])
+}
+const fn ld_h_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D])
+}
+const fn ld_h_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E])
+}
+const fn ld_h_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H])
+}
+const fn ld_h_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L])
+}
+const fn ld_h_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A])
+}
 
-const fn ld_l_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B]) }
-const fn ld_l_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C]) }
-const fn ld_l_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D]) }
-const fn ld_l_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E]) }
-const fn ld_l_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H]) }
-const fn ld_l_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L]) }
-const fn ld_l_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A]) }
+const fn ld_l_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B])
+}
+const fn ld_l_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C])
+}
+const fn ld_l_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D])
+}
+const fn ld_l_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E])
+}
+const fn ld_l_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H])
+}
+const fn ld_l_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L])
+}
+const fn ld_l_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A])
+}
 
-const fn ld_a_b(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B]) }
-const fn ld_a_c(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C]) }
-const fn ld_a_d(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D]) }
-const fn ld_a_e(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E]) }
-const fn ld_a_h(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H]) }
-const fn ld_a_l(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L]) }
-const fn ld_a_a(cpu: CPUState) -> CPUState { impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A]) }
+const fn ld_a_b(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B])
+}
+const fn ld_a_c(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C])
+}
+const fn ld_a_d(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D])
+}
+const fn ld_a_e(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E])
+}
+const fn ld_a_h(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H])
+}
+const fn ld_a_l(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L])
+}
+const fn ld_a_a(cpu: CPUState) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A])
+}
 
 //   ld   r,n         xx nn      8 ---- r=n
 // ----------------------------------------------------------------------------
-const fn ld_b_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_B, d8) }
-const fn ld_c_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_C, d8) }
-const fn ld_d_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_D, d8) }
-const fn ld_e_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_E, d8) }
-const fn ld_h_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_H, d8) }
-const fn ld_l_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_L, d8) }
-const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState { impl_ld_r_d8(cpu, REG_A, d8) }
+const fn ld_b_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, d8)
+}
+const fn ld_c_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, d8)
+}
+const fn ld_d_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, d8)
+}
+const fn ld_e_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, d8)
+}
+const fn ld_h_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, d8)
+}
+const fn ld_l_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, d8)
+}
+const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, d8)
+}
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 
 //   ld   (HL),r      7x         8 ---- (HL)=r
 // ----------------------------------------------------------------------------
-fn ld_HL_b(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B]) }
-fn ld_HL_c(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C]) }
-fn ld_HL_d(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D]) }
-fn ld_HL_e(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E]) }
-fn ld_HL_h(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H]) }
-fn ld_HL_l(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L]) }
-fn ld_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState { impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A]) }
+fn ld_HL_b(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B])
+}
+fn ld_HL_c(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C])
+}
+fn ld_HL_d(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D])
+}
+fn ld_HL_e(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E])
+}
+fn ld_HL_h(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H])
+}
+fn ld_HL_l(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L])
+}
+fn ld_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A])
+}
 
 //   ld   (HL),n      36 nn     12 ----
 // ----------------------------------------------------------------------------
-fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState { 
+fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -249,7 +384,12 @@ fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
 const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[combine(reg[REG_B], reg[REG_C]) as usize];
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
 }
 
 //   ld   A,(DE)      1A         8 ----
@@ -257,7 +397,12 @@ const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
 const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[combine(reg[REG_D], reg[REG_E]) as usize];
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
 }
 
 //   ld   A,(nn)      FA nn nn        16 ----
@@ -303,14 +448,23 @@ fn ld_A16_a(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
 const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[(0xFF00 + off as Word) as usize];
-    CPUState { pc: cpu.pc + 2, tsc: cpu.tsc + 12, reg, ..cpu }
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 12,
+        reg,
+        ..cpu
+    }
 }
 
 //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
 fn ld_FF00_A8_a(cpu: CPUState, mem: &mut Vec<Byte>, off: Byte) -> CPUState {
     mem[(0xFF00 + off as Word) as usize] = cpu.reg[REG_A];
-    CPUState { pc: cpu.pc + 2, tsc: cpu.tsc + 12, ..cpu }
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 12,
+        ..cpu
+    }
 }
 
 //   ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
@@ -318,14 +472,23 @@ fn ld_FF00_A8_a(cpu: CPUState, mem: &mut Vec<Byte>, off: Byte) -> CPUState {
 const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[(0xFF00 + reg[REG_C] as Word) as usize];
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, reg, ..cpu }
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
 }
 
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
 fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
     mem[(0xFF00 + cpu.reg[REG_C] as Word) as usize] = cpu.reg[REG_A];
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 8, ..cpu }
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        ..cpu
+    }
 }
 
 //   ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
@@ -365,7 +528,13 @@ fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 // GMB 16bit-Loadcommands
 // ============================================================================
-const fn impl_ld_rr_d16(cpu: CPUState, reg_high: usize, reg_low: usize, high: Byte, low: Byte) -> CPUState {
+const fn impl_ld_rr_d16(
+    cpu: CPUState,
+    reg_high: usize,
+    reg_low: usize,
+    high: Byte,
+    low: Byte,
+) -> CPUState {
     let mut reg = cpu.reg;
     reg[reg_high] = high;
     reg[reg_low] = low;
@@ -379,10 +548,16 @@ const fn impl_ld_rr_d16(cpu: CPUState, reg_high: usize, reg_low: usize, high: By
 
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 // ----------------------------------------------------------------------------
-const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_B, REG_C, high, low) }
-const fn ld_de_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_D, REG_E, high, low) }
-const fn ld_hl_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { impl_ld_rr_d16(cpu, REG_H, REG_L, high, low) }
-const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState { 
+const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+    impl_ld_rr_d16(cpu, REG_B, REG_C, high, low)
+}
+const fn ld_de_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+    impl_ld_rr_d16(cpu, REG_D, REG_E, high, low)
+}
+const fn ld_hl_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+    impl_ld_rr_d16(cpu, REG_H, REG_L, high, low)
+}
+const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
         pc: cpu.pc + 3,
         tsc: cpu.tsc + 12,
@@ -429,10 +604,8 @@ const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
 
     let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 > 0;
     let (result, c) = reg_a.overflowing_add(arg);
-    let flags: Byte = if result == 0 {FL_Z} else {0} 
-                    | if h {FL_H} else {0}
-                    | if c {FL_C} else {0};
-    
+    let flags: Byte =
+        if result == 0 { FL_Z } else { 0 } | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
     reg[REG_A] = result;
     reg[FLAGS] = flags;
 
@@ -450,8 +623,7 @@ const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
         let cpu_post = impl_add(cpu_pre, 0x01);
         // ignore Z from pre but keep it in post
         // keep H and C flags if they were set in either operation
-        let flags: Byte = cpu_post.reg[FLAGS]
-        | (cpu_pre.reg[FLAGS] & (FL_H | FL_C));
+        let flags: Byte = cpu_post.reg[FLAGS] | (cpu_pre.reg[FLAGS] & (FL_H | FL_C));
 
         let mut reg = cpu_post.reg;
         reg[FLAGS] = flags;
@@ -471,11 +643,7 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     let mut reg = cpu.reg;
 
     reg[REG_A] = reg[REG_A] ^ arg;
-    reg[FLAGS] = if reg[REG_A] == 0 {
-        FL_Z
-    } else {
-        0x00
-    };
+    reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
 
     CPUState {
         pc: cpu.pc + 1,
@@ -489,15 +657,9 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     // z1h- for dec
     let mut reg = cpu.reg;
     let (h, (res, _c)) = if flag_n > 0 {
-        (
-            reg[dst] & 0x0F == 0x00,
-            reg[dst].overflowing_sub(1)
-        )
+        (reg[dst] & 0x0F == 0x00, reg[dst].overflowing_sub(1))
     } else {
-        (
-            reg[dst] & 0x0F == 0x0F,
-            reg[dst].overflowing_add(1)
-        )
+        (reg[dst] & 0x0F == 0x0F, reg[dst].overflowing_add(1))
     };
 
     let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
@@ -508,14 +670,19 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     reg[dst] = res;
     reg[FLAGS] = flags;
 
-    CPUState {pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu}
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg,
+        ..cpu
+    }
 }
 const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
     let mut reg = cpu.reg;
     let operand: Word = combine(reg[high], reg[low]);
     let (res, _) = operand.overflowing_add(1);
     reg[high] = hi(res);
-    reg[low]  = lo(res);
+    reg[low] = lo(res);
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -530,27 +697,44 @@ const fn impl_cp(cpu: CPUState, d8: Byte) -> CPUState {
     let (_, h) = (cpu.reg[REG_A] & 0x0F).overflowing_sub(d8 & 0x0F);
     let c = d8 > cpu.reg[REG_A];
     let z = d8 == cpu.reg[REG_A];
-    reg[FLAGS] = if z {FL_Z} else {0}
-    | FL_N
-    | if h {FL_H} else {0}
-    | if c {FL_C} else {0};
-    CPUState { pc: cpu.pc + 1, tsc: cpu.tsc + 4, reg, ..cpu }
+    reg[FLAGS] =
+        if z { FL_Z } else { 0 } | FL_N | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg,
+        ..cpu
+    }
 }
 
 //   add  A,r         8x         4 z0hc A=A+r
 // ----------------------------------------------------------------------------
-const fn add_b(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_B]) }
-const fn add_c(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_C]) }
-const fn add_d(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_D]) }
-const fn add_e(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_E]) }
-const fn add_h(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_H]) }
-const fn add_l(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_L]) }
-const fn add_a(cpu: CPUState) -> CPUState { impl_add(cpu, cpu.reg[REG_A]) }
+const fn add_b(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_B])
+}
+const fn add_c(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_C])
+}
+const fn add_d(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_D])
+}
+const fn add_e(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_E])
+}
+const fn add_h(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_H])
+}
+const fn add_l(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_L])
+}
+const fn add_a(cpu: CPUState) -> CPUState {
+    impl_add(cpu, cpu.reg[REG_A])
+}
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
 // ----------------------------------------------------------------------------
 const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState{
+    CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 8,
         ..impl_add(cpu, d8)
@@ -561,29 +745,43 @@ const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
 // ----------------------------------------------------------------------------
 const fn add_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     CPUState {
-        tsc: cpu.tsc + 8, 
+        tsc: cpu.tsc + 8,
         ..impl_add(cpu, mem[cpu.HL()])
     }
 }
 
 //   adc  A,r         8x         4 z0hc A=A+r+cy
 // ----------------------------------------------------------------------------
-const fn adc_b(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_B]) }
-const fn adc_c(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_C]) }
-const fn adc_d(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_D]) }
-const fn adc_e(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_E]) }
-const fn adc_h(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_H]) }
-const fn adc_l(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_L]) }
-const fn adc_a(cpu: CPUState) -> CPUState { impl_adc(cpu, cpu.reg[REG_A]) }
+const fn adc_b(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_B])
+}
+const fn adc_c(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_C])
+}
+const fn adc_d(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_D])
+}
+const fn adc_e(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_E])
+}
+const fn adc_h(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_H])
+}
+const fn adc_l(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_L])
+}
+const fn adc_a(cpu: CPUState) -> CPUState {
+    impl_adc(cpu, cpu.reg[REG_A])
+}
 
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
 // ----------------------------------------------------------------------------
-const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState { 
-    CPUState{
+const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 8,
         ..impl_adc(cpu, d8)
-    } 
+    }
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
@@ -599,18 +797,32 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
-const fn xor_b(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_B]) }
-const fn xor_c(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_C]) }
-const fn xor_d(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_D]) }
-const fn xor_e(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_E]) }
-const fn xor_h(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_H]) }
-const fn xor_l(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_L]) }
-const fn xor_a(cpu: CPUState) -> CPUState { impl_xor(cpu, cpu.reg[REG_A]) }
+const fn xor_b(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_B])
+}
+const fn xor_c(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_C])
+}
+const fn xor_d(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_D])
+}
+const fn xor_e(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_E])
+}
+const fn xor_h(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_H])
+}
+const fn xor_l(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_L])
+}
+const fn xor_a(cpu: CPUState) -> CPUState {
+    impl_xor(cpu, cpu.reg[REG_A])
+}
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState{
+    CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 8,
         ..impl_xor(cpu, d8)
@@ -624,13 +836,27 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   cp   r           Bx         4 z1hc compare A-r
 // ----------------------------------------------------------------------------
-const fn cp_b(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_B]) }
-const fn cp_c(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_C]) }
-const fn cp_d(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_D]) }
-const fn cp_e(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_E]) }
-const fn cp_h(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_H]) }
-const fn cp_l(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_L]) }
-const fn cp_a(cpu: CPUState) -> CPUState { impl_cp(cpu, cpu.reg[REG_A]) }
+const fn cp_b(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_B])
+}
+const fn cp_c(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_C])
+}
+const fn cp_d(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_D])
+}
+const fn cp_e(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_E])
+}
+const fn cp_h(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_H])
+}
+const fn cp_l(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_L])
+}
+const fn cp_a(cpu: CPUState) -> CPUState {
+    impl_cp(cpu, cpu.reg[REG_A])
+}
 
 //   cp   n           FE nn      8 z1hc compare A-n
 // ----------------------------------------------------------------------------
@@ -653,24 +879,52 @@ const fn cp_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   inc  r           xx         4 z0h- r=r+1
 // ----------------------------------------------------------------------------
-const fn inc_b(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_B, 0) }
-const fn inc_c(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_C, 0) }
-const fn inc_d(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_D, 0) }
-const fn inc_e(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_E, 0) }
-const fn inc_h(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_H, 0) }
-const fn inc_l(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_L, 0) }
-const fn inc_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, 0) }
+const fn inc_b(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_B, 0)
+}
+const fn inc_c(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_C, 0)
+}
+const fn inc_d(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_D, 0)
+}
+const fn inc_e(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_E, 0)
+}
+const fn inc_h(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_H, 0)
+}
+const fn inc_l(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_L, 0)
+}
+const fn inc_a(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_A, 0)
+}
 
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
 //   dec  r           xx         4 z1h- r=r-1
 // ----------------------------------------------------------------------------
-const fn dec_b(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_B, FL_N) }
-const fn dec_c(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_C, FL_N) }
-const fn dec_d(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_D, FL_N) }
-const fn dec_e(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_E, FL_N) }
-const fn dec_h(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_H, FL_N) }
-const fn dec_l(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_L, FL_N) }
-const fn dec_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, FL_N) }
+const fn dec_b(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_B, FL_N)
+}
+const fn dec_c(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_C, FL_N)
+}
+const fn dec_d(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_D, FL_N)
+}
+const fn dec_e(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_E, FL_N)
+}
+const fn dec_h(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_H, FL_N)
+}
+const fn dec_l(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_L, FL_N)
+}
+const fn dec_a(cpu: CPUState) -> CPUState {
+    impl_inc_dec(cpu, REG_A, FL_N)
+}
 
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
 //   daa              27         4 z-0x decimal adjust akku
@@ -682,9 +936,15 @@ const fn dec_a(cpu: CPUState) -> CPUState { impl_inc_dec(cpu, REG_A, FL_N) }
 
 //   inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
 // ----------------------------------------------------------------------------
-const fn inc_bc(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_B, REG_C) }
-const fn inc_de(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_D, REG_E) }
-const fn inc_hl(cpu: CPUState) -> CPUState { impl_inc16(cpu, REG_H, REG_L) }
+const fn inc_bc(cpu: CPUState) -> CPUState {
+    impl_inc16(cpu, REG_B, REG_C)
+}
+const fn inc_de(cpu: CPUState) -> CPUState {
+    impl_inc16(cpu, REG_D, REG_E)
+}
+const fn inc_hl(cpu: CPUState) -> CPUState {
+    impl_inc16(cpu, REG_H, REG_L)
+}
 const fn inc_sp(cpu: CPUState) -> CPUState {
     let (res, _) = cpu.sp.overflowing_add(1);
     CPUState {
@@ -738,7 +998,7 @@ const fn inc_sp(cpu: CPUState) -> CPUState {
 
 //   nop            00           4 ---- no operation
 // ----------------------------------------------------------------------------
-const fn nop(cpu: CPUState) -> CPUState { 
+const fn nop(cpu: CPUState) -> CPUState {
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 4,
@@ -754,8 +1014,8 @@ const fn nop(cpu: CPUState) -> CPUState {
 // GMB Jumpcommands
 // ============================================================================
 const fn impl_jr(cpu: CPUState, arg: SByte, do_it: bool) -> CPUState {
-    let offset = if do_it {arg as Word} else {0};
-    let time = if do_it {12} else {8};
+    let offset = if do_it { arg as Word } else { 0 };
+    let time = if do_it { 12 } else { 8 };
     CPUState {
         pc: cpu.pc.wrapping_add(offset),
         tsc: cpu.tsc + time,
@@ -778,14 +1038,24 @@ const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 // ----------------------------------------------------------------------------
-const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, true) }
+const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState {
+    impl_jr(cpu, r8, true)
+}
 
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
 // ----------------------------------------------------------------------------
-const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z == 0) }
-const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C == 0) }
-const fn jr_z_r8(cpu: CPUState, r8: SByte)  -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z != 0) }
-const fn jr_c_r8(cpu: CPUState, r8: SByte)  -> CPUState { impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C != 0) }
+const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState {
+    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z == 0)
+}
+const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState {
+    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C == 0)
+}
+const fn jr_z_r8(cpu: CPUState, r8: SByte) -> CPUState {
+    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z != 0)
+}
+const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
+    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C != 0)
+}
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
 // ----------------------------------------------------------------------------
@@ -806,7 +1076,7 @@ fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
 // ----------------------------------------------------------------------------
 const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
     CPUState {
-        pc: combine(mem[(cpu.sp+1) as usize], mem[(cpu.sp+0) as usize]),
+        pc: combine(mem[(cpu.sp + 1) as usize], mem[(cpu.sp + 0) as usize]),
         tsc: cpu.tsc + 16,
         sp: cpu.sp + 2,
         ..cpu
@@ -829,22 +1099,25 @@ fn main() {
         GB_SCREEN_HEIGHT * 4,
         WindowOptions::default(),
     )
-    .unwrap_or_else(|e| {
-        panic!("{}",e)
-    });
+    .unwrap_or_else(|e| panic!("{}", e));
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
     // rom stuff
     // ---------
     let mut rom: Vec<Byte> = vec![0; ROM_MAX];
     let args: Vec<String> = std::env::args().collect();
-    println!("{:?}",args);
-    assert_eq!(args.len(), 2, "unexpected number of args (must pass in path to rom)");
+    println!("{:?}", args);
+    assert_eq!(
+        args.len(),
+        2,
+        "unexpected number of args (must pass in path to rom)"
+    );
     let mut file = match std::fs::File::open(&args[1]) {
         Ok(file) => file,
-        Err(file) => panic!("failed to open {}", file)
+        Err(file) => panic!("failed to open {}", file),
     };
-    file.read(&mut rom).expect("failed to read file into memory");
+    file.read(&mut rom)
+        .expect("failed to read file into memory");
 
     // memory stuff
     // ------------
@@ -877,8 +1150,16 @@ mod tests_cpu {
         let result = impl_xor(INITIAL, 0x13);
         assert_eq!(result.pc, INITIAL.pc + 1, "incorrect program counter");
         assert_eq!(result.tsc, INITIAL.tsc + 4, "incorrect time stamp counter");
-        assert_eq!(result.reg[REG_A], 0x12, "incorrect value in reg_a (expected 0x{:X} got 0x{:X})", 0x12, result.reg[REG_A]);
-        assert_eq!(result.reg[FLAGS], 0x00, "incorrect flags (expected 0x{:X} got 0x{:X})", 0x00, result.reg[FLAGS]);
+        assert_eq!(
+            result.reg[REG_A], 0x12,
+            "incorrect value in reg_a (expected 0x{:X} got 0x{:X})",
+            0x12, result.reg[REG_A]
+        );
+        assert_eq!(
+            result.reg[FLAGS], 0x00,
+            "incorrect flags (expected 0x{:X} got 0x{:X})",
+            0x00, result.reg[FLAGS]
+        );
     }
 
     #[test]
@@ -905,7 +1186,6 @@ mod tests_cpu {
         assert_eq!(result.tsc, INITIAL.tsc + 8, "incorrect time stamp counter");
         assert_eq!(result.reg[REG_A], 0xFE, "incorrect xor value in reg a");
     }
-    
     #[test]
     fn test_ld_r_r() {
         assert_eq!(ld_b_a(INITIAL).reg[REG_B], 0x01);
@@ -991,13 +1271,25 @@ mod tests_cpu {
     fn test_add() {
         // reg a inits to 0x01
         assert_eq!(impl_add(INITIAL, 0xFF).reg[REG_A], 0x00, "failed 0xff");
-        assert_eq!(impl_add(INITIAL, 0xFF).reg[FLAGS], FL_Z | FL_H | FL_C, "failed 0xff flags");
+        assert_eq!(
+            impl_add(INITIAL, 0xFF).reg[FLAGS],
+            FL_Z | FL_H | FL_C,
+            "failed 0xff flags"
+        );
 
         assert_eq!(impl_add(INITIAL, 0x0F).reg[REG_A], 0x10, "failed 0x0f");
-        assert_eq!(impl_add(INITIAL, 0x0F).reg[FLAGS], FL_H, "failed 0x0f flags");
+        assert_eq!(
+            impl_add(INITIAL, 0x0F).reg[FLAGS],
+            FL_H,
+            "failed 0x0f flags"
+        );
 
         assert_eq!(impl_add(INITIAL, 0x01).reg[REG_A], 0x02, "failed 0x01");
-        assert_eq!(impl_add(INITIAL, 0x01).reg[FLAGS], 0x00, "failed 0x01 flags");
+        assert_eq!(
+            impl_add(INITIAL, 0x01).reg[FLAGS],
+            0x00,
+            "failed 0x01 flags"
+        );
     }
 
     #[test]
@@ -1013,7 +1305,11 @@ mod tests_cpu {
 
         assert_eq!(impl_adc(cpu, 0xFE).reg[REG_A], 0xFF, "failed plain 0xFE");
         assert_eq!(impl_adc(cpu_c, 0xFE).reg[REG_A], 0x00);
-        assert_eq!(impl_adc(cpu_c, 0xFE).reg[FLAGS], FL_Z | FL_H | FL_C, "failed carry 0xFE");
+        assert_eq!(
+            impl_adc(cpu_c, 0xFE).reg[FLAGS],
+            FL_Z | FL_H | FL_C,
+            "failed carry 0xFE"
+        );
 
         assert_eq!(impl_adc(cpu, 0x0F).reg[REG_A], 0x10);
         assert_eq!(impl_adc(cpu, 0x0F).reg[FLAGS], FL_H, "failed plain 0x0F");
@@ -1025,7 +1321,11 @@ mod tests_cpu {
         assert_eq!(impl_adc(cpu, 0x01).reg[FLAGS], 0, "failed plain 0x01");
 
         assert_eq!(impl_adc(cpu_c, 0x01).reg[REG_A], 0x03, "failed carry 0x01");
-        assert_eq!(impl_adc(cpu_c, 0x01).reg[FLAGS], 0, "failed carry flags 0x01");
+        assert_eq!(
+            impl_adc(cpu_c, 0x01).reg[FLAGS],
+            0,
+            "failed carry flags 0x01"
+        );
     }
 
     #[test]
@@ -1044,83 +1344,83 @@ mod tests_cpu {
     fn test_call_d16() {
         let mut mem = init_mem();
         let result = call_d16(INITIAL, &mut mem, 0x01, 0x02);
-        assert_eq!(mem[(INITIAL.sp - 0) as usize], hi(INITIAL.pc), "failed high check");
-        assert_eq!(mem[(INITIAL.sp - 1) as usize], lo(INITIAL.pc), "failed low check");
+        assert_eq!(
+            mem[(INITIAL.sp - 0) as usize],
+            hi(INITIAL.pc),
+            "failed high check"
+        );
+        assert_eq!(
+            mem[(INITIAL.sp - 1) as usize],
+            lo(INITIAL.pc),
+            "failed low check"
+        );
         assert_eq!(result.pc, 0x0201, "failed sp check")
     }
 
     #[test]
     fn test_inc_dec() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x0F, 0xFF, 0x0E, 0x00, 0x02, 0x03, FL_C, 0x01],
-            ..INITIAL 
+            ..INITIAL
         };
-        
         assert_eq!(inc_b(cpu).reg[REG_B], 0x10);
         assert_eq!(inc_b(cpu).reg[FLAGS], FL_H | FL_C);
         assert_eq!(dec_b(cpu).reg[REG_B], 0x0E);
         assert_eq!(dec_b(cpu).reg[FLAGS], FL_N | FL_C);
-        
         assert_eq!(inc_c(cpu).reg[REG_C], 0x00);
         assert_eq!(inc_c(cpu).reg[FLAGS], FL_Z | FL_H | FL_C);
         assert_eq!(dec_c(cpu).reg[REG_C], 0xFE);
         assert_eq!(dec_c(cpu).reg[FLAGS], FL_N | FL_C);
-        
         assert_eq!(inc_d(cpu).reg[REG_D], 0x0F);
         assert_eq!(inc_d(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_d(cpu).reg[REG_D], 0x0D);
         assert_eq!(dec_d(cpu).reg[FLAGS], FL_N | FL_C);
-        
         assert_eq!(inc_e(cpu).reg[REG_E], 0x01);
         assert_eq!(inc_e(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_e(cpu).reg[REG_E], 0xFF);
         assert_eq!(dec_e(cpu).reg[FLAGS], FL_N | FL_H | FL_C);
-        
         assert_eq!(inc_h(cpu).reg[REG_H], 0x03);
         assert_eq!(inc_h(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_h(cpu).reg[REG_H], 0x01);
         assert_eq!(dec_h(cpu).reg[FLAGS], FL_N | FL_C);
-        
         assert_eq!(inc_l(cpu).reg[REG_L], 0x04);
         assert_eq!(inc_l(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_l(cpu).reg[REG_L], 0x02);
         assert_eq!(dec_l(cpu).reg[FLAGS], FL_N | FL_C);
-        
         assert_eq!(inc_a(cpu).reg[REG_A], 0x02);
         assert_eq!(inc_a(cpu).reg[FLAGS], FL_C);
         assert_eq!(dec_a(cpu).reg[REG_A], 0x00);
         assert_eq!(dec_a(cpu).reg[FLAGS], FL_Z | FL_N | FL_C);
     }
-    
     #[test]
     fn test_cp() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x12, FL_C, 0x11],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[cpu.HL()] = cpu.reg[REG_L];
 
         assert_eq!(cp_b(cpu).reg[FLAGS], FL_N);
         assert_eq!(cp_c(cpu).reg[FLAGS], FL_N);
-        assert_eq!(cp_d(cpu).reg[FLAGS], FL_N|FL_H);
-        assert_eq!(cp_e(cpu).reg[FLAGS], FL_N|FL_H);
-        assert_eq!(cp_h(cpu).reg[FLAGS], FL_Z|FL_N);
-        assert_eq!(cp_l(cpu).reg[FLAGS], FL_N|FL_H|FL_C);
-        assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z|FL_N);
-        assert_eq!(cp_d8(cpu,0x12).reg[FLAGS], FL_N|FL_H|FL_C);
-        assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N|FL_H|FL_C);
+        assert_eq!(cp_d(cpu).reg[FLAGS], FL_N | FL_H);
+        assert_eq!(cp_e(cpu).reg[FLAGS], FL_N | FL_H);
+        assert_eq!(cp_h(cpu).reg[FLAGS], FL_Z | FL_N);
+        assert_eq!(cp_l(cpu).reg[FLAGS], FL_N | FL_H | FL_C);
+        assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z | FL_N);
+        assert_eq!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
+        assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
     }
 
     #[test]
     fn test_inc16() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0x11],
             sp: 0x00FF,
-            ..INITIAL 
+            ..INITIAL
         };
         assert_eq!(inc_bc(cpu).reg[REG_B], 0x00);
         assert_eq!(inc_bc(cpu).reg[REG_C], 0x02);
@@ -1133,13 +1433,13 @@ mod tests_cpu {
 
     #[test]
     fn test_jp() {
-        let cpu_c = CPUState{
+        let cpu_c = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0x11],
             pc: 0xFF,
-            ..INITIAL 
+            ..INITIAL
         };
-        let cpu_z = CPUState{
+        let cpu_z = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_Z, 0x11],
             ..cpu_c
@@ -1147,11 +1447,9 @@ mod tests_cpu {
 
         assert_eq!(jp_d16(cpu_c, 0x03, 0x02).pc, 0x0203);
         assert_eq!(jp_d16(cpu_c, 0x03, 0x02).tsc, 16);
-        
         assert_eq!(jr_z_r8(cpu_z, 1).pc, 0x100);
         assert_eq!(jr_z_r8(cpu_z, -0xF).pc, 0xF0);
         assert_eq!(jr_z_r8(cpu_c, 1).pc, cpu_c.pc);
-        
         assert_eq!(jr_nz_r8(cpu_c, 1).pc, cpu_c.pc + 1);
         assert_eq!(jr_nz_r8(cpu_z, 1).pc, cpu_z.pc);
         assert_eq!(jr_nz_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
@@ -1169,10 +1467,10 @@ mod tests_cpu {
 
     #[test]
     fn test_ld_HL_d8() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         impl_ld_HL_d8(cpu, &mut mem, 0x22);
@@ -1181,10 +1479,10 @@ mod tests_cpu {
 
     #[test]
     fn test_ldi() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[cpu.HL()] = 0x0F;
@@ -1195,10 +1493,10 @@ mod tests_cpu {
 
     #[test]
     fn test_ldd() {
-        let cpu = CPUState{
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[cpu.HL()] = 0x0F;
@@ -1212,7 +1510,7 @@ mod tests_cpu {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
@@ -1224,12 +1522,11 @@ mod tests_cpu {
     fn test_pop() {
         let cpu = CPUState {
             sp: 0xDEAD,
-            ..INITIAL 
+            ..INITIAL
         };
-        
         let mut mem = init_mem();
         mem[0xDEAD] = 0xAD;
-        mem[0xDEAD+1] = 0xDE;
+        mem[0xDEAD + 1] = 0xDE;
 
         assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
         assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);
@@ -1242,13 +1539,13 @@ mod tests_cpu {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
             sp: 0xFFFC,
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[0xFFFD] = 0xBE;
         mem[0xFFFC] = 0xEF;
-        assert_eq!(ret(cpu,&mem).pc, 0xBEEF);
-        assert_eq!(ret(cpu,&mem).sp, 0xFFFE);
+        assert_eq!(ret(cpu, &mem).pc, 0xBEEF);
+        assert_eq!(ret(cpu, &mem).sp, 0xFFFE);
     }
 
     #[test]
@@ -1256,7 +1553,7 @@ mod tests_cpu {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0xBB, 0xCC, 0xDD, 0xEE, 0x11, 0x22, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[0xBBCC] = 0xAB;
@@ -1279,7 +1576,7 @@ mod tests_cpu {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
         let mut mem = init_mem();
         mem[0xFF00] = 0;
@@ -1289,7 +1586,6 @@ mod tests_cpu {
         mem[0xFFCC] = 0xCC;
         assert_eq!(ld_a_FF00_A8(cpu, &mem, 0x02).reg[REG_A], 0x02);
         assert_eq!(ld_a_FF00_C(cpu, &mem).reg[REG_A], 0xCC);
-        
         ld_FF00_A8_a(cpu, &mut mem, 0x01);
         assert_eq!(mem[0xFF01], cpu.reg[REG_A]);
 

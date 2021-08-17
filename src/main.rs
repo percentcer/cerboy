@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+#![allow(clippy::identity_op)]
 
 extern crate minifb;
 use minifb::{Key, Window, WindowOptions};
@@ -131,6 +132,22 @@ fn init_mem() -> Vec<Byte> {
     mem[0xFF4B] = 0x00; // WX
     mem[0xFFFF] = 0x00; // IE
     mem
+}
+
+fn init_rom(path: &str) -> Vec<Byte> {
+    let mut file = match std::fs::File::open(&path) {
+        Ok(file) => file,
+        Err(file) => panic!("failed to open {}", file),
+    };
+    let info = file.metadata().expect("failed to read file info");
+
+    // todo: not sure if I actually want this but it made clippy happy
+    // consider instead #[allow(clippy::unused_io_amount)]
+    let mut rom: Vec<Byte> = vec![0; info.len() as usize];
+    file.read_exact(&mut rom)
+        .expect("failed to read file into memory");
+
+    rom
 }
 
 const fn hi(reg: Word) -> Byte {
@@ -592,8 +609,7 @@ const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
         sp: cpu.sp + 2,
-        reg,
-        ..cpu
+        reg
     }
 }
 
@@ -644,7 +660,7 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     // z000
     let mut reg = cpu.reg;
 
-    reg[REG_A] = reg[REG_A] ^ arg;
+    reg[REG_A] ^= arg;
     reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
 
     CPUState {
@@ -1222,9 +1238,8 @@ fn main() {
     .unwrap_or_else(|e| panic!("{}", e));
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
-    // rom stuff
+    // arg processing
     // ---------
-    let mut rom: Vec<Byte> = vec![0; ROM_MAX];
     let args: Vec<String> = std::env::args().collect();
     println!("{:?}", args);
     assert_eq!(
@@ -1232,26 +1247,19 @@ fn main() {
         2,
         "unexpected number of args (must pass in path to rom)"
     );
-    let mut file = match std::fs::File::open(&args[1]) {
-        Ok(file) => file,
-        Err(file) => panic!("failed to open {}", file),
-    };
-    file.read(&mut rom)
-        .expect("failed to read file into memory");
+    let rom_path = &args[1];
 
     // memory stuff
     // ------------
+    let rom: Vec<Byte>  = init_rom(&rom_path);
     let mut _mem: Vec<Byte> = init_mem();
 
     // loop
     // ------------
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        let mut c: usize = 0;
-        for i in buffer.iter_mut() {
+        for (c, i) in buffer.iter_mut().enumerate() {
             *i = rom[c] as u32;
-            c += 1;
         }
-
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window
             .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)

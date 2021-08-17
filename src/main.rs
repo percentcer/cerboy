@@ -962,6 +962,19 @@ const fn inc_sp(cpu: CPUState) -> CPUState {
 // GMB Rotate- und Shift-Commands
 // ============================================================================
 //   rlca           07           4 000c rotate akku left
+// ----------------------------------------------------------------------------
+const fn rlca(cpu: CPUState) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[FLAGS] = if cpu.reg[REG_A] & 0x80 > 0 {FL_C} else {0};
+    reg[REG_A] = cpu.reg[REG_A].rotate_left(1);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg,
+        ..cpu
+    }
+}
+
 //   rla            17           4 000c rotate akku left through carry
 //   rrca           0F           4 000c rotate akku right
 //   rra            1F           4 000c rotate akku right through carry
@@ -1591,5 +1604,16 @@ mod tests_cpu {
 
         ld_FF00_C_a(cpu, &mut mem);
         assert_eq!(mem[0xFFCC], cpu.reg[REG_A]);
+    }
+
+    #[test]
+    fn test_rotations() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, 0,   0x80],
+            ..INITIAL
+        };
+        assert_eq!(rlca(cpu).reg[REG_A], 0x01);
+        assert_eq!(rlca(cpu).reg[FLAGS], FL_C);
     }
 }

@@ -4,7 +4,6 @@
 extern crate minifb;
 use minifb::{Key, Window, WindowOptions};
 
-use log::error;
 extern crate env_logger;
 
 use std::io::Read;
@@ -1186,7 +1185,7 @@ fn main() {
 
     // memory stuff
     // ------------
-    let mut mem: Vec<Byte> = init_mem();
+    let mut _mem: Vec<Byte> = init_mem();
 
     // loop
     // ------------

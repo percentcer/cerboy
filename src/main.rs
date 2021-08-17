@@ -965,7 +965,7 @@ const fn inc_sp(cpu: CPUState) -> CPUState {
 // ----------------------------------------------------------------------------
 const fn rlca(cpu: CPUState) -> CPUState {
     let mut reg = cpu.reg;
-    reg[FLAGS] = if cpu.reg[REG_A] & 0x80 > 0 {FL_C} else {0};
+    reg[FLAGS] = (cpu.reg[REG_A] & 0x80) >> 3;
     reg[REG_A] = cpu.reg[REG_A].rotate_left(1);
     CPUState {
         pc: cpu.pc + 1,
@@ -1626,6 +1626,7 @@ mod tests_cpu {
             reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, 0,   0x80],
             ..INITIAL
         };
+        // single rotation, store in carry if MSB is set
         assert_eq!(rlca(cpu).reg[REG_A], 0x01);
         assert_eq!(rlca(cpu).reg[FLAGS], FL_C);
 

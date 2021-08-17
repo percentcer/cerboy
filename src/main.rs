@@ -976,6 +976,19 @@ const fn rlca(cpu: CPUState) -> CPUState {
 }
 
 //   rla            17           4 000c rotate akku left through carry
+// ----------------------------------------------------------------------------
+const fn rla(cpu: CPUState) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[FLAGS] = (cpu.reg[REG_A] & 0x80) >> 3;
+    reg[REG_A] = (cpu.reg[REG_A].rotate_left(1) & 0xFE) | (cpu.reg[FLAGS] >> 4);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 4,
+        reg,
+        ..cpu
+    }
+}
+
 //   rrca           0F           4 000c rotate akku right
 //   rra            1F           4 000c rotate akku right through carry
 //   rlc  r         CB 0x        8 z00c rotate left
@@ -1615,5 +1628,13 @@ mod tests_cpu {
         };
         assert_eq!(rlca(cpu).reg[REG_A], 0x01);
         assert_eq!(rlca(cpu).reg[FLAGS], FL_C);
+
+        // single rotation through carry
+        assert_eq!(rla(cpu).reg[REG_A], 0x00);
+        assert_eq!(rla(cpu).reg[FLAGS], FL_C);
+
+        // double rotation through carry, carry should shift back down
+        assert_eq!(rla(rla(cpu)).reg[REG_A], 0x01);
+        assert_eq!(rla(rla(cpu)).reg[FLAGS], 0x00);
     }
 }

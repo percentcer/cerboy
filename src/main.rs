@@ -692,13 +692,19 @@ const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
         ..cpu
     }
 }
-// todo: cp is just sub without storing the result in A
-const fn impl_cp(cpu: CPUState, d8: Byte) -> CPUState {
+const fn impl_cp(cpu: CPUState, arg: Byte) -> CPUState {
+    let mut reg = cpu.reg;
+    let flagged = impl_sub(cpu, arg);
+    reg[FLAGS] = flagged.reg[FLAGS];
+    CPUState { reg, ..flagged }
+}
+const fn impl_sub(cpu: CPUState, arg: Byte) -> CPUState {
     // z1hc
     let mut reg = cpu.reg;
-    let (_, h) = (cpu.reg[REG_A] & 0x0F).overflowing_sub(d8 & 0x0F);
-    let c = d8 > cpu.reg[REG_A];
-    let z = d8 == cpu.reg[REG_A];
+    let (_, h) = (cpu.reg[REG_A] & 0x0F).overflowing_sub(arg & 0x0F);
+    let (res, c) = cpu.reg[REG_A].overflowing_sub(arg);
+    let z = arg == cpu.reg[REG_A];
+    reg[REG_A] = res;
     reg[FLAGS] =
         if z { FL_Z } else { 0 } | FL_N | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
     CPUState {
@@ -787,8 +793,41 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
+
 //   sub  r           9x         4 z1hc A=A-r
+// ----------------------------------------------------------------------------
+const fn sub_b(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_B])
+}
+const fn sub_c(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_C])
+}
+const fn sub_d(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_D])
+}
+const fn sub_e(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_E])
+}
+const fn sub_h(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_H])
+}
+const fn sub_l(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_L])
+}
+const fn sub_a(cpu: CPUState) -> CPUState {
+    impl_sub(cpu, cpu.reg[REG_A])
+}
+
 //   sub  n           D6 nn      8 z1hc A=A-n
+// ----------------------------------------------------------------------------
+const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        ..impl_sub(cpu, d8)
+    }
+}
+
 //   sub  (HL)        96         8 z1hc A=A-(HL)
 //   sbc  A,r         9x         4 z1hc A=A-r-cy
 //   sbc  A,n         DE nn      8 z1hc A=A-n-cy
@@ -1457,6 +1496,7 @@ mod tests_cpu {
         assert_eq!(dec_a(cpu).reg[REG_A], 0x00);
         assert_eq!(dec_a(cpu).reg[FLAGS], FL_Z | FL_N | FL_C);
     }
+
     #[test]
     fn test_cp() {
         let cpu = CPUState {
@@ -1476,6 +1516,24 @@ mod tests_cpu {
         assert_eq!(cp_a(cpu).reg[FLAGS], FL_Z | FL_N);
         assert_eq!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
         assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
+    }
+
+    #[test]
+    fn test_sub() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x12, FL_C, 0x11],
+            ..INITIAL
+        };
+        assert_eq!(sub_b(cpu).reg[REG_A], 0x11);
+        assert_eq!(sub_c(cpu).reg[REG_A], 0x10);
+        assert_eq!(sub_d(cpu).reg[REG_A], 0x0F);
+        assert_eq!(sub_d(cpu).reg[FLAGS], FL_N|FL_H);
+        assert_eq!(sub_e(cpu).reg[REG_A], 0x0E);
+        assert_eq!(sub_h(cpu).reg[REG_A], 0x00);
+        assert_eq!(sub_h(cpu).reg[FLAGS], FL_Z|FL_N);
+        assert_eq!(sub_l(cpu).reg[REG_A], 0xFF);
+        assert_eq!(sub_l(cpu).reg[FLAGS], FL_N|FL_H|FL_C);
     }
 
     #[test]
@@ -1682,7 +1740,6 @@ mod tests_cpu {
         assert_eq!(rl_e(cpu).reg[REG_E], 0x80);
         assert_eq!(rl_h(cpu).reg[REG_H], 0x80);
         assert_eq!(rl_l(cpu).reg[REG_L], 0x80);
-        
         assert_eq!(rl_a(cpu).reg[REG_A], 0x00);
         assert_eq!(rl_a(cpu).reg[FLAGS], FL_Z | FL_C);
         assert_eq!(rl_a(rl_a(cpu)).reg[REG_A], 0x01);

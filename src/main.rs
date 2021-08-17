@@ -1251,7 +1251,7 @@ fn main() {
 
     // memory stuff
     // ------------
-    let rom: Vec<Byte>  = init_rom(&rom_path);
+    let rom: Vec<Byte>  = init_rom(rom_path);
     let mut _mem: Vec<Byte> = init_mem();
 
     // loop

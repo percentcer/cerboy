@@ -1306,6 +1306,7 @@ mod tests_cpu {
         assert_eq!(result.tsc, INITIAL.tsc + 8, "incorrect time stamp counter");
         assert_eq!(result.reg[REG_A], 0xFE, "incorrect xor value in reg a");
     }
+
     #[test]
     fn test_ld_r_r() {
         assert_eq!(ld_b_a(INITIAL).reg[REG_B], 0x01);
@@ -1545,12 +1546,12 @@ mod tests_cpu {
         assert_eq!(sub_b(cpu).reg[REG_A], 0x11);
         assert_eq!(sub_c(cpu).reg[REG_A], 0x10);
         assert_eq!(sub_d(cpu).reg[REG_A], 0x0F);
-        assert_eq!(sub_d(cpu).reg[FLAGS], FL_N|FL_H);
+        assert_eq!(sub_d(cpu).reg[FLAGS], FL_N | FL_H);
         assert_eq!(sub_e(cpu).reg[REG_A], 0x0E);
         assert_eq!(sub_h(cpu).reg[REG_A], 0x00);
-        assert_eq!(sub_h(cpu).reg[FLAGS], FL_Z|FL_N);
+        assert_eq!(sub_h(cpu).reg[FLAGS], FL_Z | FL_N);
         assert_eq!(sub_l(cpu).reg[REG_A], 0xFF);
-        assert_eq!(sub_l(cpu).reg[FLAGS], FL_N|FL_H|FL_C);
+        assert_eq!(sub_l(cpu).reg[FLAGS], FL_N | FL_H | FL_C);
     }
 
     #[test]

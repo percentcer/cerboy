@@ -1087,7 +1087,24 @@ const fn rl_a(cpu: CPUState) -> CPUState {
 
 // GMB Singlebit Operation Commands
 // ============================================================================
+const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let mask = 1 << bit;
+
+    reg[FLAGS] = if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
 //   bit  n,r       CB xx        8 z01- test bit n
+// ----------------------------------------------------------------------------
+const fn bit_7_h(cpu: CPUState) -> CPUState {
+    impl_bit(cpu, 7, REG_H)
+}
+
 //   bit  n,(HL)    CB xx       12 z01- test bit n
 //   set  n,r       CB xx        8 ---- set bit n
 //   set  n,(HL)    CB xx       16 ---- set bit n
@@ -1743,5 +1760,15 @@ mod tests_cpu {
         assert_eq!(rl_a(cpu).reg[REG_A], 0x00);
         assert_eq!(rl_a(cpu).reg[FLAGS], FL_Z | FL_C);
         assert_eq!(rl_a(rl_a(cpu)).reg[REG_A], 0x01);
+    }
+
+    #[test]
+    fn test_bit() {
+        let cpu = CPUState {
+            //    B     C     D     E     H     L     fl    A
+            reg: [1<<0, 1<<1, 1<<2, 1<<3, 1<<4, 1<<5, FL_C, 1<<7],
+            ..INITIAL
+        };
+        assert_eq!(bit_7_h(cpu).reg[FLAGS], FL_H|cpu.reg[FLAGS]);
     }
 }

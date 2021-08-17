@@ -1,3 +1,6 @@
+#![allow(non_snake_case)]
+#![allow(dead_code)]
+
 extern crate minifb;
 use minifb::{Key, Window, WindowOptions};
 
@@ -961,6 +964,19 @@ const fn inc_sp(cpu: CPUState) -> CPUState {
 
 // GMB Rotate- und Shift-Commands
 // ============================================================================
+const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
+    reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
+    // CB command, has an extra arg and extra tick
+    CPUState {
+        pc: cpu.pc + 2,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
+
 //   rlca           07           4 000c rotate akku left
 // ----------------------------------------------------------------------------
 const fn rlca(cpu: CPUState) -> CPUState {
@@ -980,7 +996,7 @@ const fn rlca(cpu: CPUState) -> CPUState {
 const fn rla(cpu: CPUState) -> CPUState {
     let mut reg = cpu.reg;
     reg[FLAGS] = (cpu.reg[REG_A] & 0x80) >> 3;
-    reg[REG_A] = (cpu.reg[REG_A].rotate_left(1) & 0xFE) | (cpu.reg[FLAGS] >> 4);
+    reg[REG_A] = (cpu.reg[REG_A].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 4,
@@ -994,6 +1010,29 @@ const fn rla(cpu: CPUState) -> CPUState {
 //   rlc  r         CB 0x        8 z00c rotate left
 //   rlc  (HL)      CB 06       16 z00c rotate left
 //   rl   r         CB 1x        8 z00c rotate left through carry
+// ----------------------------------------------------------------------------
+const fn rl_b(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_B)
+}
+const fn rl_c(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_C)
+}
+const fn rl_d(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_D)
+}
+const fn rl_e(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_E)
+}
+const fn rl_h(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_H)
+}
+const fn rl_l(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_L)
+}
+const fn rl_a(cpu: CPUState) -> CPUState {
+    impl_rl_r(cpu, REG_A)
+}
+
 //   rl   (HL)      CB 16       16 z00c rotate left through carry
 //   rrc  r         CB 0x        8 z00c rotate right
 //   rrc  (HL)      CB 0E       16 z00c rotate right
@@ -1623,7 +1662,7 @@ mod tests_cpu {
     fn test_rotations() {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
-            reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, 0,   0x80],
+            reg: [0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0, 0x80],
             ..INITIAL
         };
         // single rotation, store in carry if MSB is set
@@ -1637,5 +1676,16 @@ mod tests_cpu {
         // double rotation through carry, carry should shift back down
         assert_eq!(rla(rla(cpu)).reg[REG_A], 0x01);
         assert_eq!(rla(rla(cpu)).reg[FLAGS], 0x00);
+
+        assert_eq!(rl_b(cpu).reg[REG_B], 0x80);
+        assert_eq!(rl_c(cpu).reg[REG_C], 0x80);
+        assert_eq!(rl_d(cpu).reg[REG_D], 0x80);
+        assert_eq!(rl_e(cpu).reg[REG_E], 0x80);
+        assert_eq!(rl_h(cpu).reg[REG_H], 0x80);
+        assert_eq!(rl_l(cpu).reg[REG_L], 0x80);
+        
+        assert_eq!(rl_a(cpu).reg[REG_A], 0x00);
+        assert_eq!(rl_a(cpu).reg[FLAGS], FL_Z | FL_C);
+        assert_eq!(rl_a(rl_a(cpu)).reg[REG_A], 0x01);
     }
 }

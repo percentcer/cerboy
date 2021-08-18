@@ -159,6 +159,10 @@ const fn lo(reg: Word) -> Byte {
 const fn combine(high: Byte, low: Byte) -> Word {
     (high as Word) << Byte::BITS | (low as Word)
 }
+// can't be const for some reason https://github.com/rust-lang/rust/issues/53605
+fn signed(val: Byte) -> SByte {
+    unsafe { std::mem::transmute(val) }
+}
 
 // GMB 8bit-Loadcommands
 // ============================================================================

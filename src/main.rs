@@ -613,7 +613,7 @@ const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
         sp: cpu.sp + 2,
-        reg
+        reg,
     }
 }
 
@@ -1779,9 +1779,9 @@ mod tests_cpu {
     fn test_bit() {
         let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
-            reg: [1<<0, 1<<1, 1<<2, 1<<3, 1<<4, 1<<5, FL_C, 1<<7],
+            reg: [1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, FL_C, 1 << 7],
             ..INITIAL
         };
-        assert_eq!(bit_7_h(cpu).reg[FLAGS], FL_H|cpu.reg[FLAGS]);
+        assert_eq!(bit_7_h(cpu).reg[FLAGS], FL_H | cpu.reg[FLAGS]);
     }
 }

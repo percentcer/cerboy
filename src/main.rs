@@ -190,16 +190,11 @@ fn signed(val: Byte) -> SByte {
 const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
     let mut reg = cpu.reg;
     reg[dst] = val;
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
     mem[cpu.HL()] = val;
-    CPUState {
-        ..cpu
-    }
+    CPUState { ..cpu }
 }
 
 //   ld   r,r         xx         4 ---- r=r
@@ -596,22 +591,25 @@ const fn impl_ld_rr_d16(
     let mut reg = cpu.reg;
     reg[reg_high] = high;
     reg[reg_low] = low;
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 // ----------------------------------------------------------------------------
 const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_B, REG_C, high, low).adv_pc(3).tick(12)
+    impl_ld_rr_d16(cpu, REG_B, REG_C, high, low)
+        .adv_pc(3)
+        .tick(12)
 }
 const fn ld_de_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_D, REG_E, high, low).adv_pc(3).tick(12)
+    impl_ld_rr_d16(cpu, REG_D, REG_E, high, low)
+        .adv_pc(3)
+        .tick(12)
 }
 const fn ld_hl_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_H, REG_L, high, low).adv_pc(3).tick(12)
+    impl_ld_rr_d16(cpu, REG_H, REG_L, high, low)
+        .adv_pc(3)
+        .tick(12)
 }
 const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
@@ -664,10 +662,7 @@ const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
     reg[REG_A] = result;
     reg[FLAGS] = flags;
 
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
     // z0hc
@@ -681,10 +676,7 @@ const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
         let mut reg = cpu_post.reg;
         reg[FLAGS] = flags;
 
-        CPUState {
-            reg,
-            ..cpu_post
-        }
+        CPUState { reg, ..cpu_post }
     } else {
         impl_add(cpu, arg)
     }
@@ -696,10 +688,7 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     reg[REG_A] ^= arg;
     reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
 
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     // z0h- for inc
@@ -719,10 +708,7 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     reg[dst] = res;
     reg[FLAGS] = flags;
 
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
     let mut reg = cpu.reg;
@@ -730,10 +716,7 @@ const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
     let (res, _) = operand.overflowing_add(1);
     reg[high] = hi(res);
     reg[low] = lo(res);
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 const fn impl_cp(cpu: CPUState, arg: Byte) -> CPUState {
     let mut reg = cpu.reg;
@@ -750,10 +733,7 @@ const fn impl_sub(cpu: CPUState, arg: Byte) -> CPUState {
     reg[REG_A] = res;
     reg[FLAGS] =
         if z { FL_Z } else { 0 } | FL_N | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 
 //   add  A,r         8x         4 z0hc A=A+r
@@ -1022,10 +1002,7 @@ const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
     reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
     reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
     // CB command, has an extra arg and extra tick
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 
 //   rlca           07           4 000c rotate akku left
@@ -1105,10 +1082,7 @@ const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
     let mask = 1 << bit;
 
     reg[FLAGS] = if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
-    CPUState {
-        reg,
-        ..cpu
-    }
+    CPUState { reg, ..cpu }
 }
 //   bit  n,r       CB xx        8 z01- test bit n
 // ----------------------------------------------------------------------------
@@ -1173,19 +1147,35 @@ const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState {
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
 // ----------------------------------------------------------------------------
 const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    let (time, offset) = if cpu.reg[FLAGS] & FL_Z == 0 {(12, r8)} else {(8, 0)};
+    let (time, offset) = if cpu.reg[FLAGS] & FL_Z == 0 {
+        (12, r8)
+    } else {
+        (8, 0)
+    };
     impl_jr(cpu, offset).tick(time)
 }
 const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    let (time, offset) = if cpu.reg[FLAGS] & FL_C == 0 {(12, r8)} else {(8, 0)};
+    let (time, offset) = if cpu.reg[FLAGS] & FL_C == 0 {
+        (12, r8)
+    } else {
+        (8, 0)
+    };
     impl_jr(cpu, offset).tick(time)
 }
 const fn jr_z_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    let (time, offset) = if cpu.reg[FLAGS] & FL_Z != 0 {(12, r8)} else {(8, 0)};
+    let (time, offset) = if cpu.reg[FLAGS] & FL_Z != 0 {
+        (12, r8)
+    } else {
+        (8, 0)
+    };
     impl_jr(cpu, offset).tick(time)
 }
 const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    let (time, offset) = if cpu.reg[FLAGS] & FL_C != 0 {(12, r8)} else {(8, 0)};
+    let (time, offset) = if cpu.reg[FLAGS] & FL_C != 0 {
+        (12, r8)
+    } else {
+        (8, 0)
+    };
     impl_jr(cpu, offset).tick(time)
 }
 

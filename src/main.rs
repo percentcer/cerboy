@@ -97,6 +97,26 @@ impl CPUState {
     const fn HL(&self) -> usize {
         combine(self.reg[REG_H], self.reg[REG_L]) as usize
     }
+
+    /// Advance the program counter
+    ///
+    /// Advance pc by some amount and return the new state
+    const fn adv_pc(&self, c: Word) -> CPUState {
+        CPUState {
+            pc: self.pc + c,
+            ..*self
+        }
+    }
+
+    /// Add time to the time stamp counter (tsc)
+    ///
+    /// Adds some number of cycles to the tsc and return a new state
+    const fn tick(&self, t: u64) -> CPUState {
+        CPUState {
+            tsc: self.tsc + t,
+            ..*self
+        }
+    }
 }
 
 fn init_mem() -> Vec<Byte> {
@@ -167,14 +187,10 @@ fn signed(val: Byte) -> SByte {
 
 // GMB 8bit-Loadcommands
 // ============================================================================
-//   ld   r,r         xx         4 ---- r=r
-// ----------------------------------------------------------------------------
 const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
     let mut reg = cpu.reg;
     reg[dst] = val;
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
         reg,
         ..cpu
     }
@@ -182,225 +198,243 @@ const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
 fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
     mem[cpu.HL()] = val;
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 8,
         ..cpu
     }
 }
 
+//   ld   r,r         xx         4 ---- r=r
+// ----------------------------------------------------------------------------
 // todo: the index arguments could be extracted from the opcode
 const fn ld_b_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_b_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_b_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_b_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_b_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_b_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_b_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_c_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_c_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_c_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_c_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_c_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_c_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_c_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_d_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_d_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_d_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_d_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_d_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_d_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_d_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_e_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_e_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_e_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_e_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_e_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_e_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_e_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_h_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_h_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_h_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_h_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_h_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_h_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_h_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_l_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_l_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_l_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_l_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_l_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_l_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_l_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 const fn ld_a_b(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn ld_a_c(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn ld_a_d(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn ld_a_e(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn ld_a_h(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn ld_a_l(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn ld_a_a(cpu: CPUState) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A])
+    impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   ld   r,n         xx nn      8 ---- r=n
 // ----------------------------------------------------------------------------
 const fn ld_b_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_B, d8)
+    impl_ld_r_d8(cpu, REG_B, d8).adv_pc(2).tick(8)
 }
 const fn ld_c_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_C, d8)
+    impl_ld_r_d8(cpu, REG_C, d8).adv_pc(2).tick(8)
 }
 const fn ld_d_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_D, d8)
+    impl_ld_r_d8(cpu, REG_D, d8).adv_pc(2).tick(8)
 }
 const fn ld_e_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_E, d8)
+    impl_ld_r_d8(cpu, REG_E, d8).adv_pc(2).tick(8)
 }
 const fn ld_h_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_H, d8)
+    impl_ld_r_d8(cpu, REG_H, d8).adv_pc(2).tick(8)
 }
 const fn ld_l_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_L, d8)
+    impl_ld_r_d8(cpu, REG_L, d8).adv_pc(2).tick(8)
 }
 const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    impl_ld_r_d8(cpu, REG_A, d8)
+    impl_ld_r_d8(cpu, REG_A, d8).adv_pc(2).tick(8)
 }
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
+// ----------------------------------------------------------------------------
+fn ld_b_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_B, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_c_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_C, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_d_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_D, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_e_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_E, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_h_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_H, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_l_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_L, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+fn ld_a_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ld_r_d8(cpu, REG_A, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
 
 //   ld   (HL),r      7x         8 ---- (HL)=r
 // ----------------------------------------------------------------------------
 fn ld_HL_b(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B]).adv_pc(1).tick(8)
 }
 fn ld_HL_c(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C]).adv_pc(1).tick(8)
 }
 fn ld_HL_d(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D]).adv_pc(1).tick(8)
 }
 fn ld_HL_e(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E]).adv_pc(1).tick(8)
 }
 fn ld_HL_h(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H]).adv_pc(1).tick(8)
 }
 fn ld_HL_l(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L]).adv_pc(1).tick(8)
 }
 fn ld_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A])
+    impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A]).adv_pc(1).tick(8)
 }
 
 //   ld   (HL),n      36 nn     12 ----
 // ----------------------------------------------------------------------------
 fn ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 12,
-        ..impl_ld_HL_d8(cpu, mem, val)
-    }
+    impl_ld_HL_d8(cpu, mem, val).adv_pc(2).tick(12)
 }
 
 //   ld   A,(BC)      0A         8 ----
@@ -563,8 +597,6 @@ const fn impl_ld_rr_d16(
     reg[reg_high] = high;
     reg[reg_low] = low;
     CPUState {
-        pc: cpu.pc + 3,
-        tsc: cpu.tsc + 12,
         reg,
         ..cpu
     }
@@ -573,13 +605,13 @@ const fn impl_ld_rr_d16(
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 // ----------------------------------------------------------------------------
 const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_B, REG_C, high, low)
+    impl_ld_rr_d16(cpu, REG_B, REG_C, high, low).adv_pc(3).tick(12)
 }
 const fn ld_de_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_D, REG_E, high, low)
+    impl_ld_rr_d16(cpu, REG_D, REG_E, high, low).adv_pc(3).tick(12)
 }
 const fn ld_hl_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    impl_ld_rr_d16(cpu, REG_H, REG_L, high, low)
+    impl_ld_rr_d16(cpu, REG_H, REG_L, high, low).adv_pc(3).tick(12)
 }
 const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
     CPUState {
@@ -633,8 +665,6 @@ const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
     reg[FLAGS] = flags;
 
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
         reg,
         ..cpu
     }
@@ -652,8 +682,6 @@ const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
         reg[FLAGS] = flags;
 
         CPUState {
-            pc: cpu.pc + 1,
-            tsc: cpu.tsc + 4,
             reg,
             ..cpu_post
         }
@@ -669,8 +697,6 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
 
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
         reg,
         ..cpu
     }
@@ -694,8 +720,6 @@ const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     reg[FLAGS] = flags;
 
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
         reg,
         ..cpu
     }
@@ -707,8 +731,6 @@ const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
     reg[high] = hi(res);
     reg[low] = lo(res);
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 8,
         reg,
         ..cpu
     }
@@ -729,8 +751,6 @@ const fn impl_sub(cpu: CPUState, arg: Byte) -> CPUState {
     reg[FLAGS] =
         if z { FL_Z } else { 0 } | FL_N | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
     CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
         reg,
         ..cpu
     }
@@ -739,78 +759,67 @@ const fn impl_sub(cpu: CPUState, arg: Byte) -> CPUState {
 //   add  A,r         8x         4 z0hc A=A+r
 // ----------------------------------------------------------------------------
 const fn add_b(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_B])
+    impl_add(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn add_c(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_C])
+    impl_add(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn add_d(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_D])
+    impl_add(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn add_e(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_E])
+    impl_add(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn add_h(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_H])
+    impl_add(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn add_l(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_L])
+    impl_add(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn add_a(cpu: CPUState) -> CPUState {
-    impl_add(cpu, cpu.reg[REG_A])
+    impl_add(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   add  A,n         C6 nn      8 z0hc A=A+n
 // ----------------------------------------------------------------------------
 const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
-        ..impl_add(cpu, d8)
-    }
+    impl_add(cpu, d8).adv_pc(2).tick(8)
 }
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
 const fn add_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    CPUState {
-        tsc: cpu.tsc + 8,
-        ..impl_add(cpu, mem[cpu.HL()])
-    }
+    impl_add(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
 //   adc  A,r         8x         4 z0hc A=A+r+cy
 // ----------------------------------------------------------------------------
 const fn adc_b(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_B])
+    impl_adc(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn adc_c(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_C])
+    impl_adc(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn adc_d(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_D])
+    impl_adc(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn adc_e(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_E])
+    impl_adc(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn adc_h(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_H])
+    impl_adc(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn adc_l(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_L])
+    impl_adc(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn adc_a(cpu: CPUState) -> CPUState {
-    impl_adc(cpu, cpu.reg[REG_A])
+    impl_adc(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   adc  A,n         CE nn      8 z0hc A=A+n+cy
 // ----------------------------------------------------------------------------
 const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
-        ..impl_adc(cpu, d8)
-    }
+    impl_adc(cpu, d8).adv_pc(2).tick(8)
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
@@ -818,35 +827,31 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   sub  r           9x         4 z1hc A=A-r
 // ----------------------------------------------------------------------------
 const fn sub_b(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_B])
+    impl_sub(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn sub_c(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_C])
+    impl_sub(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn sub_d(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_D])
+    impl_sub(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn sub_e(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_E])
+    impl_sub(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn sub_h(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_H])
+    impl_sub(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn sub_l(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_L])
+    impl_sub(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn sub_a(cpu: CPUState) -> CPUState {
-    impl_sub(cpu, cpu.reg[REG_A])
+    impl_sub(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   sub  n           D6 nn      8 z1hc A=A-n
 // ----------------------------------------------------------------------------
 const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
-        ..impl_sub(cpu, d8)
-    }
+    impl_sub(cpu, d8).adv_pc(2).tick(8)
 }
 
 //   sub  (HL)        96         8 z1hc A=A-(HL)
@@ -860,35 +865,31 @@ const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------
 const fn xor_b(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_B])
+    impl_xor(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn xor_c(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_C])
+    impl_xor(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn xor_d(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_D])
+    impl_xor(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn xor_e(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_E])
+    impl_xor(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn xor_h(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_H])
+    impl_xor(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn xor_l(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_L])
+    impl_xor(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn xor_a(cpu: CPUState) -> CPUState {
-    impl_xor(cpu, cpu.reg[REG_A])
+    impl_xor(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   xor  n           EE nn      8 z000
 // ----------------------------------------------------------------------------
 const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
-        ..impl_xor(cpu, d8)
-    }
+    impl_xor(cpu, d8).adv_pc(2).tick(8)
 }
 
 //   xor  (HL)        AE         8 z000
@@ -899,93 +900,86 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 //   cp   r           Bx         4 z1hc compare A-r
 // ----------------------------------------------------------------------------
 const fn cp_b(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_B])
+    impl_cp(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
 }
 const fn cp_c(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_C])
+    impl_cp(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
 }
 const fn cp_d(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_D])
+    impl_cp(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
 }
 const fn cp_e(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_E])
+    impl_cp(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
 }
 const fn cp_h(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_H])
+    impl_cp(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
 }
 const fn cp_l(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_L])
+    impl_cp(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
 }
 const fn cp_a(cpu: CPUState) -> CPUState {
-    impl_cp(cpu, cpu.reg[REG_A])
+    impl_cp(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
 }
 
 //   cp   n           FE nn      8 z1hc compare A-n
 // ----------------------------------------------------------------------------
 const fn cp_d8(cpu: CPUState, d8: Byte) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
-        ..impl_cp(cpu, d8)
-    }
+    impl_cp(cpu, d8).adv_pc(2).tick(8)
 }
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
 const fn cp_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
-    CPUState {
-        tsc: cpu.tsc + 8,
-        ..impl_cp(cpu, mem[cpu.HL()])
-    }
+    impl_cp(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
 //   inc  r           xx         4 z0h- r=r+1
 // ----------------------------------------------------------------------------
 const fn inc_b(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_B, 0)
+    impl_inc_dec(cpu, REG_B, 0).adv_pc(1).tick(4)
 }
 const fn inc_c(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_C, 0)
+    impl_inc_dec(cpu, REG_C, 0).adv_pc(1).tick(4)
 }
 const fn inc_d(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_D, 0)
+    impl_inc_dec(cpu, REG_D, 0).adv_pc(1).tick(4)
 }
 const fn inc_e(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_E, 0)
+    impl_inc_dec(cpu, REG_E, 0).adv_pc(1).tick(4)
 }
 const fn inc_h(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_H, 0)
+    impl_inc_dec(cpu, REG_H, 0).adv_pc(1).tick(4)
 }
 const fn inc_l(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_L, 0)
+    impl_inc_dec(cpu, REG_L, 0).adv_pc(1).tick(4)
 }
 const fn inc_a(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_A, 0)
+    impl_inc_dec(cpu, REG_A, 0).adv_pc(1).tick(4)
 }
 
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
 //   dec  r           xx         4 z1h- r=r-1
 // ----------------------------------------------------------------------------
 const fn dec_b(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_B, FL_N)
+    impl_inc_dec(cpu, REG_B, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_c(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_C, FL_N)
+    impl_inc_dec(cpu, REG_C, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_d(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_D, FL_N)
+    impl_inc_dec(cpu, REG_D, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_e(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_E, FL_N)
+    impl_inc_dec(cpu, REG_E, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_h(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_H, FL_N)
+    impl_inc_dec(cpu, REG_H, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_l(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_L, FL_N)
+    impl_inc_dec(cpu, REG_L, FL_N).adv_pc(1).tick(4)
 }
 const fn dec_a(cpu: CPUState) -> CPUState {
-    impl_inc_dec(cpu, REG_A, FL_N)
+    impl_inc_dec(cpu, REG_A, FL_N).adv_pc(1).tick(4)
 }
 
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
@@ -999,13 +993,13 @@ const fn dec_a(cpu: CPUState) -> CPUState {
 //   inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
 // ----------------------------------------------------------------------------
 const fn inc_bc(cpu: CPUState) -> CPUState {
-    impl_inc16(cpu, REG_B, REG_C)
+    impl_inc16(cpu, REG_B, REG_C).adv_pc(1).tick(8)
 }
 const fn inc_de(cpu: CPUState) -> CPUState {
-    impl_inc16(cpu, REG_D, REG_E)
+    impl_inc16(cpu, REG_D, REG_E).adv_pc(1).tick(8)
 }
 const fn inc_hl(cpu: CPUState) -> CPUState {
-    impl_inc16(cpu, REG_H, REG_L)
+    impl_inc16(cpu, REG_H, REG_L).adv_pc(1).tick(8)
 }
 const fn inc_sp(cpu: CPUState) -> CPUState {
     let (res, _) = cpu.sp.overflowing_add(1);
@@ -1029,8 +1023,6 @@ const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
     reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
     // CB command, has an extra arg and extra tick
     CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
         reg,
         ..cpu
     }
@@ -1071,25 +1063,25 @@ const fn rla(cpu: CPUState) -> CPUState {
 //   rl   r         CB 1x        8 z00c rotate left through carry
 // ----------------------------------------------------------------------------
 const fn rl_b(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_B)
+    impl_rl_r(cpu, REG_B).adv_pc(2).tick(8)
 }
 const fn rl_c(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_C)
+    impl_rl_r(cpu, REG_C).adv_pc(2).tick(8)
 }
 const fn rl_d(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_D)
+    impl_rl_r(cpu, REG_D).adv_pc(2).tick(8)
 }
 const fn rl_e(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_E)
+    impl_rl_r(cpu, REG_E).adv_pc(2).tick(8)
 }
 const fn rl_h(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_H)
+    impl_rl_r(cpu, REG_H).adv_pc(2).tick(8)
 }
 const fn rl_l(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_L)
+    impl_rl_r(cpu, REG_L).adv_pc(2).tick(8)
 }
 const fn rl_a(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_A)
+    impl_rl_r(cpu, REG_A).adv_pc(2).tick(8)
 }
 
 //   rl   (HL)      CB 16       16 z00c rotate left through carry
@@ -1114,8 +1106,6 @@ const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
 
     reg[FLAGS] = if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
     CPUState {
-        pc: cpu.pc + 2,
-        tsc: cpu.tsc + 8,
         reg,
         ..cpu
     }
@@ -1123,7 +1113,7 @@ const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
 //   bit  n,r       CB xx        8 z01- test bit n
 // ----------------------------------------------------------------------------
 const fn bit_7_h(cpu: CPUState) -> CPUState {
-    impl_bit(cpu, 7, REG_H)
+    impl_bit(cpu, 7, REG_H).adv_pc(2).tick(8)
 }
 
 //   bit  n,(HL)    CB xx       12 z01- test bit n
@@ -1154,12 +1144,9 @@ const fn nop(cpu: CPUState) -> CPUState {
 
 // GMB Jumpcommands
 // ============================================================================
-const fn impl_jr(cpu: CPUState, arg: SByte, do_it: bool) -> CPUState {
-    let offset = if do_it { arg as Word } else { 0 };
-    let time = if do_it { 12 } else { 8 };
+const fn impl_jr(cpu: CPUState, arg: SByte) -> CPUState {
     CPUState {
-        pc: cpu.pc.wrapping_add(offset),
-        tsc: cpu.tsc + time,
+        pc: cpu.pc.wrapping_add(arg as Word),
         ..cpu
     }
 }
@@ -1180,22 +1167,26 @@ const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 // ----------------------------------------------------------------------------
 const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8, true)
+    impl_jr(cpu, r8).tick(12)
 }
 
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
 // ----------------------------------------------------------------------------
 const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z == 0)
+    let (time, offset) = if cpu.reg[FLAGS] & FL_Z == 0 {(12, r8)} else {(8, 0)};
+    impl_jr(cpu, offset).tick(time)
 }
 const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C == 0)
+    let (time, offset) = if cpu.reg[FLAGS] & FL_C == 0 {(12, r8)} else {(8, 0)};
+    impl_jr(cpu, offset).tick(time)
 }
 const fn jr_z_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_Z != 0)
+    let (time, offset) = if cpu.reg[FLAGS] & FL_Z != 0 {(12, r8)} else {(8, 0)};
+    impl_jr(cpu, offset).tick(time)
 }
 const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8, cpu.reg[FLAGS] & FL_C != 0)
+    let (time, offset) = if cpu.reg[FLAGS] & FL_C != 0 {(12, r8)} else {(8, 0)};
+    impl_jr(cpu, offset).tick(time)
 }
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
@@ -1551,7 +1542,7 @@ mod tests_cpu {
 
     #[test]
     fn test_impl_xor_r() {
-        let result = impl_xor(INITIAL, 0x13);
+        let result = impl_xor(INITIAL, 0x13).adv_pc(1).tick(4);
         assert_eq!(result.pc, INITIAL.pc + 1, "incorrect program counter");
         assert_eq!(result.tsc, INITIAL.tsc + 4, "incorrect time stamp counter");
         assert_eq!(

@@ -803,6 +803,7 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
+// ----------------------------------------------------------------------------
 const fn adc_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     impl_adc(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
@@ -838,6 +839,7 @@ const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   sub  (HL)        96         8 z1hc A=A-(HL)
+// ----------------------------------------------------------------------------
 const fn sub_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
     impl_sub(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }

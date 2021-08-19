@@ -1464,7 +1464,7 @@ fn main() {
                 0xC6 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xC7 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xC8 => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0xC9 => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0xC9 => ret(cpu, &mem),
                 0xCA => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xCB => match rom[pc + 1] {
                     0x10 => rl_b(cpu),

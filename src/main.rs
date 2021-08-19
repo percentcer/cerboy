@@ -882,6 +882,11 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   xor  (HL)        AE         8 z000
+// ----------------------------------------------------------------------------
+const fn xor_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_xor(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+
 //   or   r           Bx         4 z000 A=A | r
 //   or   n           F6 nn      8 z000 A=A | n
 //   or   (HL)        B6         8 z000 A=A | (HL)
@@ -1432,7 +1437,7 @@ fn main() {
                 0xAB => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xAC => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xAD => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0xAE => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0xAE => xor_HL(cpu, &mem),
                 0xAF => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xB0 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xB1 => panic!("unknown instruction 0x{:X}", rom[pc]),

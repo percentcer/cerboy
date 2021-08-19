@@ -1314,7 +1314,7 @@ fn main() {
                 0x30 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x31 => ld_sp_d16(cpu, rom[pc + 1], rom[pc + 2]),
                 0x32 => ldd_HL_a(cpu, &mut mem),
-                0x33 => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0x33 => inc_sp(cpu),
                 0x34 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x35 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x36 => ld_HL_d8(cpu, &mut mem, rom[pc + 1]),

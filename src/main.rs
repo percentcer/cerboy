@@ -803,6 +803,9 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
+const fn adc_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_adc(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
 
 //   sub  r           9x         4 z1hc A=A-r
 // ----------------------------------------------------------------------------
@@ -1391,8 +1394,8 @@ fn main() {
                 0x8B => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x8C => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x8D => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0x8E => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x8F => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0x8E => adc_HL(cpu, &mem),
                 0x90 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x91 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x92 => panic!("unknown instruction 0x{:X}", rom[pc]),

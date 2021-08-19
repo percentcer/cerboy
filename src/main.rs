@@ -838,6 +838,10 @@ const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
 }
 
 //   sub  (HL)        96         8 z1hc A=A-(HL)
+const fn sub_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_sub(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
+
 //   sbc  A,r         9x         4 z1hc A=A-r-cy
 //   sbc  A,n         DE nn      8 z1hc A=A-n-cy
 //   sbc  A,(HL)      9E         8 z1hc A=A-(HL)-cy
@@ -1402,8 +1406,8 @@ fn main() {
                 0x93 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x94 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x95 => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0x96 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x97 => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0x96 => sub_HL(cpu, &mem),
                 0x98 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x99 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0x9A => panic!("unknown instruction 0x{:X}", rom[pc]),

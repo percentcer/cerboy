@@ -43,7 +43,9 @@ const GB_SCREEN_WIDTH: usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
 const ROM_MAX: usize = 0x200000;
 const MEM_SIZE: usize = 0xFFFF + 1;
-const TICKS_PER_FRAME: u64 = 70221; // (Clock Speed / Vert Sync)
+// https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#lcdstatusregister
+// note that (Clock Speed / Vert Sync) gives us 70221
+const TICKS_PER_FRAME: u64 = 70224; 
 
 type Byte = u8;
 type Word = u16;

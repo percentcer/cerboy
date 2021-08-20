@@ -1157,7 +1157,7 @@ const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 // ----------------------------------------------------------------------------
 const fn jr_r8(cpu: CPUState, r8: SByte) -> CPUState {
-    impl_jr(cpu, r8).tick(12)
+    impl_jr(cpu.adv_pc(2), r8).tick(12)
 }
 
 //   jr   f,PC+dd   xx dd     12;8 ---- conditional relative jump if nz,z,nc,c
@@ -1168,7 +1168,7 @@ const fn jr_nz_r8(cpu: CPUState, r8: SByte) -> CPUState {
     } else {
         (8, 0)
     };
-    impl_jr(cpu, offset).tick(time)
+    impl_jr(cpu.adv_pc(2), offset).tick(time)
 }
 const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState {
     let (time, offset) = if cpu.reg[FLAGS] & FL_C == 0 {
@@ -1176,7 +1176,7 @@ const fn jr_nc_r8(cpu: CPUState, r8: SByte) -> CPUState {
     } else {
         (8, 0)
     };
-    impl_jr(cpu, offset).tick(time)
+    impl_jr(cpu.adv_pc(2), offset).tick(time)
 }
 const fn jr_z_r8(cpu: CPUState, r8: SByte) -> CPUState {
     let (time, offset) = if cpu.reg[FLAGS] & FL_Z != 0 {
@@ -1184,7 +1184,7 @@ const fn jr_z_r8(cpu: CPUState, r8: SByte) -> CPUState {
     } else {
         (8, 0)
     };
-    impl_jr(cpu, offset).tick(time)
+    impl_jr(cpu.adv_pc(2), offset).tick(time)
 }
 const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
     let (time, offset) = if cpu.reg[FLAGS] & FL_C != 0 {
@@ -1192,7 +1192,7 @@ const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
     } else {
         (8, 0)
     };
-    impl_jr(cpu, offset).tick(time)
+    impl_jr(cpu.adv_pc(2), offset).tick(time)
 }
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn

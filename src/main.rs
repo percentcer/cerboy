@@ -1214,7 +1214,7 @@ fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUSta
 // ----------------------------------------------------------------------------
 const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
     CPUState {
-        pc: combine(mem[(cpu.sp + 1) as usize], mem[(cpu.sp + 0) as usize]),
+        pc: combine(mem[(cpu.sp + 2) as usize], mem[(cpu.sp + 1) as usize]),
         tsc: cpu.tsc + 16,
         sp: cpu.sp + 2,
         ..cpu

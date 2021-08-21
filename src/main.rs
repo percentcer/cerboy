@@ -1120,11 +1120,7 @@ const fn bit_7_h(cpu: CPUState) -> CPUState {
 //   nop            00           4 ---- no operation
 // ----------------------------------------------------------------------------
 const fn nop(cpu: CPUState) -> CPUState {
-    CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 4,
-        ..cpu
-    }
+    cpu.adv_pc(1).tick(4)
 }
 
 //   halt           76         N*4 ---- halt until interrupt occurs (low power)
@@ -1144,9 +1140,9 @@ const fn impl_jr(cpu: CPUState, arg: SByte) -> CPUState {
 //   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 // ----------------------------------------------------------------------------
 const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
+    let cpu = cpu.adv_pc(3).tick(16);
     CPUState {
         pc: combine(high, low),
-        tsc: cpu.tsc + 16,
         ..cpu
     }
 }
@@ -1198,10 +1194,10 @@ const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
 // ----------------------------------------------------------------------------
 fn call_d16(cpu: CPUState, mem: &mut Vec<Byte>, low: Byte, high: Byte) -> CPUState {
+    let cpu = cpu.adv_pc(3).tick(24);
     mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
     mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
     CPUState {
-        tsc: cpu.tsc + 24,
         sp: cpu.sp - 2,
         pc: combine(high, low),
         ..cpu

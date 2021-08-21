@@ -70,6 +70,39 @@ const REG_L: usize = 5;
 const FLAGS: usize = 6;
 const REG_A: usize = 7;
 
+// reserved memory locations
+const TIMA: usize = 0xFF05;
+const TMA: usize = 0xFF06;
+const TAC: usize = 0xFF07;
+const NR10: usize = 0xFF10;
+const NR11: usize = 0xFF11;
+const NR12: usize = 0xFF12;
+const NR14: usize = 0xFF14;
+const NR21: usize = 0xFF16;
+const NR22: usize = 0xFF17;
+const NR24: usize = 0xFF19;
+const NR30: usize = 0xFF1A;
+const NR31: usize = 0xFF1B;
+const NR32: usize = 0xFF1C;
+const NR33: usize = 0xFF1E;
+const NR41: usize = 0xFF20;
+const NR42: usize = 0xFF21;
+const NR43: usize = 0xFF22;
+const NR44: usize = 0xFF23;
+const NR50: usize = 0xFF24;
+const NR51: usize = 0xFF25;
+const NR52: usize = 0xFF26;
+const LCDC: usize = 0xFF40;
+const SCY: usize = 0xFF42;
+const SCX: usize = 0xFF43;
+const LYC: usize = 0xFF45;
+const BGP: usize = 0xFF47;
+const OBP0: usize = 0xFF48;
+const OBP1: usize = 0xFF49;
+const WY: usize = 0xFF4A;
+const WX: usize = 0xFF4B;
+const IE: usize = 0xFFFF;
+
 #[derive(Copy, Clone, Debug)]
 struct CPUState {
     tsc: u64, // counting cycles since reset, not part of actual gb hardware but used for instruction timing
@@ -123,37 +156,37 @@ impl CPUState {
 
 fn init_mem() -> Vec<Byte> {
     let mut mem = vec![0; MEM_SIZE];
-    mem[0xFF05] = 0x00; //TIMA
-    mem[0xFF06] = 0x00; //TMA
-    mem[0xFF07] = 0x00; //TAC
-    mem[0xFF10] = 0x80; //NR10
-    mem[0xFF11] = 0xBF; //NR11
-    mem[0xFF12] = 0xF3; //NR12
-    mem[0xFF14] = 0xBF; //NR14
-    mem[0xFF16] = 0x3F; //NR21
-    mem[0xFF17] = 0x00; //NR22
-    mem[0xFF19] = 0xBF; //NR24
-    mem[0xFF1A] = 0x7F; //NR30
-    mem[0xFF1B] = 0xFF; //NR31
-    mem[0xFF1C] = 0x9F; //NR32
-    mem[0xFF1E] = 0xBF; //NR33
-    mem[0xFF20] = 0xFF; //NR41
-    mem[0xFF21] = 0x00; //NR42
-    mem[0xFF22] = 0x00; //NR43
-    mem[0xFF23] = 0xBF; //NR30
-    mem[0xFF24] = 0x77; //NR50
-    mem[0xFF25] = 0xF3; //NR51
-    mem[0xFF26] = 0xF1; // NR52 (note: $F0 on Super GB)
-    mem[0xFF40] = 0x91; // LCDC
-    mem[0xFF42] = 0x00; // SCY
-    mem[0xFF43] = 0x00; // SCX
-    mem[0xFF45] = 0x00; // LYC
-    mem[0xFF47] = 0xFC; // BGP
-    mem[0xFF48] = 0xFF; // OBP0
-    mem[0xFF49] = 0xFF; // OBP1
-    mem[0xFF4A] = 0x00; // WY
-    mem[0xFF4B] = 0x00; // WX
-    mem[0xFFFF] = 0x00; // IE
+    mem[TIMA] = 0x00;
+    mem[TMA] = 0x00;
+    mem[TAC] = 0x00;
+    mem[NR10] = 0x80;
+    mem[NR11] = 0xBF;
+    mem[NR12] = 0xF3;
+    mem[NR14] = 0xBF;
+    mem[NR21] = 0x3F;
+    mem[NR22] = 0x00;
+    mem[NR24] = 0xBF;
+    mem[NR30] = 0x7F;
+    mem[NR31] = 0xFF;
+    mem[NR32] = 0x9F;
+    mem[NR33] = 0xBF;
+    mem[NR41] = 0xFF;
+    mem[NR42] = 0x00;
+    mem[NR43] = 0x00;
+    mem[NR44] = 0xBF;
+    mem[NR50] = 0x77;
+    mem[NR51] = 0xF3;
+    mem[NR52] = 0xF1;
+    mem[LCDC] = 0x91;
+    mem[SCY] = 0x00;
+    mem[SCX] = 0x00;
+    mem[LYC] = 0x00;
+    mem[BGP] = 0xFC;
+    mem[OBP0] = 0xFF;
+    mem[OBP1] = 0xFF;
+    mem[WY] = 0x00;
+    mem[WX] = 0x00;
+    mem[IE] = 0x00;
     mem
 }
 

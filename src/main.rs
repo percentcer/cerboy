@@ -101,6 +101,7 @@ const NR50: usize = 0xFF24;
 const NR51: usize = 0xFF25;
 const NR52: usize = 0xFF26;
 const LCDC: usize = 0xFF40;
+const STAT: usize = 0xFF41;
 const SCY: usize = 0xFF42;
 const SCX: usize = 0xFF43;
 const LYC: usize = 0xFF45;

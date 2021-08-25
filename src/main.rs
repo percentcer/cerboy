@@ -55,10 +55,18 @@ type SWord = i16;
 const HIGH_MASK: Word = 0xFF00;
 const LOW_MASK: Word = 0x00FF;
 
+// cpu flags
 const FL_Z: Byte = 1 << 7;
 const FL_N: Byte = 1 << 6;
 const FL_H: Byte = 1 << 5;
 const FL_C: Byte = 1 << 4;
+
+// interrupts
+const INT_VBLANK: Byte = 1 << 0;
+const INT_STAT: Byte = 1 << 1;
+const INT_TIMER: Byte = 1 << 2;
+const INT_SERIAL: Byte = 1 << 3;
+const INT_JOYPAD: Byte = 1 << 4;
 
 // indices
 const REG_B: usize = 0;

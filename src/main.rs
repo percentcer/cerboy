@@ -79,12 +79,27 @@ const REG_L: usize = 5;
 const FLAGS: usize = 6;
 const REG_A: usize = 7;
 
-// reserved memory locations
+// RST locations
+const RST_00: usize = 0x0000;
+const RST_08: usize = 0x0008;
+const RST_10: usize = 0x0010;
+const RST_18: usize = 0x0018;
+const RST_20: usize = 0x0020;
+const RST_28: usize = 0x0028;
+const RST_30: usize = 0x0030;
+const RST_38: usize = 0x0038;
+// Interrupt locations
+const INT_40: usize = 0x0040; // VBlank
+const INT_48: usize = 0x0048; // STAT
+const INT_50: usize = 0x0050; // Timer
+const INT_58: usize = 0x0058; // Timer
+const INT_60: usize = 0x0060; // Joypad
+// named I/O memory locations [FF00..FF7F]
+const JOYP: usize = 0xFF00;
 const DIV: usize = 0xFF04;
 const TIMA: usize = 0xFF05;
 const TMA: usize = 0xFF06;
 const TAC: usize = 0xFF07;
-const IF: usize = 0xFF0F;
 const NR10: usize = 0xFF10;
 const NR11: usize = 0xFF11;
 const NR12: usize = 0xFF12;
@@ -107,12 +122,15 @@ const LCDC: usize = 0xFF40;
 const STAT: usize = 0xFF41;
 const SCY: usize = 0xFF42;
 const SCX: usize = 0xFF43;
+const LY: usize = 0xFF44;
 const LYC: usize = 0xFF45;
 const BGP: usize = 0xFF47;
 const OBP0: usize = 0xFF48;
 const OBP1: usize = 0xFF49;
 const WY: usize = 0xFF4A;
 const WX: usize = 0xFF4B;
+// interrupt registers
+const IF: usize = 0xFF0F;
 const IE: usize = 0xFFFF;
 
 #[derive(Copy, Clone, Debug)]

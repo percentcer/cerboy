@@ -203,10 +203,10 @@ fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerSt
         div: state.div + cycles,
     };
 
-    if result.div > TICKS_PER_DIV_INC {
+    while result.div >= TICKS_PER_DIV_INC {
         // todo: only run this if gb isn't in STOP
         result.div -= TICKS_PER_DIV_INC;
-        div_inc(mem);
+        mem_inc(mem, DIV);
     }
 
     let tac_cpi = match tac_cycles_per_inc(mem) {
@@ -214,13 +214,15 @@ fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerSt
         Err(error) => panic!("{}", error),
     };
 
-    if tac_enabled(mem) && result.hardware > tac_cpi {
-        // todo: consider moving this to some specialized memory management unit
-        result.hardware -= tac_cpi;
-        let (_result, overflow) = tima_inc(mem);
-        if overflow {
-            tima_reset(mem);
-            request_interrupt(mem, INT_TIMER);
+    if tac_enabled(mem) {
+        while result.hardware >= tac_cpi {
+            // todo: consider moving this to some specialized memory management unit
+            result.hardware -= tac_cpi;
+            let (_result, overflow) = mem_inc(mem, TIMA);
+            if overflow {
+                tima_reset(mem);
+                request_interrupt(mem, INT_TIMER);
+            }
         }
     }
 
@@ -1334,15 +1336,9 @@ fn request_interrupt(mem: &mut Vec<Byte>, int_flag: Byte) {
     mem[IF] |= int_flag;
 }
 
-fn div_inc(mem: &mut Vec<Byte>) -> (Byte, bool) {
-    let (result, overflow) = mem[DIV].overflowing_add(1);
-    mem[DIV] = result;
-    (result, overflow)
-}
-
-fn tima_inc(mem: &mut Vec<Byte>) -> (Byte, bool) {
-    let (result, overflow) = mem[DIV].overflowing_add(1);
-    mem[TIMA] = result;
+fn mem_inc(mem: &mut Vec<Byte>, loc: usize) -> (Byte, bool) {
+    let (result, overflow) = mem[loc].overflowing_add(1);
+    mem[loc] = result;
     (result, overflow)
 }
 

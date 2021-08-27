@@ -2220,4 +2220,41 @@ mod tests_cpu {
         };
         assert_eq!(bit_7_h(cpu).reg[FLAGS], FL_H | cpu.reg[FLAGS]);
     }
+
+    #[test]
+    fn test_timers() {
+        let mut mem = init_mem();
+        mem[TIMA] = 0;
+        mem[TMA] = 0;
+        mem[TAC] = 0;
+        assert_eq!(tac_enabled(&mem), false);
+        mem[TAC] = 0b100; // (enabled, 1024 cycles per tick)
+        assert_eq!(tac_enabled(&mem), true);
+
+        let new_timers = update_timers(TimerState::new(), &mut mem, 1024);
+        assert_eq!(new_timers.hardware, 0);
+        assert_eq!(mem[TIMA], 1);
+
+        tima_reset(&mut mem);
+        assert_eq!(mem[TIMA], 0);
+
+        mem[TAC] = 0b111; // (enabled, 256 cycles per tick)
+        let new_timers = update_timers(TimerState::new(), &mut mem, 1024);
+        assert_eq!(new_timers.hardware, 0);
+        assert_eq!(mem[TIMA], 4);
+
+        mem[TMA] = 0xFF;
+        tima_reset(&mut mem);
+        assert_eq!(mem[TIMA], mem[TMA]);
+
+        mem[TMA] = 0xAA;
+        assert_ne!(mem[IF], INT_TIMER);
+        let even_newer_timers = update_timers(new_timers, &mut mem, 256);
+        // should have overflowed as we just set it to 0xFF moments ago
+        assert_eq!(mem[TIMA], 0xAA);
+        assert_eq!(mem[IF], INT_TIMER);
+
+        // TODO test DIV
+        // TODO can we test frame timer? it's set up differently...
+    }
 }

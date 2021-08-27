@@ -190,6 +190,16 @@ struct TimerState {
     div: u64,
 }
 
+impl TimerState {
+    const fn new() -> TimerState {
+        TimerState {
+            frame: 0,
+            hardware: 0,
+            div: 0,
+        }
+    }
+}
+
 fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerState {
     // todo: If a TMA write is executed on the same cycle as the content
     // of TMA is transferred to TIMA due to a timer overflow,
@@ -1391,11 +1401,7 @@ fn main() {
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
-    let mut timers = TimerState {
-        frame: 0,
-        hardware: 0,
-        div: 0,
-    };
+    let mut timers = TimerState::new();
 
     // loop
     // ------------

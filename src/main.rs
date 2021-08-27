@@ -94,7 +94,7 @@ const INT_48: usize = 0x0048; // STAT
 const INT_50: usize = 0x0050; // Timer
 const INT_58: usize = 0x0058; // Timer
 const INT_60: usize = 0x0060; // Joypad
-// named I/O memory locations [FF00..FF7F]
+                              // named I/O memory locations [FF00..FF7F]
 const JOYP: usize = 0xFF00;
 const DIV: usize = 0xFF04;
 const TIMA: usize = 0xFF05;
@@ -182,6 +182,49 @@ impl CPUState {
             ..*self
         }
     }
+}
+
+struct TimerState {
+    frame: u64,
+    hardware: u64,
+    div: u64,
+}
+
+fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerState {
+    // todo: If a TMA write is executed on the same cycle as the content
+    // of TMA is transferred to TIMA due to a timer overflow,
+    // the old value is transferred to TIMA.
+    // https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff06---tma---timer-modulo-rw
+    // note: this implies you should save this value before executing the instruction
+    // todo:
+    let mut result = TimerState {
+        frame: state.frame + cycles,
+        hardware: state.hardware + cycles,
+        div: state.div + cycles,
+    };
+
+    if result.div > TICKS_PER_DIV_INC {
+        // todo: only run this if gb isn't in STOP
+        result.div -= TICKS_PER_DIV_INC;
+        div_inc(mem);
+    }
+
+    let tac_cpi = match tac_cycles_per_inc(mem) {
+        Ok(result) => result,
+        Err(error) => panic!("{}", error),
+    };
+
+    if tac_enabled(mem) && result.hardware > tac_cpi {
+        // todo: consider moving this to some specialized memory management unit
+        result.hardware -= tac_cpi;
+        let (_result, overflow) = tima_inc(mem);
+        if overflow {
+            tima_reset(mem);
+            request_interrupt(mem, INT_TIMER);
+        }
+    }
+
+    result
 }
 
 fn init_mem() -> Vec<Byte> {
@@ -1352,17 +1395,18 @@ fn main() {
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
+    let mut timers = TimerState {
+        frame: 0,
+        hardware: 0,
+        div: 0,
+    };
 
     // loop
     // ------------
-    let mut frame_timer = 0;
-    let mut hardware_timer = 0;
-    let mut div_timer = 0;
-
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
-        while frame_timer < TICKS_PER_FRAME {
+        while timers.frame < TICKS_PER_FRAME {
             // fetch and execute
             // -----------------
             let pc = cpu.pc as usize;
@@ -1635,39 +1679,10 @@ fn main() {
                 0xFE => cp_d8(cpu, rom[pc + 1]),
                 0xFF => panic!("unknown instruction 0x{:X}", rom[pc]),
             };
+
             // update timers
             // -----------------
-            // todo: If a TMA write is executed on the same cycle as the content
-            // of TMA is transferred to TIMA due to a timer overflow,
-            // the old value is transferred to TIMA.
-            // https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff06---tma---timer-modulo-rw
-            // note: this implies you should save this value before executing the instruction
-            // todo:
-            let dt_cycles = cpu_next.tsc - cpu.tsc;
-            frame_timer += dt_cycles;
-            hardware_timer += dt_cycles;
-            div_timer += dt_cycles;
-
-            if div_timer > TICKS_PER_DIV_INC {
-                // todo: only run this if gb isn't in STOP
-                div_timer -= TICKS_PER_DIV_INC;
-                div_inc(&mut mem);
-            }
-
-            let tac_cpi = match tac_cycles_per_inc(&mem) {
-                Ok(result) => result,
-                Err(error) => panic!("{}", error),
-            };
-
-            if tac_enabled(&mem) && hardware_timer > tac_cpi {
-                // todo: consider moving this to some specialized memory management unit
-                hardware_timer -= tac_cpi;
-                let (_result, overflow) = tima_inc(&mut mem);
-                if overflow {
-                    tima_reset(&mut mem);
-                    request_interrupt(&mut mem, INT_TIMER);
-                }
-            }
+            timers = update_timers(timers, &mut mem, cpu_next.tsc - cpu.tsc);
 
             // check interrupts
             // -----------------
@@ -1676,7 +1691,7 @@ fn main() {
             // -----------------
             cpu = cpu_next;
         }
-        frame_timer -= TICKS_PER_FRAME;
+        timers.frame -= TICKS_PER_FRAME;
 
         // render
         // ------------------------------------------------

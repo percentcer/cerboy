@@ -139,6 +139,7 @@ struct CPUState {
     reg: [Byte; 8],
     sp: Word,
     pc: Word,
+    ime: bool // true == interrupts enabled
 }
 
 impl CPUState {
@@ -153,6 +154,7 @@ impl CPUState {
             reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
             sp: 0xFFFE,
             pc: 0,
+            ime: false,
         }
     }
 
@@ -1243,8 +1245,24 @@ const fn nop(cpu: CPUState) -> CPUState {
 
 //   halt           76         N*4 ---- halt until interrupt occurs (low power)
 //   stop           10 00        ? ---- low power standby mode (VERY low power)
+
 //   di             F3           4 ---- disable interrupts, IME=0
+// ----------------------------------------------------------------------------
+const fn di(cpu: CPUState) -> CPUState {
+    CPUState {
+        ime: false,
+        ..cpu.adv_pc(1).tick(4)
+    }
+}
+
 //   ei             FB           4 ---- enable interrupts, IME=1
+// ----------------------------------------------------------------------------
+const fn ei(cpu: CPUState) -> CPUState {
+    CPUState {
+        ime: true,
+        ..cpu.adv_pc(1).tick(4)
+    }
+}
 
 // GMB Jumpcommands
 // ============================================================================
@@ -1336,7 +1354,17 @@ const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
 }
 
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
+
 //   reti           D9          16 ---- return and enable interrupts (IME=1)
+// ----------------------------------------------------------------------------
+const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    CPUState {
+        ime: true,
+        // except for the ime change, reti is identical to ret
+        ..ret(cpu, mem)
+    }
+}
+
 //   rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
 
 // ============================================================================
@@ -1641,7 +1669,7 @@ fn main() {
                 0xD6 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xD7 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xD8 => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0xD9 => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0xD9 => reti(cpu, &mem),
                 0xDA => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xDB => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xDC => panic!("unknown instruction 0x{:X}", rom[pc]),
@@ -1667,7 +1695,7 @@ fn main() {
                 0xF0 => ld_a_FF00_A8(cpu, &mem, rom[pc + 1]),
                 0xF1 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xF2 => ld_a_FF00_C(cpu, &mem),
-                0xF3 => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0xF3 => di(cpu),
                 0xF4 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xF5 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xF6 => panic!("unknown instruction 0x{:X}", rom[pc]),
@@ -1675,7 +1703,7 @@ fn main() {
                 0xF8 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xF9 => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xFA => panic!("unknown instruction 0x{:X}", rom[pc]),
-                0xFB => panic!("unknown instruction 0x{:X}", rom[pc]),
+                0xFB => ei(cpu),
                 0xFC => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xFD => panic!("unknown instruction 0x{:X}", rom[pc]),
                 0xFE => cp_d8(cpu, rom[pc + 1]),

@@ -767,6 +767,7 @@ const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
         tsc: cpu.tsc + 12,
         sp: cpu.sp + 2,
         reg,
+        ..cpu
     }
 }
 

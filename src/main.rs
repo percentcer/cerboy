@@ -94,12 +94,15 @@ const INT_48: usize = 0x0048; // STAT
 const INT_50: usize = 0x0050; // Timer
 const INT_58: usize = 0x0058; // Timer
 const INT_60: usize = 0x0060; // Joypad
-                              // named I/O memory locations [FF00..FF7F]
+                              
+// named I/O memory locations [FF00..FF7F]
 const JOYP: usize = 0xFF00;
+// timers
 const DIV: usize = 0xFF04;
 const TIMA: usize = 0xFF05;
 const TMA: usize = 0xFF06;
 const TAC: usize = 0xFF07;
+// audio
 const NR10: usize = 0xFF10;
 const NR11: usize = 0xFF11;
 const NR12: usize = 0xFF12;
@@ -118,6 +121,7 @@ const NR44: usize = 0xFF23;
 const NR50: usize = 0xFF24;
 const NR51: usize = 0xFF25;
 const NR52: usize = 0xFF26;
+// rendering
 const LCDC: usize = 0xFF40;
 const STAT: usize = 0xFF41;
 const SCY: usize = 0xFF42;

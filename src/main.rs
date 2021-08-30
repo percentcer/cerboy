@@ -1734,9 +1734,28 @@ fn main() {
 
         // render
         // ------------------------------------------------
-        for (c, i) in buffer.iter_mut().enumerate() {
-            *i = rom[c] as u32;
+        for j in 0..GB_SCREEN_HEIGHT {
+            let ln_start = j * GB_SCREEN_WIDTH;
+            let ln_end = ln_start + GB_SCREEN_WIDTH;
+            let dbg_tile_line = j % 8; // for dumping tiles, not runtime code
+            // search OAM for tiles on this line (mode 2)
+            // write to buffer (mode 3)
+            for (c, i) in buffer[ln_start..ln_end]
+                .iter_mut()
+                .enumerate()
+            {
+                let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
+                let dbg_tile_start = 0x1000 + (dbg_tile_index * 16 /*bytes per tile*/);
+                let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
+                let dbg_tile_high_byte = mem[dbg_tile_start + dbg_tile_line * 2 + 1];
+                let dbg_pixel_index = 7 - (c % 8);
+                let dbg_high_value = if ((1 << dbg_pixel_index) & dbg_tile_high_byte) > 0 {2} else {0};
+                let dbg_low_value = if ((1 << dbg_pixel_index) & dbg_tile_low_byte) > 0 {1} else {0};
+                *i = (dbg_high_value + dbg_low_value) * 80;
+            }
+            // hblank (mode 0)
         }
+        // vblank (mode 1)
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window
             .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)

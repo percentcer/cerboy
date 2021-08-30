@@ -94,8 +94,7 @@ const INT_48: usize = 0x0048; // STAT
 const INT_50: usize = 0x0050; // Timer
 const INT_58: usize = 0x0058; // Timer
 const INT_60: usize = 0x0060; // Joypad
-                              
-// named I/O memory locations [FF00..FF7F]
+                              // named I/O memory locations [FF00..FF7F]
 const JOYP: usize = 0xFF00;
 // timers
 const DIV: usize = 0xFF04;
@@ -143,7 +142,7 @@ struct CPUState {
     reg: [Byte; 8],
     sp: Word,
     pc: Word,
-    ime: bool // true == interrupts enabled
+    ime: bool, // true == interrupts enabled
 }
 
 impl CPUState {

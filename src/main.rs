@@ -1379,6 +1379,10 @@ fn request_interrupt(mem: &mut Vec<Byte>, int_flag: Byte) {
     mem[IF] |= int_flag;
 }
 
+fn load_rom(mem: &mut Vec<Byte>, rom: &[Byte]) {
+    mem[0..rom.len()].copy_from_slice(rom)
+}
+
 fn mem_inc(mem: &mut Vec<Byte>, loc: usize) -> (Byte, bool) {
     let (result, overflow) = mem[loc].overflowing_add(1);
     mem[loc] = result;
@@ -1435,6 +1439,7 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
     let mut timers = TimerState::new();
+    load_rom(&mut mem, &rom); // load cartridge
 
     // loop
     // ------------

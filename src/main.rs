@@ -189,38 +189,38 @@ impl CPUState {
     }
 }
 
-struct TimerState {
+struct ClockState {
     frame: u64,
-    hardware: u64,
-    div: u64,
+    timer: u64,
+    divider: u64,
 }
 
-impl TimerState {
-    const fn new() -> TimerState {
-        TimerState {
+impl ClockState {
+    const fn new() -> ClockState {
+        ClockState {
             frame: 0,
-            hardware: 0,
-            div: 0,
+            timer: 0,
+            divider: 0,
         }
     }
 }
 
-fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerState {
+fn update_clocks(state: ClockState, mem: &mut Vec<Byte>, cycles: u64) -> ClockState {
     // todo: If a TMA write is executed on the same cycle as the content
     // of TMA is transferred to TIMA due to a timer overflow,
     // the old value is transferred to TIMA.
     // https://gbdev.io/pandocs/Timer_and_Divider_Registers.html#ff06---tma---timer-modulo-rw
     // note: this implies you should save this value before executing the instruction
     // todo:
-    let mut result = TimerState {
+    let mut result = ClockState {
         frame: state.frame + cycles,
-        hardware: state.hardware + cycles,
-        div: state.div + cycles,
+        timer: state.timer + cycles,
+        divider: state.divider + cycles,
     };
 
-    while result.div >= TICKS_PER_DIV_INC {
+    while result.divider >= TICKS_PER_DIV_INC {
         // todo: only run this if gb isn't in STOP
-        result.div -= TICKS_PER_DIV_INC;
+        result.divider -= TICKS_PER_DIV_INC;
         mem_inc(mem, DIV);
     }
 
@@ -230,9 +230,9 @@ fn update_timers(state: TimerState, mem: &mut Vec<Byte>, cycles: u64) -> TimerSt
     };
 
     if tac_enabled(mem) {
-        while result.hardware >= tac_cpi {
+        while result.timer >= tac_cpi {
             // todo: consider moving this to some specialized memory management unit
-            result.hardware -= tac_cpi;
+            result.timer -= tac_cpi;
             let (_result, overflow) = mem_inc(mem, TIMA);
             if overflow {
                 tima_reset(mem);
@@ -1437,7 +1437,7 @@ fn main() {
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
-    let mut timers = TimerState::new();
+    let mut timers = ClockState::new();
     load_rom(&mut mem, &rom); // load cartridge
 
     // loop
@@ -1722,7 +1722,7 @@ fn main() {
 
             // update timers
             // -----------------
-            timers = update_timers(timers, &mut mem, cpu_next.tsc - cpu.tsc);
+            timers = update_clocks(timers, &mut mem, cpu_next.tsc - cpu.tsc);
 
             // check interrupts
             // -----------------
@@ -2289,16 +2289,16 @@ mod tests_cpu {
         mem[TAC] = 0b100; // (enabled, 1024 cycles per tick)
         assert_eq!(tac_enabled(&mem), true);
 
-        let new_timers = update_timers(TimerState::new(), &mut mem, 1024);
-        assert_eq!(new_timers.hardware, 0);
+        let new_timers = update_clocks(ClockState::new(), &mut mem, 1024);
+        assert_eq!(new_timers.timer, 0);
         assert_eq!(mem[TIMA], 1);
 
         tima_reset(&mut mem);
         assert_eq!(mem[TIMA], 0);
 
         mem[TAC] = 0b111; // (enabled, 256 cycles per tick)
-        let new_timers = update_timers(TimerState::new(), &mut mem, 1024);
-        assert_eq!(new_timers.hardware, 0);
+        let new_timers = update_clocks(ClockState::new(), &mut mem, 1024);
+        assert_eq!(new_timers.timer, 0);
         assert_eq!(mem[TIMA], 4);
 
         mem[TMA] = 0xFF;
@@ -2307,7 +2307,7 @@ mod tests_cpu {
 
         mem[TMA] = 0xAA;
         assert_ne!(mem[IF], INT_TIMER);
-        let even_newer_timers = update_timers(new_timers, &mut mem, 256);
+        let even_newer_timers = update_clocks(new_timers, &mut mem, 256);
         // should have overflowed as we just set it to 0xFF moments ago
         assert_eq!(mem[TIMA], 0xAA);
         assert_eq!(mem[IF], INT_TIMER);

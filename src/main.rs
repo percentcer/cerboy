@@ -2342,7 +2342,7 @@ mod tests_cpu {
         mem[TAC] = 0b100; // (enabled, 1024 cycles per tick)
         assert_eq!(tac_enabled(&mem), true);
 
-        let new_timers = update_clocks(ClockState::new(), &mut mem, 1024);
+        let new_timers = update_clocks(HardwareTimers::new(), &mut mem, 1024);
         assert_eq!(new_timers.timer, 0);
         assert_eq!(mem[TIMA], 1);
 
@@ -2350,7 +2350,7 @@ mod tests_cpu {
         assert_eq!(mem[TIMA], 0);
 
         mem[TAC] = 0b111; // (enabled, 256 cycles per tick)
-        let new_timers = update_clocks(ClockState::new(), &mut mem, 1024);
+        let new_timers = update_clocks(HardwareTimers::new(), &mut mem, 1024);
         assert_eq!(new_timers.timer, 0);
         assert_eq!(mem[TIMA], 4);
 

@@ -1466,7 +1466,6 @@ fn main() {
 
     // loop
     // ------------
-    let mut frame_tick = 0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
@@ -1781,15 +1780,15 @@ fn main() {
         for j in 0..GB_SCREEN_HEIGHT {
             let ln_start = j * GB_SCREEN_WIDTH;
             let ln_end = ln_start + GB_SCREEN_WIDTH;
-            let dbg_tile_line = (j + frame_tick) % 8; // for dumping tiles, not runtime code
+            let dbg_tile_line = j % 8; // for dumping tiles, not runtime code
             // search OAM for tiles on this line (mode 2)
             // write to buffer (mode 3)
             for (c, i) in buffer[ln_start..ln_end]
-                .iter_mut()
-                .enumerate()
+            .iter_mut()
+            .enumerate()
             {
-                let dbg_tile_index = (c / 8) + ((j + frame_tick) / 8) * 18 /* tiles per line */;
-                let dbg_tile_start = dbg_tile_index * 16 /*bytes per tile*/;
+                let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
+                let dbg_tile_start = 0xEB00 + dbg_tile_index * 16 /*bytes per tile*/;
                 let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
                 let dbg_tile_high_byte = mem[dbg_tile_start + dbg_tile_line * 2 + 1];
                 let dbg_pixel_index = 7 - (c % 8);

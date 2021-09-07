@@ -1471,6 +1471,9 @@ fn main() {
         // update
         // ------------------------------------------------
         while timers.frame < TICKS_PER_FRAME {
+            // set start tsc for timer update (later)
+            let tsc_prev = cpu.tsc;
+
             // check interrupts
             // -----------------
             // todo: The effect of EI is delayed by one instruction. 
@@ -1497,7 +1500,7 @@ fn main() {
             // fetch and execute
             // -----------------
             let pc = cpu.pc as usize;
-            let cpu_next = match rom[pc] {
+            cpu = match mem[pc] {
                 0x00 => nop(cpu),
                 0x01 => ld_bc_d16(cpu, rom[pc + 1], rom[pc + 2]),
                 0x02 => ld_BC_a(cpu, &mut mem),
@@ -1769,17 +1772,9 @@ fn main() {
 
             // update timers
             // -----------------
-            timers = update_clocks(timers, &mut mem, cpu_next.tsc - cpu.tsc);
-
-            // check interrupts
-            // -----------------
-
-            // update state
-            // -----------------
-            cpu = cpu_next;
+            timers = update_clocks(timers, &mut mem, cpu.tsc - tsc_prev);
         }
         timers.frame -= TICKS_PER_FRAME;
-        frame_tick += 1;
 
         // render
         // ------------------------------------------------

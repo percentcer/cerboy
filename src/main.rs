@@ -1373,6 +1373,29 @@ const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
 //   rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
 
 // ============================================================================
+// interrupts
+// ============================================================================
+fn handle_int(cpu: CPUState, mem: &mut Vec<Byte>, fl_int: Byte, vec_int: Word) -> CPUState {
+    mem[IF] &= !fl_int; // acknowledge the request flag (set to 0)
+    
+    // push current position to stack to prepare for jump
+    mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
+    mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
+
+    CPUState {
+        ime: mem[IF] != 0, // only lock the ime if we're handling the final request
+        // todo: this behavior is incorrect, the ime should remain locked while handling the
+        // SET OF interrupt requests that were enabled at the time of the handler invocation
+        // e.g. if FL_INT_VSYNC and FL_INT_JOYPAD are requested then the interrupt handler
+        // should execute both (in order of priority) but NOT execute any newly requested
+        // interrupts until those are handled.
+        sp: cpu.sp - 2,
+        pc: vec_int,
+        ..cpu.tick(20) // https://gbdev.io/pandocs/Interrupts.html#interrupt-handling
+    }
+}
+
+// ============================================================================
 // memory functions
 // ============================================================================
 fn request_interrupt(mem: &mut Vec<Byte>, int_flag: Byte) {
@@ -1448,6 +1471,29 @@ fn main() {
         // update
         // ------------------------------------------------
         while timers.frame < TICKS_PER_FRAME {
+            // check interrupts
+            // -----------------
+            // todo: The effect of EI is delayed by one instruction. 
+            // This means that EI followed immediately by DI does not 
+            // allow interrupts between the EI and the DI.
+            if cpu.ime {
+                if ((mem[IE] & mem[IF]) & FL_INT_VBLANK) > 0 {
+                    cpu = handle_int(cpu, &mut mem, FL_INT_VBLANK, VEC_INT_VBLANK);
+                } 
+                else if ((mem[IE] & mem[IF]) & FL_INT_STAT) > 0 {
+                    cpu = handle_int(cpu, &mut mem, FL_INT_STAT, VEC_INT_STAT);
+                }
+                else if ((mem[IE] & mem[IF]) & FL_INT_TIMER) > 0 {
+                    cpu = handle_int(cpu, &mut mem, FL_INT_TIMER, VEC_INT_TIMER);
+                }
+                else if ((mem[IE] & mem[IF]) & FL_INT_SERIAL) > 0 {
+                    cpu = handle_int(cpu, &mut mem, FL_INT_SERIAL, VEC_INT_SERIAL);
+                }
+                else if ((mem[IE] & mem[IF]) & FL_INT_JOYPAD) > 0 {
+                    cpu = handle_int(cpu, &mut mem, FL_INT_JOYPAD, VEC_INT_JOYPAD);
+                }
+            }
+
             // fetch and execute
             // -----------------
             let pc = cpu.pc as usize;
@@ -1758,6 +1804,8 @@ fn main() {
             }
             // hblank (mode 0)
         }
+        request_interrupt(&mut mem, FL_INT_VBLANK);
+
         // vblank (mode 1)
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window

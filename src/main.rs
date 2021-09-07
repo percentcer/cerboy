@@ -62,12 +62,12 @@ const FL_N: Byte = 1 << 6;
 const FL_H: Byte = 1 << 5;
 const FL_C: Byte = 1 << 4;
 
-// interrupts
-const INT_VBLANK: Byte = 1 << 0;
-const INT_STAT: Byte = 1 << 1;
-const INT_TIMER: Byte = 1 << 2;
-const INT_SERIAL: Byte = 1 << 3;
-const INT_JOYPAD: Byte = 1 << 4;
+// interrupt flags
+const FL_INT_VBLANK: Byte = 1 << 0;
+const FL_INT_STAT: Byte = 1 << 1;
+const FL_INT_TIMER: Byte = 1 << 2;
+const FL_INT_SERIAL: Byte = 1 << 3;
+const FL_INT_JOYPAD: Byte = 1 << 4;
 
 // indices
 const REG_B: usize = 0;
@@ -79,21 +79,22 @@ const REG_L: usize = 5;
 const FLAGS: usize = 6;
 const REG_A: usize = 7;
 
-// RST locations
-const RST_00: usize = 0x0000;
-const RST_08: usize = 0x0008;
-const RST_10: usize = 0x0010;
-const RST_18: usize = 0x0018;
-const RST_20: usize = 0x0020;
-const RST_28: usize = 0x0028;
-const RST_30: usize = 0x0030;
-const RST_38: usize = 0x0038;
-// Interrupt locations
-const INT_40: usize = 0x0040; // VBlank
-const INT_48: usize = 0x0048; // STAT
-const INT_50: usize = 0x0050; // Timer
-const INT_58: usize = 0x0058; // Timer
-const INT_60: usize = 0x0060; // Joypad
+// RST locations (vectors)
+const VEC_RST_00: usize = 0x0000;
+const VEC_RST_08: usize = 0x0008;
+const VEC_RST_10: usize = 0x0010;
+const VEC_RST_18: usize = 0x0018;
+const VEC_RST_20: usize = 0x0020;
+const VEC_RST_28: usize = 0x0028;
+const VEC_RST_30: usize = 0x0030;
+const VEC_RST_38: usize = 0x0038;
+
+// Interrupt locations (vectors)
+const VEC_INT_VBLANK: Word = 0x0040;
+const VEC_INT_STAT: Word = 0x0048;
+const VEC_INT_TIMER: Word = 0x0050;
+const VEC_INT_SERIAL: Word = 0x0058;
+const VEC_INT_JOYPAD: Word = 0x0060;
                               // named I/O memory locations [FF00..FF7F]
 const JOYP: usize = 0xFF00;
 // timers
@@ -236,7 +237,7 @@ fn update_clocks(state: ClockState, mem: &mut Vec<Byte>, cycles: u64) -> ClockSt
             let (_result, overflow) = mem_inc(mem, TIMA);
             if overflow {
                 tima_reset(mem);
-                request_interrupt(mem, INT_TIMER);
+                request_interrupt(mem, FL_INT_TIMER);
             }
         }
     }
@@ -2306,11 +2307,11 @@ mod tests_cpu {
         assert_eq!(mem[TIMA], mem[TMA]);
 
         mem[TMA] = 0xAA;
-        assert_ne!(mem[IF], INT_TIMER);
+        assert_ne!(mem[IF], FL_INT_TIMER);
         let even_newer_timers = update_clocks(new_timers, &mut mem, 256);
         // should have overflowed as we just set it to 0xFF moments ago
         assert_eq!(mem[TIMA], 0xAA);
-        assert_eq!(mem[IF], INT_TIMER);
+        assert_eq!(mem[IF], FL_INT_TIMER);
 
         // TODO test DIV
         // TODO can we test frame timer? it's set up differently...

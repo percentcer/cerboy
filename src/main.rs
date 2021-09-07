@@ -2026,12 +2026,12 @@ mod tests_cpu {
         let result = call_d16(0x01, 0x02, INITIAL, &mut mem);
         assert_eq!(
             mem[(INITIAL.sp - 0) as usize],
-            hi(INITIAL.pc),
+            hi(INITIAL.adv_pc(3).pc),
             "failed high check"
         );
         assert_eq!(
             mem[(INITIAL.sp - 1) as usize],
-            lo(INITIAL.pc),
+            lo(INITIAL.adv_pc(3).pc),
             "failed low check"
         );
         assert_eq!(result.pc, 0x0201, "failed sp check")
@@ -2146,20 +2146,20 @@ mod tests_cpu {
 
         assert_eq!(jp_d16(cpu_c, 0x03, 0x02).pc, 0x0203);
         assert_eq!(jp_d16(cpu_c, 0x03, 0x02).tsc, 16);
-        assert_eq!(jr_z_r8(cpu_z, 1).pc, 0x100);
-        assert_eq!(jr_z_r8(cpu_z, -0xF).pc, 0xF0);
-        assert_eq!(jr_z_r8(cpu_c, 1).pc, cpu_c.pc);
-        assert_eq!(jr_nz_r8(cpu_c, 1).pc, cpu_c.pc + 1);
-        assert_eq!(jr_nz_r8(cpu_z, 1).pc, cpu_z.pc);
+        assert_eq!(jr_z_r8(cpu_z, 1).pc, cpu_z.adv_pc(2).pc + 1);
+        assert_eq!(jr_z_r8(cpu_z, -0xF).pc, cpu_z.adv_pc(2).pc - 0xF);
+        assert_eq!(jr_z_r8(cpu_c, 1).pc, cpu_c.adv_pc(2).pc);
+        assert_eq!(jr_nz_r8(cpu_c, 1).pc, cpu_c.adv_pc(2).pc + 1);
+        assert_eq!(jr_nz_r8(cpu_z, 1).pc, cpu_z.adv_pc(2).pc);
         assert_eq!(jr_nz_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
 
-        assert_eq!(jr_c_r8(cpu_c, 1).pc, cpu_c.pc + 1);
-        assert_eq!(jr_c_r8(cpu_z, 1).pc, cpu_z.pc);
+        assert_eq!(jr_c_r8(cpu_c, 1).pc, cpu_c.adv_pc(2).pc + 1);
+        assert_eq!(jr_c_r8(cpu_z, 1).pc, cpu_z.adv_pc(2).pc);
         assert_eq!(jr_c_r8(cpu_c, 1).tsc, cpu_c.tsc + 12);
         assert_eq!(jr_c_r8(cpu_z, 1).tsc, cpu_z.tsc + 8);
 
-        assert_eq!(jr_nc_r8(cpu_c, 1).pc, cpu_c.pc);
-        assert_eq!(jr_nc_r8(cpu_z, 1).pc, cpu_z.pc + 1);
+        assert_eq!(jr_nc_r8(cpu_c, 1).pc, cpu_c.adv_pc(2).pc);
+        assert_eq!(jr_nc_r8(cpu_z, 1).pc, cpu_z.adv_pc(2).pc + 1);
         assert_eq!(jr_nc_r8(cpu_c, 1).tsc, cpu_c.tsc + 8);
         assert_eq!(jr_nc_r8(cpu_z, 1).tsc, cpu_z.tsc + 12);
     }
@@ -2241,8 +2241,8 @@ mod tests_cpu {
             ..INITIAL
         };
         let mut mem = init_mem();
-        mem[0xFFFD] = 0xBE;
-        mem[0xFFFC] = 0xEF;
+        mem[0xFFFE] = 0xBE;
+        mem[0xFFFD] = 0xEF;
         assert_eq!(ret(cpu, &mem).pc, 0xBEEF);
         assert_eq!(ret(cpu, &mem).sp, 0xFFFE);
     }

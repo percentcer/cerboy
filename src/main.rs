@@ -43,9 +43,15 @@ const GB_SCREEN_WIDTH: usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
 const ROM_MAX: usize = 0x200000;
 const MEM_SIZE: usize = 0xFFFF + 1;
+
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#lcdstatusregister
-// note that (Clock Speed / Vert Sync) gives us 70221
-const TICKS_PER_FRAME: u64 = 70224;
+const TICKS_PER_OAM_SEARCH: u64 = 80;
+const TICKS_PER_VRAM_IO: u64 = 168; // roughly
+const TICKS_PER_HBLANK: u64 = 208; // roughly
+const TICKS_PER_SCANLINE: u64 = TICKS_PER_OAM_SEARCH + TICKS_PER_VRAM_IO + TICKS_PER_HBLANK;
+const TICKS_PER_VBLANK: u64 = TICKS_PER_SCANLINE * 10; // 144 on screen + 10 additional lines
+const TICKS_PER_FRAME: u64 = (TICKS_PER_SCANLINE * GB_SCREEN_HEIGHT as u64) + TICKS_PER_VBLANK; // 70224 cycles
+
 const TICKS_PER_DIV_INC: u64 = 256;
 
 type Byte = u8;
@@ -196,10 +202,10 @@ struct HardwareTimers {
 }
 
 struct LCDTiming {
-    oam_search: u64, // 80 max
-    vram_io: u64, // ~168
-    hblank: u64, // ~208
-    vblank: u64, // 4560 max (equal to 10 lines)
+    oam_search: u64,
+    vram_io: u64,
+    hblank: u64,
+    vblank: u64,
 }
 
 impl HardwareTimers {

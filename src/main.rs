@@ -201,13 +201,6 @@ struct HardwareTimers {
     divider: u64,
 }
 
-struct LCDTiming {
-    oam_search: u64,
-    vram_io: u64,
-    hblank: u64,
-    vblank: u64,
-}
-
 impl HardwareTimers {
     const fn new() -> HardwareTimers {
         HardwareTimers {
@@ -1440,6 +1433,14 @@ const fn tac_cycles_per_inc(mem: &[Byte]) -> Result<u64, &'static str> {
     }
 }
 
+const fn lcd_mode(mem: &[Byte]) -> Byte {
+    mem[STAT] & 0b11
+}
+
+fn set_lcd_mode(mode: Byte, mem: &mut Vec<Byte>) {
+    mem[STAT] = ((mem[STAT] >> 2) << 2) | (mode & 0b11);
+}
+
 fn main() {
     env_logger::init();
 
@@ -1471,10 +1472,12 @@ fn main() {
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
-    let mut timers = HardwareTimers::new();
     load_rom(&mut mem, &rom); // load cartridge
     let boot = init_rom("C:\\boot.gb");
     load_rom(&mut mem, &boot);
+
+    let mut timers = HardwareTimers::new();
+    let mut lcd_timing: u64 = 0;
 
     // loop
     // ------------
@@ -1781,41 +1784,82 @@ fn main() {
             0xFE => cp_d8(cpu, mem[pc + 1]),
             0xFF => panic!("unknown instruction 0x{:X}", mem[pc]),
         };
+        let dt_cyc = cpu.tsc - tsc_prev;
 
         // update timers
         // -----------------
-        timers = update_clocks(timers, &mut mem, cpu.tsc - tsc_prev);
+        timers = update_clocks(timers, &mut mem, dt_cyc);
+        lcd_timing += dt_cyc;
 
         // render
         // ------------------------------------------------
-        for j in 0..GB_SCREEN_HEIGHT {
-            let ln_start = j * GB_SCREEN_WIDTH;
-            let ln_end = ln_start + GB_SCREEN_WIDTH;
-            let dbg_tile_line = j % 8; // for dumping tiles, not runtime code
-            // search OAM for tiles on this line (mode 2)
-            // write to buffer (mode 3)
-            for (c, i) in buffer[ln_start..ln_end]
-            .iter_mut()
-            .enumerate()
-            {
-                let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
-                let dbg_tile_start = 0xEB00 + dbg_tile_index * 16 /*bytes per tile*/;
-                let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
-                let dbg_tile_high_byte = mem[dbg_tile_start + dbg_tile_line * 2 + 1];
-                let dbg_pixel_index = 7 - (c % 8);
-                let dbg_high_value = if ((1 << dbg_pixel_index) & dbg_tile_high_byte) > 0 {2} else {0};
-                let dbg_low_value = if ((1 << dbg_pixel_index) & dbg_tile_low_byte) > 0 {1} else {0};
-                *i = (dbg_high_value + dbg_low_value) * 80;
+        match lcd_mode(&mem) {
+            // oam search
+            2 => {
+                if lcd_timing >= TICKS_PER_OAM_SEARCH {
+                    set_lcd_mode(3, &mut mem);
+                    lcd_timing -= TICKS_PER_OAM_SEARCH;
+                }
             }
-            // hblank (mode 0)
-        }
-        request_interrupt(&mut mem, FL_INT_VBLANK);
+            // vram io
+            3 => {
+                if lcd_timing >= TICKS_PER_VRAM_IO {
+                    // -----------------
+                    // draw the scanline
+                    let ln_start = mem[LY] as usize * GB_SCREEN_WIDTH;
+                    let ln_end = ln_start + GB_SCREEN_WIDTH;
+                    // let dbg_tile_line = mem[LY] % 8; // for dumping tiles, not runtime code
+                    for (c, i) in buffer[ln_start..ln_end]
+                    .iter_mut()
+                    .enumerate()
+                    {
+                        // let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
+                        // let dbg_tile_start = 0xEB00 + dbg_tile_index * 16 /*bytes per tile*/;
+                        // let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
+                        // let dbg_tile_high_byte = mem[dbg_tile_start + dbg_tile_line * 2 + 1];
+                        // let dbg_pixel_index = 7 - (c % 8);
+                        // let dbg_high_value = if ((1 << dbg_pixel_index) & dbg_tile_high_byte) > 0 {2} else {0};
+                        // let dbg_low_value = if ((1 << dbg_pixel_index) & dbg_tile_low_byte) > 0 {1} else {0};
+                        *i = mem[LY] as u32;
+                    }
 
-        // vblank (mode 1)
-        // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-        window
-            .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
-            .unwrap();
+                    // -----------------
+                    set_lcd_mode(0, &mut mem);
+                    lcd_timing -= TICKS_PER_VRAM_IO;
+                }
+            }
+            // hblank
+            0 => {
+                if lcd_timing >= TICKS_PER_HBLANK {
+                    mem[LY] += 1;
+                    lcd_timing -= TICKS_PER_HBLANK;
+
+                    // draw the screen. currently in HBLANK so we can see each scanline as it is drawnf
+                    // but that means emulator won't run at speed
+                    window
+                    .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
+                    .unwrap();
+                
+                    if mem[LY] == GB_SCREEN_HEIGHT as Byte {
+                        // values 144 to 153 are vblank
+                        request_interrupt(&mut mem, FL_INT_VBLANK);
+                        set_lcd_mode(1, &mut mem);
+                    } else {
+                        set_lcd_mode(2, &mut mem);
+                    }
+                }
+            }
+            // vblank
+            1 => {
+                mem[LY] = 144 + (lcd_timing / TICKS_PER_SCANLINE) as Byte;
+                if lcd_timing >= TICKS_PER_VBLANK {
+                    mem[LY] = 0;
+                    set_lcd_mode(2, &mut mem);
+                    lcd_timing -= TICKS_PER_VBLANK;
+                }
+            }
+            _ => panic!("invalid LCD mode")
+        };
     }
 }
 
@@ -2368,5 +2412,12 @@ mod tests_cpu {
 
         // TODO test DIV
         // TODO can we test frame timer? it's set up differently...
+    }
+
+    #[test]
+    fn test_lcd() {
+        let mut mem = init_mem();
+        set_lcd_mode(3, &mut mem);
+        assert_eq!(lcd_mode(&mem), 3);
     }
 }

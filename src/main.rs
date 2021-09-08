@@ -1491,19 +1491,20 @@ fn main() {
         // This means that EI followed immediately by DI does not 
         // allow interrupts between the EI and the DI.
         if cpu.ime {
-            if ((mem[IE] & mem[IF]) & FL_INT_VBLANK) > 0 {
+            let enabled_flags = mem[IE] & mem[IF];
+            if (enabled_flags & FL_INT_VBLANK) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_VBLANK, VEC_INT_VBLANK);
             } 
-            else if ((mem[IE] & mem[IF]) & FL_INT_STAT) > 0 {
+            else if (enabled_flags & FL_INT_STAT) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_STAT, VEC_INT_STAT);
             }
-            else if ((mem[IE] & mem[IF]) & FL_INT_TIMER) > 0 {
+            else if (enabled_flags & FL_INT_TIMER) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_TIMER, VEC_INT_TIMER);
             }
-            else if ((mem[IE] & mem[IF]) & FL_INT_SERIAL) > 0 {
+            else if (enabled_flags & FL_INT_SERIAL) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_SERIAL, VEC_INT_SERIAL);
             }
-            else if ((mem[IE] & mem[IF]) & FL_INT_JOYPAD) > 0 {
+            else if (enabled_flags & FL_INT_JOYPAD) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_JOYPAD, VEC_INT_JOYPAD);
             }
         }

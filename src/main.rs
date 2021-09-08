@@ -101,7 +101,7 @@ const VEC_INT_STAT: Word = 0x0048;
 const VEC_INT_TIMER: Word = 0x0050;
 const VEC_INT_SERIAL: Word = 0x0058;
 const VEC_INT_JOYPAD: Word = 0x0060;
-                              // named I/O memory locations [FF00..FF7F]
+// named I/O memory locations [FF00..FF7F]
 const JOYP: usize = 0xFF00;
 // timers
 const DIV: usize = 0xFF04;
@@ -1380,7 +1380,6 @@ const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
 // ============================================================================
 fn handle_int(cpu: CPUState, mem: &mut Vec<Byte>, fl_int: Byte, vec_int: Word) -> CPUState {
     mem[IF] &= !fl_int; // acknowledge the request flag (set to 0)
-    
     // push current position to stack to prepare for jump
     mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
     mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
@@ -1490,24 +1489,20 @@ fn main() {
 
         // check interrupts
         // -----------------
-        // todo: The effect of EI is delayed by one instruction. 
-        // This means that EI followed immediately by DI does not 
+        // todo: The effect of EI is delayed by one instruction.
+        // This means that EI followed immediately by DI does not
         // allow interrupts between the EI and the DI.
         if cpu.ime {
             let enabled_flags = mem[IE] & mem[IF];
             if (enabled_flags & FL_INT_VBLANK) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_VBLANK, VEC_INT_VBLANK);
-            } 
-            else if (enabled_flags & FL_INT_STAT) > 0 {
+            } else if (enabled_flags & FL_INT_STAT) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_STAT, VEC_INT_STAT);
-            }
-            else if (enabled_flags & FL_INT_TIMER) > 0 {
+            } else if (enabled_flags & FL_INT_TIMER) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_TIMER, VEC_INT_TIMER);
-            }
-            else if (enabled_flags & FL_INT_SERIAL) > 0 {
+            } else if (enabled_flags & FL_INT_SERIAL) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_SERIAL, VEC_INT_SERIAL);
-            }
-            else if (enabled_flags & FL_INT_JOYPAD) > 0 {
+            } else if (enabled_flags & FL_INT_JOYPAD) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_JOYPAD, VEC_INT_JOYPAD);
             }
         }
@@ -1809,10 +1804,7 @@ fn main() {
                     let ln_start = mem[LY] as usize * GB_SCREEN_WIDTH;
                     let ln_end = ln_start + GB_SCREEN_WIDTH;
                     // let dbg_tile_line = mem[LY] % 8; // for dumping tiles, not runtime code
-                    for (c, i) in buffer[ln_start..ln_end]
-                    .iter_mut()
-                    .enumerate()
-                    {
+                    for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         // let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
                         // let dbg_tile_start = 0xEB00 + dbg_tile_index * 16 /*bytes per tile*/;
                         // let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
@@ -1833,7 +1825,6 @@ fn main() {
                 if lcd_timing >= TICKS_PER_HBLANK {
                     mem[LY] += 1;
                     lcd_timing -= TICKS_PER_HBLANK;
-                
                     if mem[LY] == GB_SCREEN_HEIGHT as Byte {
                         // values 144 to 153 are vblank
                         request_interrupt(&mut mem, FL_INT_VBLANK);
@@ -1852,11 +1843,11 @@ fn main() {
                     lcd_timing -= TICKS_PER_VBLANK;
 
                     window
-                    .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
-                    .unwrap();
+                        .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
+                        .unwrap();
                 }
             }
-            _ => panic!("invalid LCD mode")
+            _ => panic!("invalid LCD mode"),
         };
     }
 }

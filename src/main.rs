@@ -1833,12 +1833,6 @@ fn main() {
                 if lcd_timing >= TICKS_PER_HBLANK {
                     mem[LY] += 1;
                     lcd_timing -= TICKS_PER_HBLANK;
-
-                    // draw the screen. currently in HBLANK so we can see each scanline as it is drawnf
-                    // but that means emulator won't run at speed
-                    window
-                    .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
-                    .unwrap();
                 
                     if mem[LY] == GB_SCREEN_HEIGHT as Byte {
                         // values 144 to 153 are vblank
@@ -1851,11 +1845,15 @@ fn main() {
             }
             // vblank
             1 => {
-                mem[LY] = 144 + (lcd_timing / TICKS_PER_SCANLINE) as Byte;
+                mem[LY] = (GB_SCREEN_HEIGHT as u64 + lcd_timing / TICKS_PER_SCANLINE) as Byte;
                 if lcd_timing >= TICKS_PER_VBLANK {
                     mem[LY] = 0;
                     set_lcd_mode(2, &mut mem);
                     lcd_timing -= TICKS_PER_VBLANK;
+
+                    window
+                    .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
+                    .unwrap();
                 }
             }
             _ => panic!("invalid LCD mode")

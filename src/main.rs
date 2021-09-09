@@ -1380,13 +1380,13 @@ const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
 // ============================================================================
 fn handle_int(cpu: CPUState, mem: &mut Vec<Byte>, fl_int: Byte, vec_int: Word) -> CPUState {
     mem[IF] &= !fl_int; // acknowledge the request flag (set to 0)
-    // push current position to stack to prepare for jump
+                        // push current position to stack to prepare for jump
     mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
     mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
 
     CPUState {
         ime: mem[IF] != 0, // only lock the ime if we're handling the final request
-        // todo: this behavior is incorrect, the ime should remain locked while handling the
+        // todo: acc: this behavior is incorrect, the ime should remain locked while handling the
         // SET OF interrupt requests that were enabled at the time of the handler invocation
         // e.g. if FL_INT_VSYNC and FL_INT_JOYPAD are requested then the interrupt handler
         // should execute both (in order of priority) but NOT execute any newly requested
@@ -1400,6 +1400,10 @@ fn handle_int(cpu: CPUState, mem: &mut Vec<Byte>, fl_int: Byte, vec_int: Word) -
 // ============================================================================
 // memory functions
 // ============================================================================
+fn bit(idx: Byte, val: Byte) -> bool {
+    ((val >> idx) & 1) == 1
+}
+
 fn request_interrupt(mem: &mut Vec<Byte>, int_flag: Byte) {
     mem[IF] |= int_flag;
 }
@@ -1799,23 +1803,60 @@ fn main() {
             // vram io
             3 => {
                 if lcd_timing >= TICKS_PER_VRAM_IO {
-                    // -----------------
                     // draw the scanline
+                    // ===========================================
                     let ln_start = mem[LY] as usize * GB_SCREEN_WIDTH;
                     let ln_end = ln_start + GB_SCREEN_WIDTH;
-                    // let dbg_tile_line = mem[LY] % 8; // for dumping tiles, not runtime code
+
+                    // draw background
+                    // -------------------------------------------
+                    // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
+                    // but cerboy currently only draws the line in a single shot (instead of per-dot)
+                    let bg_tilemap_loc: usize = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
+                    let (bg_signed_addressing, bg_tile_image_loc) = if bit(4, mem[LCDC]) {
+                        (false, 0x8000 as Word)
+                    } else {
+                        (true, 0x9000 as Word)
+                    };
+                    let bg_tile_line = (mem[LY] + mem[SCY]) as Word % 8;
+                    let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
-                        // let dbg_tile_index = (c / 8) + (j / 8) * 18 /* tiles per line */;
-                        // let dbg_tile_start = 0xEB00 + dbg_tile_index * 16 /*bytes per tile*/;
-                        // let dbg_tile_low_byte = mem[dbg_tile_start + dbg_tile_line * 2];
-                        // let dbg_tile_high_byte = mem[dbg_tile_start + dbg_tile_line * 2 + 1];
-                        // let dbg_pixel_index = 7 - (c % 8);
-                        // let dbg_high_value = if ((1 << dbg_pixel_index) & dbg_tile_high_byte) > 0 {2} else {0};
-                        // let dbg_low_value = if ((1 << dbg_pixel_index) & dbg_tile_low_byte) > 0 {1} else {0};
-                        *i = mem[LY] as u32;
+                        let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
+                        let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
+                        let bg_tile_id = mem[bg_tilemap_loc + bg_tile_index as usize];
+                        let bg_tile_image_index =
+                            bg_tile_image_loc.wrapping_add(if bg_signed_addressing {
+                                signed(bg_tile_id) as Word * 16
+                            } else {
+                                bg_tile_id as Word * 16
+                            });
+                        let bg_tile_line_offset = (bg_tile_image_index + bg_tile_line * 2) as usize;
+                        let bg_tile_image_line_low = mem[bg_tile_line_offset];
+                        let bg_tile_image_line_high = mem[bg_tile_line_offset+1];
+                        let bg_tile_pixel = 7 - ((c + mem[SCX] as usize) % 8);
+                        let bg_high_value = if bit(bg_tile_pixel as Byte, bg_tile_image_line_high) {
+                            2
+                        } else {
+                            0
+                        };
+                        let bg_low_value = if bit(bg_tile_pixel as Byte, bg_tile_image_line_low) {
+                            1
+                        } else {
+                            0
+                        };
+                        *i = (bg_high_value + bg_low_value) * 128;
                     }
 
-                    // -----------------
+                    // draw sprites
+                    // -------------------------------------------
+                    // for i in buffer[ln_start..ln_end].iter_mut() {}
+
+                    // draw window
+                    // -------------------------------------------
+                    // for i in buffer[ln_start..ln_end].iter_mut() {}
+
+                    // ===========================================
+
                     set_lcd_mode(0, &mut mem);
                     lcd_timing -= TICKS_PER_VRAM_IO;
                 }

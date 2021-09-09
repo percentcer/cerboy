@@ -54,6 +54,9 @@ const TICKS_PER_FRAME: u64 = (TICKS_PER_SCANLINE * GB_SCREEN_HEIGHT as u64) + TI
 
 const TICKS_PER_DIV_INC: u64 = 256;
 
+// tile constants
+const BYTES_PER_TILE: u16 = 16;
+
 type Byte = u8;
 type Word = u16;
 type SByte = i8;
@@ -1815,8 +1818,8 @@ fn main() {
                     // -------------------------------------------
                     // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
                     // but cerboy currently only draws the line in a single shot (instead of per-dot)
-                    let bg_tilemap_loc: usize = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
-                    let (bg_signed_addressing, bg_tile_image_loc) = if bit(4, mem[LCDC]) {
+                    let bg_tilemap_start: usize = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
+                    let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
                         (false, 0x8000 as Word)
                     } else {
                         (true, 0x9000 as Word)
@@ -1826,28 +1829,24 @@ fn main() {
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
                         let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
-                        let bg_tile_id = mem[bg_tilemap_loc + bg_tile_index as usize];
-                        let bg_tile_image_index =
-                            bg_tile_image_loc.wrapping_add(if bg_signed_addressing {
-                                signed(bg_tile_id) as Word * 16
-                            } else {
-                                bg_tile_id as Word * 16
-                            });
-                        let bg_tile_line_offset = (bg_tile_image_index + bg_tile_line * 2) as usize;
-                        let bg_tile_image_line_low = mem[bg_tile_line_offset];
-                        let bg_tile_image_line_high = mem[bg_tile_line_offset+1];
-                        let bg_tile_pixel = 7 - ((c + mem[SCX] as usize) % 8);
-                        let bg_high_value = if bit(bg_tile_pixel as Byte, bg_tile_image_line_high) {
-                            2
+                        let bg_tile_id = mem[bg_tilemap_start + bg_tile_index as usize];
+                        let bg_tile_data_offset = if bg_signed_addressing {
+                            signed(bg_tile_id) as Word * BYTES_PER_TILE
                         } else {
-                            0
+                            bg_tile_id as Word * BYTES_PER_TILE
                         };
-                        let bg_low_value = if bit(bg_tile_pixel as Byte, bg_tile_image_line_low) {
-                            1
-                        } else {
-                            0
-                        };
-                        *i = (bg_high_value + bg_low_value) * 200;
+                        let bg_tile_data = bg_tile_data_start.wrapping_add(bg_tile_data_offset);
+                        let bg_tile_line_offset = (bg_tile_data + bg_tile_line * 2) as usize;
+                        let bg_tile_line_low_byte = mem[bg_tile_line_offset];
+                        let bg_tile_line_high_byte = mem[bg_tile_line_offset + 1];
+                        let bg_tile_current_pixel = 7 - ((c + mem[SCX] as usize) % 8);
+                        let bg_tile_pixel_mask = 1 << bg_tile_current_pixel;
+                        let bg_tile_high_value = ((bg_tile_line_high_byte & bg_tile_pixel_mask)
+                            >> bg_tile_current_pixel)
+                            << 1;
+                        let bg_tile_low_value =
+                            (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
+                        *i = (bg_tile_high_value + bg_tile_low_value) as u32 * 255 << 8;
                     }
 
                     // draw sprites

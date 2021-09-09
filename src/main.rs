@@ -1457,7 +1457,10 @@ fn main() {
         WindowOptions::default(),
     )
     .unwrap_or_else(|e| panic!("{}", e));
-    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+    // todo: acc: changed timing here to make it more closely match the hardware
+    // but I'm not sure why it's not running at the correct speed normally
+    // (frame time should be longer, 16600)
+    window.limit_update_rate(Some(std::time::Duration::from_micros(12600)));
 
     // arg processing
     // ---------

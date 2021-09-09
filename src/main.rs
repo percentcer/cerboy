@@ -1844,7 +1844,7 @@ fn main() {
                         } else {
                             0
                         };
-                        *i = (bg_high_value + bg_low_value) * 128;
+                        *i = (bg_high_value + bg_low_value) * 200;
                     }
 
                     // draw sprites

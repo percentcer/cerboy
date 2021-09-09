@@ -1821,8 +1821,8 @@ fn main() {
                     } else {
                         (true, 0x9000 as Word)
                     };
-                    let bg_tile_line = (mem[LY] + mem[SCY]) as Word % 8;
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
+                    let bg_tile_line = bg_y as Word % 8;
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
                         let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;

@@ -1525,7 +1525,7 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
     load_rom(&mut mem, &rom); // load cartridge
-    let boot = init_rom("C:\\boot.gb");
+    let boot = init_rom("DMG_ROM.bin");
     load_rom(&mut mem, &boot);
 
     let mut timers = HardwareTimers::new();
@@ -1870,7 +1870,7 @@ fn main() {
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;
                     
-                    // for fun
+                    // todo: removeme: for fun
                     mem[SCX] = (f32::sin((mem[LY] as f32) * 0.1f32 + (cpu.tsc as f32)*0.000001f32)*5f32).trunc() as Byte;
 
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {

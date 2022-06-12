@@ -866,6 +866,14 @@ const fn impl_inc16(cpu: CPUState, high: usize, low: usize) -> CPUState {
     reg[low] = lo(res);
     CPUState { reg, ..cpu }
 }
+const fn impl_dec16(cpu: CPUState, high: usize, low: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let operand: Word = combine(reg[high], reg[low]);
+    let (res, _) = operand.overflowing_sub(1);
+    reg[high] = hi(res);
+    reg[low] = lo(res);
+    CPUState { reg, ..cpu }
+}
 const fn impl_cp(cpu: CPUState, arg: Byte) -> CPUState {
     let mut reg = cpu.reg;
     let flagged = impl_sub(cpu, arg);
@@ -1154,6 +1162,26 @@ const fn inc_sp(cpu: CPUState) -> CPUState {
 }
 
 //   dec  rr        xB           8 ---- rr = rr-1      ;rr may be BC,DE,HL,SP
+// ----------------------------------------------------------------------------
+const fn dec_bc(cpu: CPUState) -> CPUState {
+    impl_dec16(cpu, REG_B, REG_C).adv_pc(1).tick(8)
+}
+const fn dec_de(cpu: CPUState) -> CPUState {
+    impl_dec16(cpu, REG_D, REG_E).adv_pc(1).tick(8)
+}
+const fn dec_hl(cpu: CPUState) -> CPUState {
+    impl_dec16(cpu, REG_H, REG_L).adv_pc(1).tick(8)
+}
+const fn dec_sp(cpu: CPUState) -> CPUState {
+    let (res, _) = cpu.sp.overflowing_sub(1);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        sp: res,
+        ..cpu
+    }
+}
+
 //   add  SP,dd     E8          16 00hc SP = SP +/- dd ;dd is 8bit signed number
 //   ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
 
@@ -1547,7 +1575,7 @@ fn main() {
             0x08 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x09 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x0A => ld_a_BC(cpu, &mem),
-            0x0B => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x0B => dec_bc(cpu),
             0x0C => inc_c(cpu),
             0x0D => dec_c(cpu),
             0x0E => ld_c_d8(cpu, mem[pc + 1]),
@@ -1563,7 +1591,7 @@ fn main() {
             0x18 => jr_r8(cpu, signed(mem[pc + 1])),
             0x19 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x1A => ld_a_DE(cpu, &mem),
-            0x1B => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x1B => dec_de(cpu),
             0x1C => inc_e(cpu),
             0x1D => dec_e(cpu),
             0x1E => ld_e_d8(cpu, mem[pc + 1]),
@@ -1578,8 +1606,8 @@ fn main() {
             0x27 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x28 => jr_z_r8(cpu, signed(mem[pc + 1])),
             0x29 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0x2B => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x2A => ldi_a_HL(cpu, &mut mem),
+            0x2B => dec_hl(cpu),
             0x2C => inc_l(cpu),
             0x2D => dec_l(cpu),
             0x2E => ld_l_d8(cpu, mem[pc + 1]),
@@ -1595,7 +1623,7 @@ fn main() {
             0x38 => jr_c_r8(cpu, signed(mem[pc + 1])),
             0x39 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x3A => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0x3B => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x3B => dec_sp(cpu),
             0x3C => inc_a(cpu),
             0x3D => dec_a(cpu),
             0x3E => ld_a_d8(cpu, mem[pc + 1]),

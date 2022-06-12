@@ -838,6 +838,15 @@ const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
 
     CPUState { reg, ..cpu }
 }
+const fn impl_or(cpu: CPUState, arg: Byte) -> CPUState {
+    // z000
+    let mut reg = cpu.reg;
+
+    reg[REG_A] |= arg;
+    reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
+
+    CPUState { reg, ..cpu }
+}
 const fn impl_inc_dec(cpu: CPUState, dst: usize, flag_n: Byte) -> CPUState {
     // z0h- for inc
     // z1h- for dec
@@ -1044,8 +1053,40 @@ const fn xor_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
 }
 
 //   or   r           Bx         4 z000 A=A | r
+// ----------------------------------------------------------------------------
+const fn or_b(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
+}
+const fn or_c(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
+}
+const fn or_d(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
+}
+const fn or_e(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
+}
+const fn or_h(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
+}
+const fn or_l(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
+}
+const fn or_a(cpu: CPUState) -> CPUState {
+    impl_or(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+}
+
 //   or   n           F6 nn      8 z000 A=A | n
+// ----------------------------------------------------------------------------
+const fn or_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_or(cpu, d8).adv_pc(2).tick(8)
+}
+
 //   or   (HL)        B6         8 z000 A=A | (HL)
+// ----------------------------------------------------------------------------
+const fn or_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_or(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
 
 //   cp   r           Bx         4 z1hc compare A-r
 // ----------------------------------------------------------------------------
@@ -1740,14 +1781,14 @@ fn main() {
             0xAD => xor_l(cpu),
             0xAE => xor_HL(cpu, &mem),
             0xAF => xor_a(cpu),
-            0xB0 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB1 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB2 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB3 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB4 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB5 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB6 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xB7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xB0 => or_b(cpu),
+            0xB1 => or_c(cpu),
+            0xB2 => or_d(cpu),
+            0xB3 => or_e(cpu),
+            0xB4 => or_h(cpu),
+            0xB5 => or_l(cpu),
+            0xB6 => or_HL(cpu, &mem),
+            0xB7 => or_a(cpu),
             0xB8 => cp_b(cpu),
             0xB9 => cp_c(cpu),
             0xBA => cp_d(cpu),
@@ -1813,7 +1854,7 @@ fn main() {
             0xEB => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xED => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xEE => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xEE => xor_d8(cpu, mem[pc + 1]),
             0xEF => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF0 => ld_a_FF00_A8(cpu, &mem, mem[pc + 1]),
             0xF1 => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1821,7 +1862,7 @@ fn main() {
             0xF3 => di(cpu),
             0xF4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF5 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xF6 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xF6 => or_d8(cpu, mem[pc + 1]),
             0xF7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF9 => panic!("unknown instruction 0x{:X}", mem[pc]),

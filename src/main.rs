@@ -693,6 +693,21 @@ fn ldi_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 }
 
 //   ldi  A,(HL)      2A         8 ---- A=(HL), HL=HL+1
+// ----------------------------------------------------------------------------
+fn ldi_a_HL(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let mut reg = cpu.reg;
+    let (hli, _) = combine(reg[REG_H], reg[REG_L]).overflowing_add(1);
+    reg[REG_A] = mem[cpu.HL()];
+    reg[REG_H] = hi(hli);
+    reg[REG_L] = lo(hli);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
+
 //   ldd  (HL),A      32         8 ---- (HL)=A, HL=HL-1
 // ----------------------------------------------------------------------------
 fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
@@ -1563,8 +1578,8 @@ fn main() {
             0x27 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x28 => jr_z_r8(cpu, signed(mem[pc + 1])),
             0x29 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0x2A => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x2B => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x2A => ldi_a_HL(cpu, &mut mem),
             0x2C => inc_l(cpu),
             0x2D => dec_l(cpu),
             0x2E => ld_l_d8(cpu, mem[pc + 1]),

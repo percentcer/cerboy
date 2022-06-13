@@ -868,6 +868,15 @@ const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
         impl_add(cpu, arg)
     }
 }
+const fn impl_and(cpu: CPUState, arg: Byte) -> CPUState {
+    // z010
+    let mut reg = cpu.reg;
+
+    reg[REG_A] &= arg;
+    reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 } | FL_H;
+
+    CPUState { reg, ..cpu }
+}
 const fn impl_xor(cpu: CPUState, arg: Byte) -> CPUState {
     // z000
     let mut reg = cpu.reg;
@@ -1051,9 +1060,42 @@ const fn sub_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
 //   sbc  A,r         9x         4 z1hc A=A-r-cy
 //   sbc  A,n         DE nn      8 z1hc A=A-n-cy
 //   sbc  A,(HL)      9E         8 z1hc A=A-(HL)-cy
+
 //   and  r           Ax         4 z010 A=A & r
+// ----------------------------------------------------------------------------
+const fn and_b(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
+}
+const fn and_c(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
+}
+const fn and_d(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
+}
+const fn and_e(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
+}
+const fn and_h(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
+}
+const fn and_l(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
+}
+const fn and_a(cpu: CPUState) -> CPUState {
+    impl_and(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+}
+
 //   and  n           E6 nn      8 z010 A=A & n
+// ----------------------------------------------------------------------------
+const fn and_d8(cpu: CPUState, d8: Byte) -> CPUState {
+    impl_and(cpu, d8).adv_pc(2).tick(8)
+}
+
 //   and  (HL)        A6         8 z010 A=A & (HL)
+// ----------------------------------------------------------------------------
+const fn and_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_and(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+}
 
 //   xor  r           Ax         4 z000
 // ----------------------------------------------------------------------------

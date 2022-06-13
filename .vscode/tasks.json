@@ -20,6 +20,14 @@
 				"rom/Tetris.gb"
 			],
 			"label": "cerboy: tetris"
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"args": [
+				"rom/m3_bgp_change.gb"
+			],
+			"label": "cerboy: m3_bgp_change"
 		}
 	]
 }

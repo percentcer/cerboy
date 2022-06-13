@@ -1,4 +1,4 @@
 /target
 .vscode/launch.json
-rom/**.gb
+rom/*.gb
 DMG_ROM.bin

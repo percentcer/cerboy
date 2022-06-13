@@ -1530,6 +1530,30 @@ const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
 }
 
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
+// ----------------------------------------------------------------------------
+const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &[Byte]) -> CPUState {
+    if condition {
+        ret(cpu, mem).tick(4)
+    } else {
+        CPUState {
+            pc: cpu.pc + 1,
+            tsc: cpu.tsc + 8,
+            ..cpu
+        }
+    }
+}
+const fn ret_nz(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ret_conditional(cpu.reg[FLAGS] & FL_Z == 0, cpu, mem)
+}
+const fn ret_z(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ret_conditional(cpu.reg[FLAGS] & FL_Z != 0, cpu, mem)
+}
+const fn ret_nc(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ret_conditional(cpu.reg[FLAGS] & FL_C == 0, cpu, mem)
+}
+const fn ret_c(cpu: CPUState, mem: &[Byte]) -> CPUState {
+    impl_ret_conditional(cpu.reg[FLAGS] & FL_C != 0, cpu, mem)
+}
 
 //   reti           D9          16 ---- return and enable interrupts (IME=1)
 // ----------------------------------------------------------------------------
@@ -1878,7 +1902,7 @@ fn main() {
             0xBD => cp_l(cpu),
             0xBE => cp_HL(cpu, &mem),
             0xBF => cp_a(cpu),
-            0xC0 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xC0 => ret_nz(cpu, &mem),
             0xC1 => pop_bc(cpu, &mut mem),
             0xC2 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xC3 => jp_d16(cpu, mem[pc + 1], mem[pc + 2]),
@@ -1886,7 +1910,7 @@ fn main() {
             0xC5 => push_bc(cpu, &mut mem),
             0xC6 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xC7 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xC8 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xC8 => ret_z(cpu, &mem),
             0xC9 => ret(cpu, &mem),
             0xCA => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCB => match mem[pc + 1] {
@@ -1905,7 +1929,7 @@ fn main() {
             0xCD => call_d16(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
             0xCE => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCF => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xD0 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD0 => ret_nc(cpu, &mem),
             0xD1 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD2 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD3 => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1913,7 +1937,7 @@ fn main() {
             0xD5 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD6 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD7 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xD8 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD8 => ret_c(cpu, &mem),
             0xD9 => reti(cpu, &mem),
             0xDA => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDB => panic!("unknown instruction 0x{:X}", mem[pc]),

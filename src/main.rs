@@ -152,6 +152,7 @@ const SCY: usize = 0xFF42;
 const SCX: usize = 0xFF43;
 const LY: usize = 0xFF44;
 const LYC: usize = 0xFF45;
+const DMA: usize = 0xFF46;
 const BGP: usize = 0xFF47;
 const OBP0: usize = 0xFF48;
 const OBP1: usize = 0xFF49;

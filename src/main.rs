@@ -44,6 +44,21 @@ const GB_SCREEN_HEIGHT: usize = 144;
 const ROM_MAX: usize = 0x200000;
 const MEM_SIZE: usize = 0xFFFF + 1;
 
+// classic gameboy only has four shades, white (00), light (01), dark (10), black (11)
+const PAL_CLASSIC: [u32; 4] = [0xE0F8D0, 0x88C070, 0x346856, 0x081820];
+const PAL_ICE_CREAM: [u32; 4] = [0xFFF6D3, 0xF9A875, 0xEB6B6F, 0x7C3F58];
+
+fn palette_lookup(color: Byte, plt: Byte, lut: &[u32;4]) -> u32 {
+    let idx = match color & 0b11 {
+        0b00 => (plt & 0b11),                   // white
+        0b01 => (plt & (0b11 << 2)) >> 2,       // light
+        0b10 => (plt & (0b11 << 4)) >> 4,       // dark
+        0b11 => (plt & (0b11 << 6)) >> 6,       // black
+        _ => panic!("unknown color {}", color), // debug
+    };
+    lut[idx as usize]
+}
+
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html#lcdstatusregister
 const TICKS_PER_OAM_SEARCH: u64 = 80;
 const TICKS_PER_VRAM_IO: u64 = 168; // roughly
@@ -1912,7 +1927,7 @@ fn main() {
                     let bg_tile_line = bg_y as Word % 8;
                     
                     // todo: removeme: for fun
-                    mem[SCX] = (f32::sin((mem[LY] as f32) * 0.1f32 + (cpu.tsc as f32)*0.000001f32)*5f32).trunc() as Byte;
+                    // mem[SCX] = (f32::sin((mem[LY] as f32) * 0.1f32 + (cpu.tsc as f32)*0.000001f32)*5f32).trunc() as Byte;
 
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
@@ -1934,12 +1949,16 @@ fn main() {
                             << 1;
                         let bg_tile_low_value =
                             (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
-                        *i = (bg_tile_high_value + bg_tile_low_value) as u32 * 255 << 8;
+                        let bg_tile_pixel_color_id = bg_tile_high_value | bg_tile_low_value;
+                        *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_CLASSIC);
                     }
 
                     // draw sprites
+                    // FE00-FE9F   Sprite Attribute Table (OAM)
                     // -------------------------------------------
-                    // for i in buffer[ln_start..ln_end].iter_mut() {}
+                    // for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
+                        // oijf
+                    // }
 
                     // draw window
                     // -------------------------------------------

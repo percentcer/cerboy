@@ -606,6 +606,16 @@ const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
 }
 
 //   ld   A,(nn)      FA nn nn        16 ----
+// ----------------------------------------------------------------------------
+const fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &[Byte]) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = mem[combine(high, low) as usize];
+    CPUState {
+        pc: cpu.pc + 3,
+        tsc: cpu.tsc + 16,
+        ..cpu
+    }
+}
 
 //   ld   (BC),A      02         8 ----
 // ----------------------------------------------------------------------------
@@ -1881,7 +1891,7 @@ fn main() {
             0xF7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF9 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xFA => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xFA => ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem),
             0xFB => ei(cpu),
             0xFC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFD => panic!("unknown instruction 0x{:X}", mem[pc]),

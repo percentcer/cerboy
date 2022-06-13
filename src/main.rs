@@ -750,6 +750,20 @@ fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 }
 
 //   ldd  A,(HL)      3A         8 ---- A=(HL), HL=HL-1
+// ----------------------------------------------------------------------------
+fn ldd_a_HL(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+    let mut reg = cpu.reg;
+    let (hld, _) = combine(reg[REG_H], reg[REG_L]).overflowing_sub(1);
+    reg[REG_A] = mem[cpu.HL()];
+    reg[REG_H] = hi(hld);
+    reg[REG_L] = lo(hld);
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 8,
+        reg,
+        ..cpu
+    }
+}
 
 // GMB 16bit-Loadcommands
 // ============================================================================
@@ -1688,7 +1702,7 @@ fn main() {
             0x37 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x38 => jr_c_r8(cpu, signed(mem[pc + 1])),
             0x39 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0x3A => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x3A => ldd_a_HL(cpu, &mut mem),
             0x3B => dec_sp(cpu),
             0x3C => inc_a(cpu),
             0x3D => dec_a(cpu),

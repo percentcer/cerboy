@@ -25,6 +25,14 @@
 			"type": "cargo",
 			"command": "run",
 			"args": [
+				"rom/dr-mario.gb"
+			],
+			"label": "cerboy: dr. mario"
+		},
+		{
+			"type": "cargo",
+			"command": "run",
+			"args": [
 				"rom/test/m3_bgp_change.gb"
 			],
 			"label": "cerboy: m3_bgp_change"

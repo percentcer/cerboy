@@ -1958,7 +1958,7 @@ fn main() {
                         let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
                         let bg_tile_id = mem[bg_tilemap_start + bg_tile_index as usize];
                         let bg_tile_data_offset = if bg_signed_addressing {
-                            signed(bg_tile_id) as Word * BYTES_PER_TILE
+                            (signed(bg_tile_id) as Word).wrapping_mul(BYTES_PER_TILE)
                         } else {
                             bg_tile_id as Word * BYTES_PER_TILE
                         };

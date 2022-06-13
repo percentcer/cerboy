@@ -17,7 +17,7 @@
 			"type": "cargo",
 			"command": "run",
 			"args": [
-				"rom/Tetris.gb"
+				"rom/tetris.gb"
 			],
 			"label": "cerboy: tetris"
 		},

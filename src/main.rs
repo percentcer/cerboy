@@ -1683,7 +1683,7 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Vec<Byte> = init_mem();
     load_rom(&mut mem, &rom); // load cartridge
-    let boot = init_rom("./rom/DMG_ROM.bin");
+    let boot = init_rom("./rom/boot/DMG_ROM.bin");
     load_rom(&mut mem, &boot);
 
     let mut timers = HardwareTimers::new();

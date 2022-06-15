@@ -19,6 +19,10 @@
 			"args": [
 				"rom/tetris.gb"
 			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
 			"label": "cerboy: tetris"
 		},
 		{
@@ -27,6 +31,9 @@
 			"args": [
 				"rom/dr-mario.gb"
 			],
+			"group": {
+				"kind": "test"
+			},
 			"label": "cerboy: dr. mario"
 		},
 		{
@@ -35,6 +42,9 @@
 			"args": [
 				"rom/test/m3_bgp_change.gb"
 			],
+			"group": {
+				"kind": "test"
+			},
 			"label": "cerboy: m3_bgp_change"
 		}
 	]

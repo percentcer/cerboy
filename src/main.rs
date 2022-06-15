@@ -27,16 +27,27 @@ use std::io::Read;
 // Power        - DC6V 0.7W (DC3V 0.7W for GB Pocket, DC3V 0.6W for CGB)
 //
 // 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
+const MEM_BANK_00: Word = 0x0000;
 // 4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
+const MEM_BANK_NN: Word = 0x4000;
 // 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
+const MEM_VRAM: Word = 0x8000;
 // A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
+const MEM_EXT: Word = 0xA000;
 // C000-CFFF   4KB Work RAM Bank 0 (WRAM)
+const MEM_WRAM_0: Word = 0xC000;
 // D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
+const MEM_WRAM_1: Word = 0xD000;
 // E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
+const MEM_ECHO: Word = 0xE000;
 // FE00-FE9F   Sprite Attribute Table (OAM)
+const MEM_OAM: Word = 0xFE00;
 // FEA0-FEFF   Not Usable
+const MEM_NOT_USABLE: Word = 0xFEA0;
 // FF00-FF7F   I/O Ports
+const MEM_IO_PORTS: Word = 0xFF00;
 // FF80-FFFE   High RAM (HRAM)
+const MEM_HRAM: Word = 0xFF80;
 // FFFF        Interrupt Enable Register
 
 const GB_SCREEN_WIDTH: usize = 160;
@@ -152,7 +163,7 @@ const SCY: usize = 0xFF42;
 const SCX: usize = 0xFF43;
 const LY: usize = 0xFF44;
 const LYC: usize = 0xFF45;
-const DMA: usize = 0xFF46;
+const DMA: usize = 0xFF46; // <-- OAM memory transfer
 const BGP: usize = 0xFF47;
 const OBP0: usize = 0xFF48;
 const OBP1: usize = 0xFF49;
@@ -658,7 +669,7 @@ fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUSta
 // ----------------------------------------------------------------------------
 const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(0xFF00 + off as Word) as usize];
+    reg[REG_A] = mem[(MEM_IO_PORTS + off as Word) as usize];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -670,7 +681,7 @@ const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
 //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
 fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(0xFF00 + off as Word) as usize] = cpu.reg[REG_A];
+    mem[(MEM_IO_PORTS + off as Word) as usize] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -682,7 +693,7 @@ fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 // ----------------------------------------------------------------------------
 const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(0xFF00 + reg[REG_C] as Word) as usize];
+    reg[REG_A] = mem[(MEM_IO_PORTS + reg[REG_C] as Word) as usize];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -694,7 +705,7 @@ const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
 fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(0xFF00 + cpu.reg[REG_C] as Word) as usize] = cpu.reg[REG_A];
+    mem[(MEM_IO_PORTS + cpu.reg[REG_C] as Word) as usize] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -2010,9 +2021,9 @@ fn main() {
                     // but cerboy currently only draws the line in a single shot (instead of per-dot)
                     let bg_tilemap_start: usize = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
                     let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
-                        (false, 0x8000 as Word)
+                        (false, MEM_VRAM as Word)
                     } else {
-                        (true, 0x9000 as Word)
+                        (true, MEM_VRAM + 0x1000 as Word)
                     };
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;

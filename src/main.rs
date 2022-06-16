@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(clippy::identity_op)]
+#![feature(const_trait_impl)]
 
 extern crate minifb;
 use minifb::{Key, Window, WindowOptions};
@@ -8,6 +9,7 @@ use minifb::{Key, Window, WindowOptions};
 extern crate env_logger;
 
 use std::io::Read;
+use std::ops::{Index,IndexMut};
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //
@@ -115,14 +117,14 @@ const FLAGS: usize = 6;
 const REG_A: usize = 7;
 
 // RST locations (vectors)
-const VEC_RST_00: usize = 0x0000;
-const VEC_RST_08: usize = 0x0008;
-const VEC_RST_10: usize = 0x0010;
-const VEC_RST_18: usize = 0x0018;
-const VEC_RST_20: usize = 0x0020;
-const VEC_RST_28: usize = 0x0028;
-const VEC_RST_30: usize = 0x0030;
-const VEC_RST_38: usize = 0x0038;
+const VEC_RST_00: Word = 0x0000;
+const VEC_RST_08: Word = 0x0008;
+const VEC_RST_10: Word = 0x0010;
+const VEC_RST_18: Word = 0x0018;
+const VEC_RST_20: Word = 0x0020;
+const VEC_RST_28: Word = 0x0028;
+const VEC_RST_30: Word = 0x0030;
+const VEC_RST_38: Word = 0x0038;
 
 // Interrupt locations (vectors)
 const VEC_INT_VBLANK: Word = 0x0040;
@@ -131,47 +133,67 @@ const VEC_INT_TIMER: Word = 0x0050;
 const VEC_INT_SERIAL: Word = 0x0058;
 const VEC_INT_JOYPAD: Word = 0x0060;
 // named I/O memory locations [FF00..FF7F]
-const JOYP: usize = 0xFF00;
+const JOYP: Word = 0xFF00;
 // timers
-const DIV: usize = 0xFF04;
-const TIMA: usize = 0xFF05;
-const TMA: usize = 0xFF06;
-const TAC: usize = 0xFF07;
+const DIV: Word = 0xFF04;
+const TIMA: Word = 0xFF05;
+const TMA: Word = 0xFF06;
+const TAC: Word = 0xFF07;
 // audio
-const NR10: usize = 0xFF10;
-const NR11: usize = 0xFF11;
-const NR12: usize = 0xFF12;
-const NR14: usize = 0xFF14;
-const NR21: usize = 0xFF16;
-const NR22: usize = 0xFF17;
-const NR24: usize = 0xFF19;
-const NR30: usize = 0xFF1A;
-const NR31: usize = 0xFF1B;
-const NR32: usize = 0xFF1C;
-const NR33: usize = 0xFF1E;
-const NR41: usize = 0xFF20;
-const NR42: usize = 0xFF21;
-const NR43: usize = 0xFF22;
-const NR44: usize = 0xFF23;
-const NR50: usize = 0xFF24;
-const NR51: usize = 0xFF25;
-const NR52: usize = 0xFF26;
+const NR10: Word = 0xFF10;
+const NR11: Word = 0xFF11;
+const NR12: Word = 0xFF12;
+const NR14: Word = 0xFF14;
+const NR21: Word = 0xFF16;
+const NR22: Word = 0xFF17;
+const NR24: Word = 0xFF19;
+const NR30: Word = 0xFF1A;
+const NR31: Word = 0xFF1B;
+const NR32: Word = 0xFF1C;
+const NR33: Word = 0xFF1E;
+const NR41: Word = 0xFF20;
+const NR42: Word = 0xFF21;
+const NR43: Word = 0xFF22;
+const NR44: Word = 0xFF23;
+const NR50: Word = 0xFF24;
+const NR51: Word = 0xFF25;
+const NR52: Word = 0xFF26;
 // rendering
-const LCDC: usize = 0xFF40;
-const STAT: usize = 0xFF41;
-const SCY: usize = 0xFF42;
-const SCX: usize = 0xFF43;
-const LY: usize = 0xFF44;
-const LYC: usize = 0xFF45;
-const DMA: usize = 0xFF46; // <-- OAM memory transfer
-const BGP: usize = 0xFF47;
-const OBP0: usize = 0xFF48;
-const OBP1: usize = 0xFF49;
-const WY: usize = 0xFF4A;
-const WX: usize = 0xFF4B;
+const LCDC: Word = 0xFF40;
+const STAT: Word = 0xFF41;
+const SCY: Word = 0xFF42;
+const SCX: Word = 0xFF43;
+const LY: Word = 0xFF44;
+const LYC: Word = 0xFF45;
+const DMA: Word = 0xFF46; // <-- OAM memory transfer
+const BGP: Word = 0xFF47;
+const OBP0: Word = 0xFF48;
+const OBP1: Word = 0xFF49;
+const WY: Word = 0xFF4A;
+const WX: Word = 0xFF4B;
 // interrupt registers
-const IF: usize = 0xFF0F;
-const IE: usize = 0xFFFF;
+const IF: Word = 0xFF0F;
+const IE: Word = 0xFFFF;
+
+struct Memory([Byte; MEM_SIZE]);
+impl const Index<Word> for Memory {
+    type Output = Byte;
+
+    fn index(&self, index: Word) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+impl IndexMut<Word> for Memory {
+    fn index_mut(&mut self, index: Word) -> &mut Self::Output {
+        match index {
+            DMA => println!("write DMA"),
+            LCDC => println!("write LCDC"),
+            _ => ()
+        }
+        
+        &mut self.0[index as usize]
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 struct CPUState {
@@ -201,8 +223,8 @@ impl CPUState {
     /// Commonly used for addresses
     ///
     /// Combines the H and L registers into a usize for mem indexing
-    const fn HL(&self) -> usize {
-        combine(self.reg[REG_H], self.reg[REG_L]) as usize
+    const fn HL(&self) -> Word {
+        combine(self.reg[REG_H], self.reg[REG_L])
     }
 
     /// Advance the program counter
@@ -240,7 +262,7 @@ impl HardwareTimers {
     }
 }
 
-fn update_clocks(state: HardwareTimers, mem: &mut Vec<Byte>, cycles: u64) -> HardwareTimers {
+fn update_clocks(state: HardwareTimers, mem: &mut Memory, cycles: u64) -> HardwareTimers {
     // todo: If a TMA write is executed on the same cycle as the content
     // of TMA is transferred to TIMA due to a timer overflow,
     // the old value is transferred to TIMA.
@@ -278,8 +300,8 @@ fn update_clocks(state: HardwareTimers, mem: &mut Vec<Byte>, cycles: u64) -> Har
     result
 }
 
-fn init_mem() -> Vec<Byte> {
-    let mut mem = vec![0; MEM_SIZE];
+fn init_mem() -> Memory {
+    let mut mem = Memory([0; MEM_SIZE]);
     mem[TIMA] = 0x00;
     mem[TMA] = 0x00;
     mem[TAC] = 0x00;
@@ -351,7 +373,7 @@ const fn impl_ld_r_d8(cpu: CPUState, dst: usize, val: Byte) -> CPUState {
     reg[dst] = val;
     CPUState { reg, ..cpu }
 }
-fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Vec<Byte>, val: Byte) -> CPUState {
+fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Memory, val: Byte) -> CPUState {
     mem[cpu.HL()] = val;
     CPUState { ..cpu }
 }
@@ -539,63 +561,63 @@ const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 // ----------------------------------------------------------------------------
-fn ld_b_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ld_b_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_B, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_c_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_c_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_C, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_d_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_d_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_D, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_e_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_e_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_E, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_h_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_h_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_H, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_l_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_l_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_L, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
-fn ld_a_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+fn ld_a_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_A, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
 //   ld   (HL),r      7x         8 ---- (HL)=r
 // ----------------------------------------------------------------------------
-fn ld_HL_b(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_b(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_B]).adv_pc(1).tick(8)
 }
-fn ld_HL_c(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_c(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_C]).adv_pc(1).tick(8)
 }
-fn ld_HL_d(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_d(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_D]).adv_pc(1).tick(8)
 }
-fn ld_HL_e(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_e(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_E]).adv_pc(1).tick(8)
 }
-fn ld_HL_h(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_h(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_H]).adv_pc(1).tick(8)
 }
-fn ld_HL_l(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_l(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_L]).adv_pc(1).tick(8)
 }
-fn ld_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, cpu.reg[REG_A]).adv_pc(1).tick(8)
 }
 
 //   ld   (HL),n      36 nn     12 ----
 // ----------------------------------------------------------------------------
-fn ld_HL_d8(cpu: CPUState, val: Byte, mem: &mut Vec<Byte>) -> CPUState {
+fn ld_HL_d8(cpu: CPUState, val: Byte, mem: &mut Memory) -> CPUState {
     impl_ld_HL_d8(cpu, mem, val).adv_pc(2).tick(12)
 }
 
 //   ld   A,(BC)      0A         8 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ld_a_BC(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[combine(reg[REG_B], reg[REG_C]) as usize];
+    reg[REG_A] = mem[combine(reg[REG_B], reg[REG_C])];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -606,9 +628,9 @@ const fn ld_a_BC(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   ld   A,(DE)      1A         8 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ld_a_DE(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[combine(reg[REG_D], reg[REG_E]) as usize];
+    reg[REG_A] = mem[combine(reg[REG_D], reg[REG_E])];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -619,9 +641,9 @@ const fn ld_a_DE(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   ld   A,(nn)      FA nn nn        16 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[combine(high, low) as usize];
+    reg[REG_A] = mem[combine(high, low)];
     CPUState {
         pc: cpu.pc + 3,
         tsc: cpu.tsc + 16,
@@ -631,8 +653,8 @@ const fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &[Byte]) -> CPUStat
 
 //   ld   (BC),A      02         8 ----
 // ----------------------------------------------------------------------------
-fn ld_BC_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    let addr = combine(cpu.reg[REG_B], cpu.reg[REG_C]) as usize;
+fn ld_BC_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    let addr = combine(cpu.reg[REG_B], cpu.reg[REG_C]);
     mem[addr] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 1,
@@ -643,8 +665,8 @@ fn ld_BC_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ld   (DE),A      12         8 ----
 // ----------------------------------------------------------------------------
-fn ld_DE_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    let addr = combine(cpu.reg[REG_D], cpu.reg[REG_E]) as usize;
+fn ld_DE_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    let addr = combine(cpu.reg[REG_D], cpu.reg[REG_E]);
     mem[addr] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 1,
@@ -655,8 +677,8 @@ fn ld_DE_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ld   (nn),A      EA nn nn        16 ----
 // ----------------------------------------------------------------------------
-fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    let addr = combine(high, low) as usize;
+fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
+    let addr = combine(high, low);
     mem[addr] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 3,
@@ -667,9 +689,9 @@ fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUSta
 
 //   ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
-const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
+const fn ld_a_FF00_A8(cpu: CPUState, mem: &Memory, off: Byte) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(MEM_IO_PORTS + off as Word) as usize];
+    reg[REG_A] = mem[(MEM_IO_PORTS + off as Word)];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -680,8 +702,8 @@ const fn ld_a_FF00_A8(cpu: CPUState, mem: &[Byte], off: Byte) -> CPUState {
 
 //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
-fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(MEM_IO_PORTS + off as Word) as usize] = cpu.reg[REG_A];
+fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
+    mem[(MEM_IO_PORTS + off as Word)] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -691,9 +713,9 @@ fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
-const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ld_a_FF00_C(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(MEM_IO_PORTS + reg[REG_C] as Word) as usize];
+    reg[REG_A] = mem[(MEM_IO_PORTS + reg[REG_C] as Word)];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -704,8 +726,8 @@ const fn ld_a_FF00_C(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
-fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(MEM_IO_PORTS + cpu.reg[REG_C] as Word) as usize] = cpu.reg[REG_A];
+fn ld_FF00_C_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    mem[(MEM_IO_PORTS + cpu.reg[REG_C] as Word)] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -715,7 +737,7 @@ fn ld_FF00_C_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ldi  (HL),A      22         8 ---- (HL)=A, HL=HL+1
 // ----------------------------------------------------------------------------
-fn ldi_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldi_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
     let mut reg = cpu.reg;
     let (hli, _) = combine(reg[REG_H], reg[REG_L]).overflowing_add(1);
     mem[cpu.HL()] = reg[REG_A];
@@ -731,7 +753,7 @@ fn ldi_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ldi  A,(HL)      2A         8 ---- A=(HL), HL=HL+1
 // ----------------------------------------------------------------------------
-fn ldi_a_HL(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldi_a_HL(cpu: CPUState, mem: &mut Memory) -> CPUState {
     let mut reg = cpu.reg;
     let (hli, _) = combine(reg[REG_H], reg[REG_L]).overflowing_add(1);
     reg[REG_A] = mem[cpu.HL()];
@@ -747,7 +769,7 @@ fn ldi_a_HL(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ldd  (HL),A      32         8 ---- (HL)=A, HL=HL-1
 // ----------------------------------------------------------------------------
-fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldd_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
     let mut reg = cpu.reg;
     let (hld, _) = combine(reg[REG_H], reg[REG_L]).overflowing_sub(1);
     mem[cpu.HL()] = reg[REG_A];
@@ -763,7 +785,7 @@ fn ldd_HL_a(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   ldd  A,(HL)      3A         8 ---- A=(HL), HL=HL-1
 // ----------------------------------------------------------------------------
-fn ldd_a_HL(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn ldd_a_HL(cpu: CPUState, mem: &mut Memory) -> CPUState {
     let mut reg = cpu.reg;
     let (hld, _) = combine(reg[REG_H], reg[REG_L]).overflowing_sub(1);
     reg[REG_A] = mem[cpu.HL()];
@@ -821,9 +843,9 @@ const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   ld   SP,HL       F9         8 ---- SP=HL
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
-fn push_bc(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
-    mem[(cpu.sp - 1) as usize] = cpu.reg[REG_B];
-    mem[(cpu.sp - 2) as usize] = cpu.reg[REG_C];
+fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    mem[(cpu.sp - 1)] = cpu.reg[REG_B];
+    mem[(cpu.sp - 2)] = cpu.reg[REG_C];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 16,
@@ -834,10 +856,10 @@ fn push_bc(cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
 
 //   pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
-const fn pop_bc(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn pop_bc(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_B] = mem[(cpu.sp + 1) as usize];
-    reg[REG_C] = mem[(cpu.sp) as usize];
+    reg[REG_B] = mem[(cpu.sp + 1)];
+    reg[REG_C] = mem[(cpu.sp)];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
@@ -993,7 +1015,7 @@ const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
-const fn add_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn add_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_add(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1029,7 +1051,7 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
 // ----------------------------------------------------------------------------
-const fn adc_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn adc_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_adc(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1065,7 +1087,7 @@ const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   sub  (HL)        96         8 z1hc A=A-(HL)
 // ----------------------------------------------------------------------------
-const fn sub_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn sub_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_sub(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1105,7 +1127,7 @@ const fn and_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   and  (HL)        A6         8 z010 A=A & (HL)
 // ----------------------------------------------------------------------------
-const fn and_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn and_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_and(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1141,7 +1163,7 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   xor  (HL)        AE         8 z000
 // ----------------------------------------------------------------------------
-const fn xor_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn xor_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_xor(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1177,7 +1199,7 @@ const fn or_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   or   (HL)        B6         8 z000 A=A | (HL)
 // ----------------------------------------------------------------------------
-const fn or_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn or_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_or(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1213,7 +1235,7 @@ const fn cp_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
-const fn cp_HL(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn cp_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_cp(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1517,10 +1539,10 @@ const fn jr_c_r8(cpu: CPUState, r8: SByte) -> CPUState {
 
 //   call nn        CD nn nn    24 ---- call to nn, SP=SP-2, (SP)=PC, PC=nn
 // ----------------------------------------------------------------------------
-fn call_d16(low: Byte, high: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUState {
+fn call_d16(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
     let cpu = cpu.adv_pc(3).tick(24);
-    mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
-    mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
+    mem[cpu.sp - 0] = hi(cpu.pc);
+    mem[cpu.sp - 1] = lo(cpu.pc);
     CPUState {
         sp: cpu.sp - 2,
         pc: combine(high, low),
@@ -1532,9 +1554,9 @@ fn call_d16(low: Byte, high: Byte, cpu: CPUState, mem: &mut Vec<Byte>) -> CPUSta
 
 //   ret            C9          16 ---- return, PC=(SP), SP=SP+2
 // ----------------------------------------------------------------------------
-const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ret(cpu: CPUState, mem: &Memory) -> CPUState {
     CPUState {
-        pc: combine(mem[(cpu.sp + 2) as usize], mem[(cpu.sp + 1) as usize]),
+        pc: combine(mem[(cpu.sp + 2)], mem[(cpu.sp + 1)]),
         tsc: cpu.tsc + 16,
         sp: cpu.sp + 2,
         ..cpu
@@ -1543,7 +1565,7 @@ const fn ret(cpu: CPUState, mem: &[Byte]) -> CPUState {
 
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
 // ----------------------------------------------------------------------------
-const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &Memory) -> CPUState {
     if condition {
         ret(cpu, mem).tick(4)
     } else {
@@ -1554,22 +1576,22 @@ const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &[Byte]) -> C
         }
     }
 }
-const fn ret_nz(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ret_nz(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_Z == 0, cpu, mem)
 }
-const fn ret_z(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ret_z(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_Z != 0, cpu, mem)
 }
-const fn ret_nc(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ret_nc(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_C == 0, cpu, mem)
 }
-const fn ret_c(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn ret_c(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_C != 0, cpu, mem)
 }
 
 //   reti           D9          16 ---- return and enable interrupts (IME=1)
 // ----------------------------------------------------------------------------
-const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
+const fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
     CPUState {
         ime: true,
         // except for the ime change, reti is identical to ret
@@ -1582,11 +1604,11 @@ const fn reti(cpu: CPUState, mem: &[Byte]) -> CPUState {
 // ============================================================================
 // interrupts
 // ============================================================================
-fn handle_int(cpu: CPUState, mem: &mut Vec<Byte>, fl_int: Byte, vec_int: Word) -> CPUState {
+fn handle_int(cpu: CPUState, mem: &mut Memory, fl_int: Byte, vec_int: Word) -> CPUState {
     mem[IF] &= !fl_int; // acknowledge the request flag (set to 0)
                         // push current position to stack to prepare for jump
-    mem[(cpu.sp - 0) as usize] = hi(cpu.pc);
-    mem[(cpu.sp - 1) as usize] = lo(cpu.pc);
+    mem[(cpu.sp - 0)] = hi(cpu.pc);
+    mem[(cpu.sp - 1)] = lo(cpu.pc);
 
     CPUState {
         ime: mem[IF] != 0, // only lock the ime if we're handling the final request
@@ -1608,29 +1630,30 @@ fn bit(idx: Byte, val: Byte) -> bool {
     ((val >> idx) & 1) == 1
 }
 
-fn request_interrupt(mem: &mut Vec<Byte>, int_flag: Byte) {
+fn request_interrupt(mem: &mut Memory, int_flag: Byte) {
     mem[IF] |= int_flag;
 }
 
-fn load_rom(mem: &mut Vec<Byte>, rom: &[Byte]) {
-    mem[0..rom.len()].copy_from_slice(rom)
+fn load_rom(mem: &mut Memory, rom: &[Byte]) {
+    // raw copy, skip mem checks
+    mem.0[0..rom.len()].copy_from_slice(rom)
 }
 
-fn mem_inc(mem: &mut Vec<Byte>, loc: usize) -> (Byte, bool) {
+fn mem_inc(mem: &mut Memory, loc: Word) -> (Byte, bool) {
     let (result, overflow) = mem[loc].overflowing_add(1);
     mem[loc] = result;
     (result, overflow)
 }
 
-fn tima_reset(mem: &mut Vec<Byte>) {
+fn tima_reset(mem: &mut Memory) {
     mem[TIMA] = mem[TMA];
 }
 
-const fn tac_enabled(mem: &[Byte]) -> bool {
+const fn tac_enabled(mem: &Memory) -> bool {
     mem[TAC] & 0b100 > 0
 }
 
-const fn tac_cycles_per_inc(mem: &[Byte]) -> Result<u64, &'static str> {
+const fn tac_cycles_per_inc(mem: &Memory) -> Result<u64, &'static str> {
     match mem[TAC] & 0b11 {
         0b00 => Ok(1024),
         0b01 => Ok(16),
@@ -1640,11 +1663,11 @@ const fn tac_cycles_per_inc(mem: &[Byte]) -> Result<u64, &'static str> {
     }
 }
 
-const fn lcd_mode(mem: &[Byte]) -> Byte {
+const fn lcd_mode(mem: &Memory) -> Byte {
     mem[STAT] & 0b11
 }
 
-fn set_lcd_mode(mode: Byte, mem: &mut Vec<Byte>) {
+fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
     mem[STAT] = ((mem[STAT] >> 2) << 2) | (mode & 0b11);
 }
 
@@ -1681,7 +1704,7 @@ fn main() {
     // ------------
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
-    let mut mem: Vec<Byte> = init_mem();
+    let mut mem: Memory = init_mem();
     load_rom(&mut mem, &rom); // load cartridge
     let boot = init_rom("./rom/boot/DMG_ROM.bin");
     load_rom(&mut mem, &boot);
@@ -1720,7 +1743,7 @@ fn main() {
 
         // fetch and execute
         // -----------------
-        let pc = cpu.pc as usize;
+        let pc = cpu.pc;
         cpu = match mem[pc] {
             0x00 => nop(cpu),
             0x01 => ld_bc_d16(cpu, mem[pc + 1], mem[pc + 2]),
@@ -2012,14 +2035,14 @@ fn main() {
                 if lcd_timing >= TICKS_PER_VRAM_IO {
                     // draw the scanline
                     // ===========================================
-                    let ln_start = mem[LY] as usize * GB_SCREEN_WIDTH;
-                    let ln_end = ln_start + GB_SCREEN_WIDTH;
+                    let ln_start: usize = GB_SCREEN_WIDTH * mem[LY] as usize;
+                    let ln_end: usize = ln_start + GB_SCREEN_WIDTH;
 
                     // draw background
                     // -------------------------------------------
                     // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
                     // but cerboy currently only draws the line in a single shot (instead of per-dot)
-                    let bg_tilemap_start: usize = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
+                    let bg_tilemap_start: Word = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
                     let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
                         (false, MEM_VRAM as Word)
                     } else {
@@ -2036,17 +2059,17 @@ fn main() {
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
                         let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
-                        let bg_tile_id = mem[bg_tilemap_start + bg_tile_index as usize];
+                        let bg_tile_id = mem[bg_tilemap_start + bg_tile_index];
                         let bg_tile_data_offset = if bg_signed_addressing {
                             (signed(bg_tile_id) as Word).wrapping_mul(BYTES_PER_TILE)
                         } else {
                             bg_tile_id as Word * BYTES_PER_TILE
                         };
                         let bg_tile_data = bg_tile_data_start.wrapping_add(bg_tile_data_offset);
-                        let bg_tile_line_offset = (bg_tile_data + bg_tile_line * 2) as usize;
+                        let bg_tile_line_offset = bg_tile_data + bg_tile_line * 2;
                         let bg_tile_line_low_byte = mem[bg_tile_line_offset];
                         let bg_tile_line_high_byte = mem[bg_tile_line_offset + 1];
-                        let bg_tile_current_pixel = 7 - ((c + mem[SCX] as usize) % 8);
+                        let bg_tile_current_pixel = 7 - ((c as Byte + mem[SCX]) % 8);
                         let bg_tile_pixel_mask = 1 << bg_tile_current_pixel;
                         let bg_tile_high_value = ((bg_tile_line_high_byte & bg_tile_pixel_mask)
                             >> bg_tile_current_pixel)
@@ -2325,12 +2348,12 @@ mod tests_cpu {
         let mut mem = init_mem();
         let result = call_d16(0x01, 0x02, INITIAL, &mut mem);
         assert_eq!(
-            mem[(INITIAL.sp - 0) as usize],
+            mem[(INITIAL.sp - 0)],
             hi(INITIAL.adv_pc(3).pc),
             "failed high check"
         );
         assert_eq!(
-            mem[(INITIAL.sp - 1) as usize],
+            mem[(INITIAL.sp - 1)],
             lo(INITIAL.adv_pc(3).pc),
             "failed low check"
         );
@@ -2513,8 +2536,8 @@ mod tests_cpu {
         };
         let mut mem = init_mem();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
-        assert_eq!(mem[(cpu.sp - 1) as usize], cpu.reg[REG_B]);
-        assert_eq!(mem[(cpu.sp - 2) as usize], cpu.reg[REG_C]);
+        assert_eq!(mem[(cpu.sp - 1)], cpu.reg[REG_B]);
+        assert_eq!(mem[(cpu.sp - 2)], cpu.reg[REG_C]);
     }
 
     #[test]
@@ -2660,7 +2683,7 @@ mod tests_cpu {
 
         mem[TMA] = 0xAA;
         assert_ne!(mem[IF], FL_INT_TIMER);
-        let even_newer_timers = update_clocks(new_timers, &mut mem, 256);
+        let _even_newer_timers = update_clocks(new_timers, &mut mem, 256);
         // should have overflowed as we just set it to 0xFF moments ago
         assert_eq!(mem[TIMA], 0xAA);
         assert_eq!(mem[IF], FL_INT_TIMER);

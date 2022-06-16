@@ -2023,7 +2023,9 @@ fn main() {
                     let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
                         (false, MEM_VRAM as Word)
                     } else {
+                        // in signed addressing the 0 tile is at 0x9000
                         (true, MEM_VRAM + 0x1000 as Word)
+                        // (true, MEM_VRAM + 0x0800 as Word) // <--- actual range starts at 0x8800 but that is -127, not zero
                     };
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;

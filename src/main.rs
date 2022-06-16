@@ -2097,6 +2097,18 @@ fn main() {
                     window
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
+        
+                    // print LCDC diagnostics
+                    let lcdc_7 = if bit(7, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_6 = if bit(6, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_5 = if bit(5, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_4 = if bit(4, mem[LCDC]) { "0x8000" } else { "0x8800" };
+                    let lcdc_3 = if bit(3, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_2 = if bit(2, mem[LCDC]) { "16" } else { " 8" };
+                    let lcdc_1 = if bit(1, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_0 = if bit(0, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_v = mem[LCDC];
+                    println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
                 }
             }
             _ => panic!("invalid LCD mode"),

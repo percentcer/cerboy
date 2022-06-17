@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(clippy::identity_op)]
-#![feature(const_option)]
-#![feature(const_slice_index)]
 #![feature(const_trait_impl)]
 
 extern crate minifb;
@@ -177,17 +175,22 @@ const WX: Word = 0xFF4B;
 const IF: Word = 0xFF0F;
 const IE: Word = 0xFFFF;
 
-struct Memory(Vec<Byte>);
+struct Memory([Byte; MEM_SIZE]);
 impl const Index<Word> for Memory {
     type Output = Byte;
 
     fn index(&self, index: Word) -> &Self::Output {
-        &self.0.as_slice()[index as usize]
+        &self.0[index as usize]
     }
 }
 impl IndexMut<Word> for Memory {
     fn index_mut(&mut self, index: Word) -> &mut Self::Output {
-        println!("Accessing {index:?} mutably");
+        match index {
+            DMA => println!("write DMA"),
+            LCDC => println!("write LCDC"),
+            _ => ()
+        }
+        
         &mut self.0[index as usize]
     }
 }
@@ -298,7 +301,7 @@ fn update_clocks(state: HardwareTimers, mem: &mut Memory, cycles: u64) -> Hardwa
 }
 
 fn init_mem() -> Memory {
-    let mut mem = Memory(vec![0; MEM_SIZE]);
+    let mut mem = Memory([0; MEM_SIZE]);
     mem[TIMA] = 0x00;
     mem[TMA] = 0x00;
     mem[TAC] = 0x00;
@@ -2043,7 +2046,9 @@ fn main() {
                     let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
                         (false, MEM_VRAM as Word)
                     } else {
+                        // in signed addressing the 0 tile is at 0x9000
                         (true, MEM_VRAM + 0x1000 as Word)
+                        // (true, MEM_VRAM + 0x0800 as Word) // <--- actual range starts at 0x8800 but that is -127, not zero
                     };
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;
@@ -2117,6 +2122,18 @@ fn main() {
                     window
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
+        
+                    // print LCDC diagnostics
+                    let lcdc_7 = if bit(7, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_6 = if bit(6, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_5 = if bit(5, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_4 = if bit(4, mem[LCDC]) { "0x8000" } else { "0x8800" };
+                    let lcdc_3 = if bit(3, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_2 = if bit(2, mem[LCDC]) { "16" } else { " 8" };
+                    let lcdc_1 = if bit(1, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_0 = if bit(0, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_v = mem[LCDC];
+                    println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
                 }
             }
             _ => panic!("invalid LCD mode"),

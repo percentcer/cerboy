@@ -11,6 +11,8 @@ extern crate env_logger;
 use std::io::Read;
 use std::ops::{Index,IndexMut};
 
+use cerboy::types::*;
+
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //
 // CPU          - 8-bit (Similar to the Z80 processor)
@@ -84,11 +86,6 @@ const TICKS_PER_DIV_INC: u64 = 256;
 
 // tile constants
 const BYTES_PER_TILE: u16 = 16;
-
-type Byte = u8;
-type Word = u16;
-type SByte = i8;
-type SWord = i16;
 
 const HIGH_MASK: Word = 0xFF00;
 const LOW_MASK: Word = 0x00FF;
@@ -1673,7 +1670,6 @@ fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
 
 fn main() {
     env_logger::init();
-    cerboy::hello();
 
     // window management
     // -----------------

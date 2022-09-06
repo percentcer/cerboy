@@ -1673,6 +1673,7 @@ fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
 
 fn main() {
     env_logger::init();
+    cerboy::hello();
 
     // window management
     // -----------------

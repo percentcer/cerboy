@@ -28,8 +28,13 @@ pub mod types {
 
 pub mod decode {
     use crate::types::{Byte, Instruction};
+    use const_format::formatcp;
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+
+    // arg tables
+    const cc: [&'static str; 4] = ["NZ", "Z", "NC", "C"];
+
     // """
     // Upon establishing the opcode, the Z80's path of action is generally dictated by these values:
 
@@ -76,8 +81,13 @@ pub mod decode {
                     1 => Instruction{mnemonic: "LD (nn), SP", length: 3},
                     2 => Instruction{mnemonic: "STOP", length: 1},
                     3 => Instruction{mnemonic: "JR d", length: 2},
-                    4..=7 => Instruction{mnemonic: "JR cc[y-4]", length: 2},
-                    8..=u8::MAX => panic!("nonexistent instruction")
+                    y_ @ 4..=7 => {
+                        let idx: usize = (y_ - 4) as usize;
+                        let flag: &'static str = cc[idx];
+                        let mnem: &'static str = formatcp!("JR {flag}, d");
+                        Instruction{mnemonic: &mnem, length: 2}
+                    }
+                    _ => panic!("nonexistent instruction")
                 }
                 1_u8..=u8::MAX => todo!()
             }

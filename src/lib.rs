@@ -19,8 +19,15 @@ pub mod types {
     pub const FL_N: Byte = 1 << 6;
     pub const FL_H: Byte = 1 << 5;
     pub const FL_C: Byte = 1 << 4;
+
+    pub struct Instruction {
+        pub mnemonic: &'static str,
+        pub length: u8 // bytes to read
+    }
+}
+
 pub mod decode {
-    use crate::types::Byte;
+    use crate::types::{Byte, Instruction};
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
     // """
@@ -59,6 +66,23 @@ pub mod decode {
     #[inline(always)]
     fn q(op: Byte) -> Byte {
         y(op) & 0b1
+    }
+
+    pub fn decode(op: Byte) -> Instruction {
+        match x(op) {
+            0 => match z(op) {
+                0 => match y(op) {
+                    0 => Instruction{mnemonic: "NOP", length: 1},
+                    1 => Instruction{mnemonic: "LD (nn), SP", length: 3},
+                    2 => Instruction{mnemonic: "STOP", length: 1},
+                    3 => Instruction{mnemonic: "JR d", length: 2},
+                    4..=7 => Instruction{mnemonic: "JR cc[y-4]", length: 2},
+                    8..=u8::MAX => panic!("nonexistent instruction")
+                }
+                1_u8..=u8::MAX => todo!()
+            }
+            1_u8..=u8::MAX => todo!()
+        }
     }
 
     #[cfg(test)]

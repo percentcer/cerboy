@@ -3,6 +3,22 @@ pub mod types {
     pub type Word = u16;
     pub type SByte = i8;
     pub type SWord = i16;
+
+    // indices
+    pub const REG_B: usize = 0;
+    pub const REG_C: usize = 1;
+    pub const REG_D: usize = 2;
+    pub const REG_E: usize = 3;
+    pub const REG_H: usize = 4;
+    pub const REG_L: usize = 5;
+    pub const FLAGS: usize = 6;
+    pub const REG_A: usize = 7;
+
+    // cpu flags
+    pub const FL_Z: Byte = 1 << 7;
+    pub const FL_N: Byte = 1 << 6;
+    pub const FL_H: Byte = 1 << 5;
+    pub const FL_C: Byte = 1 << 4;
 pub mod decode {
     use crate::types::Byte;
 

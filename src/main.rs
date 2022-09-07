@@ -90,28 +90,12 @@ const BYTES_PER_TILE: u16 = 16;
 const HIGH_MASK: Word = 0xFF00;
 const LOW_MASK: Word = 0x00FF;
 
-// cpu flags
-const FL_Z: Byte = 1 << 7;
-const FL_N: Byte = 1 << 6;
-const FL_H: Byte = 1 << 5;
-const FL_C: Byte = 1 << 4;
-
 // interrupt flags
 const FL_INT_VBLANK: Byte = 1 << 0;
 const FL_INT_STAT: Byte = 1 << 1;
 const FL_INT_TIMER: Byte = 1 << 2;
 const FL_INT_SERIAL: Byte = 1 << 3;
 const FL_INT_JOYPAD: Byte = 1 << 4;
-
-// indices
-const REG_B: usize = 0;
-const REG_C: usize = 1;
-const REG_D: usize = 2;
-const REG_E: usize = 3;
-const REG_H: usize = 4;
-const REG_L: usize = 5;
-const FLAGS: usize = 6;
-const REG_A: usize = 7;
 
 // RST locations (vectors)
 const VEC_RST_00: Word = 0x0000;

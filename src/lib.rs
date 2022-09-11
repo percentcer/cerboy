@@ -1,3 +1,5 @@
+#![feature(const_for)]
+
 pub mod types {
     pub type Byte = u8;
     pub type Word = u16;
@@ -29,6 +31,7 @@ pub mod types {
 pub mod decode {
     use crate::types::{Byte, Instruction};
     use const_format::formatcp;
+    use unroll::unroll_for_loops;
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 
@@ -73,26 +76,39 @@ pub mod decode {
         y(op) & 0b1
     }
 
-    pub fn decode(op: Byte) -> Instruction {
-        match x(op) {
-            0 => match z(op) {
-                0 => match y(op) {
-                    0 => Instruction{mnemonic: "NOP", length: 1},
-                    1 => Instruction{mnemonic: "LD (nn), SP", length: 3},
-                    2 => Instruction{mnemonic: "STOP", length: 1},
-                    3 => Instruction{mnemonic: "JR d", length: 2},
-                    y_ @ 4..=7 => {
-                        let idx: usize = (y_ - 4) as usize;
-                        let flag: &'static str = cc[idx];
-                        let mnem: &'static str = formatcp!("JR {flag}, d");
-                        Instruction{mnemonic: &mnem, length: 2}
+    #[unroll_for_loops]
+    const fn generate_table() -> [Instruction; 0xFF] {
+        {
+            let mut result = [Instruction{mnemonic: "INVALID", length: 0}; 0xFF];
+            let mut i: Byte = 0;
+            for i in 0x00..0xFF {
+                result[i] = match x(i) {
+                    0 => match z(i) {
+                        0 => match y(i) {
+                            0 => Instruction{mnemonic: "NOP", length: 1},
+                            1 => Instruction{mnemonic: "LD (nn), SP", length: 3},
+                            2 => Instruction{mnemonic: "STOP", length: 1},
+                            3 => Instruction{mnemonic: "JR d", length: 2},
+                            4..=7 => {
+                                const idx: usize = (y(i) - 4) as usize;
+                                const flag: &'static str = cc[idx];
+                                const mnem: &'static str = formatcp!("JR {flag}, d");
+                                Instruction{mnemonic: &mnem, length: 2}
+                            }
+                            _ => Instruction{mnemonic: "INVALID", length: 0}
+                        }
+                        1_u8..=u8::MAX => todo!()
                     }
-                    _ => panic!("nonexistent instruction")
+                    1_u8..=u8::MAX => todo!()
                 }
-                1_u8..=u8::MAX => todo!()
             }
-            1_u8..=u8::MAX => todo!()
+            result
         }
+    }
+
+    const INSTRUCTION_TABLE: [Instruction; 0xFF] = generate_table();
+
+    pub const fn decode(op: Byte) -> Instruction {
     }
 
     #[cfg(test)]

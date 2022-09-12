@@ -1,5 +1,3 @@
-#![feature(const_for)]
-
 pub mod types {
     pub type Byte = u8;
     pub type Word = u16;
@@ -23,20 +21,35 @@ pub mod types {
     pub const FL_C: Byte = 1 << 4;
 
     pub struct Instruction {
-        pub mnemonic: &'static str,
-        pub length: u8 // bytes to read
+        pub mnemonic: String,
+        pub length: u8, // bytes to read
+    }
+    impl Instruction {
+        // Constructs a new instance of [`Second`].
+        // Note this is an associated function - no self.
+        pub fn new(text: &str, len: u8) -> Self {
+            Self {
+                mnemonic: String::from(text),
+                length: len,
+            }
+        }
     }
 }
 
 pub mod decode {
     use crate::types::{Byte, Instruction};
-    use const_format::formatcp;
-    use unroll::unroll_for_loops;
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 
     // arg tables
-    const cc: [&'static str; 4] = ["NZ", "Z", "NC", "C"];
+    const R: [&'static str; 8] = ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
+    const RP: [&'static str; 4] = ["BC", "DE", "HL", "SP"];
+    const RP2: [&'static str; 4] = ["BC", "DE", "HL", "AF"];
+    const CC: [&'static str; 4] = ["NZ", "Z", "NC", "C"];
+    const ALU: [&'static str; 8] = [
+        "ADD A,", "ADC A,", "SUB", "SBC A,", "AND", "XOR", "OR", "CP",
+    ];
+    const ROT: [&'static str; 8] = ["RLC", "RRC", "RL", "RR", "SLA", "SRA", "SWAP", "SRL"];
 
     // """
     // Upon establishing the opcode, the Z80's path of action is generally dictated by these values:
@@ -55,60 +68,62 @@ pub mod decode {
     // tab[x] = whatever is contained in the table named tab at index x (analogous for y and z and other table names)
     // """
 
-    #[inline(always)]
-    fn x(op: Byte) -> Byte {
+    const fn x(op: Byte) -> Byte {
         op >> 6
     }
-    #[inline(always)]
-    fn y(op: Byte) -> Byte {
+    const fn y(op: Byte) -> Byte {
         op >> 3 & 0b111
     }
-    #[inline(always)]
-    fn z(op: Byte) -> Byte {
+    const fn z(op: Byte) -> Byte {
         op & 0b111
     }
-    #[inline(always)]
-    fn p(op: Byte) -> Byte {
+    const fn p(op: Byte) -> Byte {
         y(op) >> 1
     }
-    #[inline(always)]
-    fn q(op: Byte) -> Byte {
+    const fn q(op: Byte) -> Byte {
         y(op) & 0b1
     }
 
-    #[unroll_for_loops]
-    const fn generate_table() -> [Instruction; 0xFF] {
-        {
-            let mut result = [Instruction{mnemonic: "INVALID", length: 0}; 0xFF];
-            let mut i: Byte = 0;
-            for i in 0x00..0xFF {
-                result[i] = match x(i) {
-                    0 => match z(i) {
-                        0 => match y(i) {
-                            0 => Instruction{mnemonic: "NOP", length: 1},
-                            1 => Instruction{mnemonic: "LD (nn), SP", length: 3},
-                            2 => Instruction{mnemonic: "STOP", length: 1},
-                            3 => Instruction{mnemonic: "JR d", length: 2},
-                            4..=7 => {
-                                const idx: usize = (y(i) - 4) as usize;
-                                const flag: &'static str = cc[idx];
-                                const mnem: &'static str = formatcp!("JR {flag}, d");
-                                Instruction{mnemonic: &mnem, length: 2}
-                            }
-                            _ => Instruction{mnemonic: "INVALID", length: 0}
+    const INV: &'static str = "INVALID";
+
+    // todo: Instruction is constantly allocating heap strings, I feel like there
+    // should be a way to do this at compile time but I can't figure it out
+    pub fn decode(op: Byte) -> Instruction {
+        match x(op) {
+            0 => match z(op) {
+                0 => match y(op) {
+                    0 => Instruction::new("NOP", 1),
+                    1 => Instruction::new("LD (nn), SP", 3),
+                    2 => Instruction::new("STOP", 1),
+                    3 => Instruction::new("JR d", 2),
+                    v @ 4..=7 => {
+                        let idx: usize = (v - 4) as usize;
+                        let flag: &'static str = CC[idx];
+                        Instruction {
+                            mnemonic: format!("JR {flag}, d"),
+                            length: 2,
                         }
-                        1_u8..=u8::MAX => todo!()
                     }
-                    1_u8..=u8::MAX => todo!()
+                    _ => Instruction::new(INV, 0),
+                },
+                1 => {
+                    let addr = RP[p(op) as usize];
+                    match q(op) {
+                        0 => Instruction {
+                            mnemonic: format!("LD {addr}, nn"),
+                            length: 2,
+                        },
+                        1 => Instruction {
+                            mnemonic: format!("ADD HL, {addr}"),
+                            length: 2,
+                        },
+                        _ => Instruction::new(INV, 0),
+                    }
                 }
-            }
-            result
+                _ => todo!(),
+            },
+            _ => todo!()
         }
-    }
-
-    const INSTRUCTION_TABLE: [Instruction; 0xFF] = generate_table();
-
-    pub const fn decode(op: Byte) -> Instruction {
     }
 
     #[cfg(test)]

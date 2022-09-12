@@ -84,11 +84,14 @@ pub mod decode {
         y(op) & 0b1
     }
 
-    const INV: &'static str = "INVALID";
+    const INVALID: &'static str = "INVALID";
 
     // todo: Instruction is constantly allocating heap strings, I feel like there
     // should be a way to do this at compile time but I can't figure it out
+    #[allow(non_snake_case)]
     pub fn decode(op: Byte) -> Instruction {
+        let _RP_p = RP[p(op) as usize];
+        let _R_y = R[y(op) as usize];
         match x(op) {
             0 => match z(op) {
                 0 => match y(op) {
@@ -97,32 +100,73 @@ pub mod decode {
                     2 => Instruction::new("STOP", 1),
                     3 => Instruction::new("JR d", 2),
                     v @ 4..=7 => {
-                        let idx: usize = (v - 4) as usize;
-                        let flag: &'static str = CC[idx];
+                        let i: usize = (v - 4) as usize;
+                        let _CC_i: &'static str = CC[i];
                         Instruction {
-                            mnemonic: format!("JR {flag}, d"),
+                            mnemonic: format!("JR {_CC_i}, d"),
                             length: 2,
                         }
                     }
-                    _ => Instruction::new(INV, 0),
+                    _ => Instruction::new(INVALID, 0),
                 },
                 1 => {
-                    let addr = RP[p(op) as usize];
                     match q(op) {
                         0 => Instruction {
-                            mnemonic: format!("LD {addr}, nn"),
+                            mnemonic: format!("LD {_RP_p}, nn"),
                             length: 2,
                         },
                         1 => Instruction {
-                            mnemonic: format!("ADD HL, {addr}"),
+                            mnemonic: format!("ADD HL, {_RP_p}"),
                             length: 2,
                         },
-                        _ => Instruction::new(INV, 0),
+                        _ => Instruction::new(INVALID, 0),
                     }
                 }
-                _ => todo!(),
+                2 => match q(op) {
+                    0 => match p(op) {
+                        0 => Instruction::new("LD (BC), A", 1),
+                        1 => Instruction::new("LD (DE), A", 1),
+                        2 => Instruction::new("LD (HL+), A", 1),
+                        3 => Instruction::new("LD (HL-), A", 1),
+                        _ => Instruction::new(INVALID, 0),
+                    },
+                    1 => match p(op) {
+                        0 => Instruction::new("LD A, (BC)", 1),
+                        1 => Instruction::new("LD A, (DE)", 1),
+                        2 => Instruction::new("LD A, (HL+)", 1),
+                        3 => Instruction::new("LD A, (HL-)", 1),
+                        _ => Instruction::new(INVALID, 0),
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
+                3 => match q(op) {
+                    0 => Instruction {
+                        mnemonic: format!("INC {_RP_p}"),
+                        length: 1,
+                    },
+                    1 => Instruction {
+                        mnemonic: format!("DEC, {_RP_p}"),
+                        length: 1,
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
+                4 => Instruction {mnemonic: format!("INC {_R_y}"), length: 1},
+                5 => Instruction {mnemonic: format!("DEC {_R_y}"), length: 1},
+                6 => Instruction {mnemonic: format!("LD {_R_y}, n"), length: 2},
+                7 => match y(op) {
+                    0 => Instruction::new("RLCA", 1),
+                    1 => Instruction::new("RRCA", 1),
+                    2 => Instruction::new("RLA", 1),
+                    3 => Instruction::new("RRA", 1),
+                    4 => Instruction::new("DAA", 1),
+                    5 => Instruction::new("CPL", 1),
+                    6 => Instruction::new("SCF", 1),
+                    7 => Instruction::new("CCF", 1),
+                    _ => Instruction::new(INVALID, 0)
+                }
+                _ => Instruction::new(INVALID, 0)
             },
-            _ => todo!()
+            _ => todo!(),
         }
     }
 

@@ -1,4 +1,7 @@
 {
   "lldb.showDisassembly": "auto",
-  "lldb.dereferencePointers": true
+  "lldb.dereferencePointers": true,
+  "workbench.preferredDarkColorTheme": "Red",
+  "workbench.preferredLightColorTheme": "Red",
+  "workbench.colorTheme": "merko's green theme"
 }

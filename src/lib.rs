@@ -21,16 +21,16 @@ pub mod types {
     pub const FL_C: Byte = 1 << 4;
 
     pub struct Instruction {
-        pub mnemonic: String,
-        pub length: u8, // bytes to read
+        pub mnm: String,
+        pub len: u8, // bytes to read
     }
     impl Instruction {
         // Constructs a new instance of [`Second`].
         // Note this is an associated function - no self.
         pub fn new(text: &str, len: u8) -> Self {
             Self {
-                mnemonic: String::from(text),
-                length: len,
+                mnm: String::from(text),
+                len,
             }
         }
     }
@@ -91,6 +91,7 @@ pub mod decode {
     #[allow(non_snake_case)]
     pub fn decode(op: Byte) -> Instruction {
         let _ALU_y = ALU[y(op) as usize];
+        let _CC_y = CC[y(op) as usize];
         let _R_y = R[y(op) as usize];
         let _R_z = R[z(op) as usize];
         let _RP_p = RP[p(op) as usize];
@@ -105,20 +106,20 @@ pub mod decode {
                         let i: usize = (v - 4) as usize;
                         let _CC_i: &'static str = CC[i];
                         Instruction {
-                            mnemonic: format!("JR {_CC_i}, d"),
-                            length: 2,
+                            mnm: format!("JR {_CC_i}, d"),
+                            len: 2,
                         }
                     }
                     _ => Instruction::new(INVALID, 0),
                 },
                 1 => match q(op) {
                     0 => Instruction {
-                        mnemonic: format!("LD {_RP_p}, nn"),
-                        length: 2,
+                        mnm: format!("LD {_RP_p}, nn"),
+                        len: 2,
                     },
                     1 => Instruction {
-                        mnemonic: format!("ADD HL, {_RP_p}"),
-                        length: 2,
+                        mnm: format!("ADD HL, {_RP_p}"),
+                        len: 2,
                     },
                     _ => Instruction::new(INVALID, 0),
                 },
@@ -141,26 +142,26 @@ pub mod decode {
                 },
                 3 => match q(op) {
                     0 => Instruction {
-                        mnemonic: format!("INC {_RP_p}"),
-                        length: 1,
+                        mnm: format!("INC {_RP_p}"),
+                        len: 1,
                     },
                     1 => Instruction {
-                        mnemonic: format!("DEC, {_RP_p}"),
-                        length: 1,
+                        mnm: format!("DEC, {_RP_p}"),
+                        len: 1,
                     },
                     _ => Instruction::new(INVALID, 0),
                 },
                 4 => Instruction {
-                    mnemonic: format!("INC {_R_y}"),
-                    length: 1,
+                    mnm: format!("INC {_R_y}"),
+                    len: 1,
                 },
                 5 => Instruction {
-                    mnemonic: format!("DEC {_R_y}"),
-                    length: 1,
+                    mnm: format!("DEC {_R_y}"),
+                    len: 1,
                 },
                 6 => Instruction {
-                    mnemonic: format!("LD {_R_y}, n"),
-                    length: 2,
+                    mnm: format!("LD {_R_y}, n"),
+                    len: 2,
                 },
                 7 => match y(op) {
                     0 => Instruction::new("RLCA", 1),
@@ -181,13 +182,27 @@ pub mod decode {
                     _ => Instruction::new(INVALID, 0),
                 },
                 _ => Instruction {
-                    mnemonic: format!("LD {_R_y}, {_R_z}"),
-                    length: 1,
+                    mnm: format!("LD {_R_y}, {_R_z}"),
+                    len: 1,
                 },
             },
             2 => Instruction {
-                mnemonic: format!("{_ALU_y} {_R_z}"),
-                length: 1,
+                mnm: format!("{_ALU_y} {_R_z}"),
+                len: 1,
+            },
+            3 => match z(op) {
+                0 => match y(op) {
+                    0..=3 => Instruction {
+                        mnm: format!("RET {_CC_y}"),
+                        len: 1,
+                    },
+                    4 => Instruction::new("LD (0xFF00 + n), A", 2),
+                    5 => Instruction::new("ADD SP, d", 2),
+                    6 => Instruction::new("LD A, (0xFF00 + n)", 2),
+                    7 => Instruction::new("LD HL, SP + d", 2),
+                    _ => Instruction::new(INVALID, 0),
+                },
+                _ => todo!(),
             },
             _ => todo!(),
         }

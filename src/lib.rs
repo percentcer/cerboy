@@ -90,8 +90,10 @@ pub mod decode {
     // should be a way to do this at compile time but I can't figure it out
     #[allow(non_snake_case)]
     pub fn decode(op: Byte) -> Instruction {
-        let _RP_p = RP[p(op) as usize];
+        let _ALU_y = ALU[y(op) as usize];
         let _R_y = R[y(op) as usize];
+        let _R_z = R[z(op) as usize];
+        let _RP_p = RP[p(op) as usize];
         match x(op) {
             0 => match z(op) {
                 0 => match y(op) {
@@ -109,19 +111,17 @@ pub mod decode {
                     }
                     _ => Instruction::new(INVALID, 0),
                 },
-                1 => {
-                    match q(op) {
-                        0 => Instruction {
-                            mnemonic: format!("LD {_RP_p}, nn"),
-                            length: 2,
-                        },
-                        1 => Instruction {
-                            mnemonic: format!("ADD HL, {_RP_p}"),
-                            length: 2,
-                        },
-                        _ => Instruction::new(INVALID, 0),
-                    }
-                }
+                1 => match q(op) {
+                    0 => Instruction {
+                        mnemonic: format!("LD {_RP_p}, nn"),
+                        length: 2,
+                    },
+                    1 => Instruction {
+                        mnemonic: format!("ADD HL, {_RP_p}"),
+                        length: 2,
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
                 2 => match q(op) {
                     0 => match p(op) {
                         0 => Instruction::new("LD (BC), A", 1),
@@ -150,9 +150,18 @@ pub mod decode {
                     },
                     _ => Instruction::new(INVALID, 0),
                 },
-                4 => Instruction {mnemonic: format!("INC {_R_y}"), length: 1},
-                5 => Instruction {mnemonic: format!("DEC {_R_y}"), length: 1},
-                6 => Instruction {mnemonic: format!("LD {_R_y}, n"), length: 2},
+                4 => Instruction {
+                    mnemonic: format!("INC {_R_y}"),
+                    length: 1,
+                },
+                5 => Instruction {
+                    mnemonic: format!("DEC {_R_y}"),
+                    length: 1,
+                },
+                6 => Instruction {
+                    mnemonic: format!("LD {_R_y}, n"),
+                    length: 2,
+                },
                 7 => match y(op) {
                     0 => Instruction::new("RLCA", 1),
                     1 => Instruction::new("RRCA", 1),
@@ -162,9 +171,23 @@ pub mod decode {
                     5 => Instruction::new("CPL", 1),
                     6 => Instruction::new("SCF", 1),
                     7 => Instruction::new("CCF", 1),
-                    _ => Instruction::new(INVALID, 0)
-                }
-                _ => Instruction::new(INVALID, 0)
+                    _ => Instruction::new(INVALID, 0),
+                },
+                _ => Instruction::new(INVALID, 0),
+            },
+            1 => match z(op) {
+                6 => match y(op) {
+                    6 => Instruction::new("HALT", 1),
+                    _ => Instruction::new(INVALID, 0),
+                },
+                _ => Instruction {
+                    mnemonic: format!("LD {_R_y}, {_R_z}"),
+                    length: 1,
+                },
+            },
+            2 => Instruction {
+                mnemonic: format!("{_ALU_y} {_R_z}"),
+                length: 1,
             },
             _ => todo!(),
         }

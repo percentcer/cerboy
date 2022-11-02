@@ -85,6 +85,7 @@ pub mod decode {
     }
 
     const INVALID: &'static str = "INVALID";
+    const CBPREFIX: &'static str = "(CB PREFIX)";
 
     // todo: Instruction is constantly allocating heap strings, I feel like there
     // should be a way to do this at compile time but I can't figure it out
@@ -95,6 +96,8 @@ pub mod decode {
         let _R_y = R[y(op) as usize];
         let _R_z = R[z(op) as usize];
         let _RP_p = RP[p(op) as usize];
+        let _RP2_p = RP2[p(op) as usize];
+        let _y8 = y(op) * 8;
         match x(op) {
             0 => match z(op) {
                 0 => match y(op) {
@@ -201,6 +204,64 @@ pub mod decode {
                     6 => Instruction::new("LD A, (0xFF00 + n)", 2),
                     7 => Instruction::new("LD HL, SP + d", 2),
                     _ => Instruction::new(INVALID, 0),
+                },
+                1 => match q(op) {
+                    0 => Instruction {
+                        mnm: format!("POP {_RP2_p}"),
+                        len: 1,
+                    },
+                    1 => match p(op) {
+                        0 => Instruction::new("RET", 1),
+                        1 => Instruction::new("RETI", 1),
+                        2 => Instruction::new("JP HL", 1),
+                        3 => Instruction::new("LD SP, HL", 1),
+                        _ => Instruction::new(INVALID, 0),
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
+                2 => match y(op) {
+                    0..=3 => Instruction {
+                        mnm: format!("JP {_CC_y}, nn"),
+                        len: 3,
+                    },
+                    4 => Instruction::new("LD (0xFF00 + C), A", 1),
+                    5 => Instruction::new("LD (nn), A", 3),
+                    6 => Instruction::new("LD A, (0xFF00 + C)", 1),
+                    7 => Instruction::new("LD A, (nn)", 3),
+                    _ => Instruction::new(INVALID, 0),
+                },
+                3 => match y(op) {
+                    0 => Instruction::new("JP nn", 3),
+                    1 => Instruction::new(CBPREFIX, 1),
+                    6 => Instruction::new("DI", 1),
+                    7 => Instruction::new("EI", 1),
+                    _ => Instruction::new(INVALID, 0),
+                },
+                4 => match y(op) {
+                    0..=3 => Instruction {
+                        mnm: format!("CALL {_CC_y}, nn"),
+                        len: 3,
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
+                5 => match q(op) {
+                    0 => Instruction {
+                        mnm: format!("PUSH {_RP2_p}"),
+                        len: 1,
+                    },
+                    1 => match p(op) {
+                        0 => Instruction::new("CALL nn", 3),
+                        _ => Instruction::new(INVALID, 0),
+                    },
+                    _ => Instruction::new(INVALID, 0),
+                },
+                6 => Instruction {
+                    mnm: format!("{_ALU_y} n"),
+                    len: 2,
+                },
+                7 => Instruction {
+                    mnm: format!("RST {_y8:02x}H"),
+                    len: 1,
                 },
                 _ => todo!(),
             },

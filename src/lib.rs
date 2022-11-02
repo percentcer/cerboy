@@ -20,6 +20,7 @@ pub mod types {
     pub const FL_H: Byte = 1 << 5;
     pub const FL_C: Byte = 1 << 4;
 
+    #[derive(PartialEq, Debug)]
     pub struct Instruction {
         pub mnm: String,
         pub len: u8, // bytes to read
@@ -40,6 +41,7 @@ pub mod decode {
     use crate::types::{Byte, Instruction};
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
+    // https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
 
     // arg tables
     const R: [&'static str; 8] = ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
@@ -269,6 +271,32 @@ pub mod decode {
         }
     }
 
+    #[allow(non_snake_case)]
+    pub fn decodeCB(op: Byte) -> Instruction {
+        let _ROT_y = ROT[y(op) as usize];
+        let _R_z = R[z(op) as usize];
+        let _y = y(op);
+        match x(op) {
+            0 => Instruction {
+                mnm: format!("{_ROT_y} {_R_z}"),
+                len: 1,
+            },
+            1 => Instruction {
+                mnm: format!("BIT {_y}, {_R_z}"),
+                len: 1,
+            },
+            2 => Instruction {
+                mnm: format!("RES {_y}, {_R_z}"),
+                len: 1,
+            },
+            3 => Instruction {
+                mnm: format!("SET {_y}, {_R_z}"),
+                len: 1,
+            },
+            _ => Instruction::new(INVALID, 0),
+        }
+    }
+
     #[cfg(test)]
     mod tests_decode {
         use super::*;
@@ -280,6 +308,26 @@ pub mod decode {
             assert_eq!(z(t), 0b001);
             assert_eq!(p(t), 0b01);
             assert_eq!(q(t), 0b0);
+        }
+
+        #[test]
+        fn test_rot() {
+            assert_eq!(decodeCB(0x00), Instruction::new("RLC B", 1));
+            assert_eq!(decodeCB(0x10), Instruction::new("RL B", 1));
+            assert_eq!(decodeCB(0x20), Instruction::new("SLA B", 1));
+            assert_eq!(decodeCB(0x30), Instruction::new("SWAP B", 1));
+            assert_eq!(decodeCB(0x40), Instruction::new("BIT 0, B", 1));
+            assert_eq!(decodeCB(0x50), Instruction::new("BIT 2, B", 1));
+            assert_eq!(decodeCB(0x60), Instruction::new("BIT 4, B", 1));
+            assert_eq!(decodeCB(0x70), Instruction::new("BIT 6, B", 1));
+            assert_eq!(decodeCB(0x80), Instruction::new("RES 0, B", 1));
+            assert_eq!(decodeCB(0x90), Instruction::new("RES 2, B", 1));
+            assert_eq!(decodeCB(0xA0), Instruction::new("RES 4, B", 1));
+            assert_eq!(decodeCB(0xB0), Instruction::new("RES 6, B", 1));
+            assert_eq!(decodeCB(0xC0), Instruction::new("SET 0, B", 1));
+            assert_eq!(decodeCB(0xD0), Instruction::new("SET 2, B", 1));
+            assert_eq!(decodeCB(0xE0), Instruction::new("SET 4, B", 1));
+            assert_eq!(decodeCB(0xF0), Instruction::new("SET 6, B", 1));
         }
     }
 }

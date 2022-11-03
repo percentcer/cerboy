@@ -34,6 +34,14 @@ pub mod types {
                 len,
             }
         }
+
+        pub fn valid(&self) -> bool { 
+            self.len > 0
+        }
+
+        pub fn prefix(&self) -> bool {
+            self.mnm == crate::decode::CBPREFIX
+        }
     }
 }
 
@@ -87,18 +95,18 @@ pub mod decode {
     }
 
     const INVALID: &'static str = "INVALID";
-    const CBPREFIX: &'static str = "(CB PREFIX)";
+    pub const CBPREFIX: &'static str = "(CB PREFIX)";
 
     // todo: Instruction is constantly allocating heap strings, I feel like there
     // should be a way to do this at compile time but I can't figure it out
     #[allow(non_snake_case)]
     pub fn decode(op: Byte) -> Instruction {
-        let _ALU_y = ALU[y(op) as usize];
-        let _CC_y = CC[y(op) as usize];
-        let _R_y = R[y(op) as usize];
-        let _R_z = R[z(op) as usize];
-        let _RP_p = RP[p(op) as usize];
-        let _RP2_p = RP2[p(op) as usize];
+        let _ALU_y = ALU[y(op) as usize % ALU.len()];
+        let _CC_y = CC[y(op) as usize % CC.len()];
+        let _R_y = R[y(op) as usize % R.len()];
+        let _R_z = R[z(op) as usize % R.len()];
+        let _RP_p = RP[p(op) as usize % RP.len()];
+        let _RP2_p = RP2[p(op) as usize % RP2.len()];
         let _y8 = y(op) * 8;
         match x(op) {
             0 => match z(op) {
@@ -120,7 +128,7 @@ pub mod decode {
                 1 => match q(op) {
                     0 => Instruction {
                         mnm: format!("LD {_RP_p}, nn"),
-                        len: 2,
+                        len: 3,
                     },
                     1 => Instruction {
                         mnm: format!("ADD HL, {_RP_p}"),

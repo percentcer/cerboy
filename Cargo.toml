@@ -11,3 +11,7 @@ env_logger = "0.8.4"
 minifb = "0.19.3"
 const_format = "0.2.26"
 unroll = "0.1.5"
+
+[[bin]]
+name = "dis"
+path = "src/bin/dis.rs"

@@ -43,8 +43,8 @@ pub mod types {
 
         pub fn mnm_args(&self, rom: &[Byte]) -> String {
             match rom.len() {
-                1 => self.mnm.replace('n', &format!("${:02X}", rom[0])),
-                2 => self.mnm.replace("nn", &format!("${:04X}", crate::bits::combine(rom[1], rom[0]))),
+                1 => self.mnm.replace('n', &format!("${:02x}", rom[0])),
+                2 => self.mnm.replace("nn", &format!("${:04x}", crate::bits::combine(rom[1], rom[0]))),
                 _ => panic!("mnemonic only intended for instructions with args")
             }
         }

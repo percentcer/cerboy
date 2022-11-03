@@ -26,8 +26,6 @@ pub mod types {
         pub len: u8, // bytes to read
     }
     impl Instruction {
-        // Constructs a new instance of [`Second`].
-        // Note this is an associated function - no self.
         pub fn new(text: &str, len: u8) -> Self {
             Self {
                 mnm: String::from(text),
@@ -41,6 +39,14 @@ pub mod types {
 
         pub fn prefix(&self) -> bool {
             self.mnm == crate::decode::CBPREFIX
+        }
+
+        pub fn mnm_args(&self, rom: &[Byte]) -> String {
+            match rom.len() {
+                1 => self.mnm.replace('n', &format!("${:02X}", rom[0])),
+                2 => self.mnm.replace("nn", &format!("${:04X}", crate::bits::combine(rom[1], rom[0]))),
+                _ => panic!("mnemonic only intended for instructions with args")
+            }
         }
     }
 }

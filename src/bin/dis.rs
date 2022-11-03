@@ -38,11 +38,16 @@ fn main() {
         let inst: Instruction = decode(rom[i]);
         if inst.valid() {
             if inst.prefix() {
-                i += 1;
+                i += 1; // (all cb instructions are 1 byte for the prefix and 1 byte for the opcode)
                 let cb: Instruction = decodeCB(rom[i]);
                 println!("{}", cb.mnm);
             } else {
-                println!("{}", inst.mnm);
+                match inst.len {
+                    1 => println!("{}", inst.mnm),
+                    2 => println!("{}", inst.mnm_args(&rom[i+1..i+2])),
+                    3 => println!("{}", inst.mnm_args(&rom[i+1..i+3])),
+                    _ => panic!("(unreachable) todo: this is getting messy"),
+                }
             }
             i += inst.len as usize;
         } else {

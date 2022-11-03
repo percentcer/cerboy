@@ -10,8 +10,9 @@ extern crate env_logger;
 
 use std::ops::{Index,IndexMut};
 
-use cerboy::types::*;
+use cerboy::bits::*;
 use cerboy::io::init_rom;
+use cerboy::types::*;
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //
@@ -86,9 +87,6 @@ const TICKS_PER_DIV_INC: u64 = 256;
 
 // tile constants
 const BYTES_PER_TILE: u16 = 16;
-
-const HIGH_MASK: Word = 0xFF00;
-const LOW_MASK: Word = 0x00FF;
 
 // interrupt flags
 const FL_INT_VBLANK: Byte = 1 << 0;
@@ -315,20 +313,6 @@ fn init_mem() -> Memory {
     mem[WX] = 0x00;
     mem[IE] = 0x00;
     mem
-}
-
-const fn hi(reg: Word) -> Byte {
-    (reg >> Byte::BITS) as Byte
-}
-const fn lo(reg: Word) -> Byte {
-    (reg & LOW_MASK) as Byte
-}
-const fn combine(high: Byte, low: Byte) -> Word {
-    (high as Word) << Byte::BITS | (low as Word)
-}
-// can't be const for some reason https://github.com/rust-lang/rust/issues/53605
-fn signed(val: Byte) -> SByte {
-    unsafe { std::mem::transmute(val) }
 }
 
 // GMB 8bit-Loadcommands

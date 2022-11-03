@@ -360,3 +360,27 @@ pub mod io {
         rom
     }
 }
+
+pub mod bits {
+    use crate::types::{Byte,Word,SByte};
+
+    pub const HIGH_MASK: Word = 0xFF00;
+    pub const LOW_MASK: Word = 0x00FF;
+
+    pub const fn hi(reg: Word) -> Byte {
+        (reg >> Byte::BITS) as Byte
+    }
+    
+    pub const fn lo(reg: Word) -> Byte {
+        (reg & LOW_MASK) as Byte
+    }
+    
+    pub const fn combine(high: Byte, low: Byte) -> Word {
+        (high as Word) << Byte::BITS | (low as Word)
+    }
+
+    // can't be const for some reason https://github.com/rust-lang/rust/issues/53605
+    pub fn signed(val: Byte) -> SByte {
+        unsafe { std::mem::transmute(val) }
+    }
+}

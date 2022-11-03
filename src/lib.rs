@@ -331,3 +331,24 @@ pub mod decode {
         }
     }
 }
+
+pub mod io {
+    use crate::types::Byte;
+    use std::io::Read;
+
+    pub fn init_rom(path: &str) -> Vec<Byte> {
+        let mut file = match std::fs::File::open(&path) {
+            Ok(file) => file,
+            Err(file) => panic!("failed to open {}", file),
+        };
+        let info = file.metadata().expect("failed to read file info");
+
+        // todo: not sure if I actually want this but it made clippy happy
+        // consider instead #[allow(clippy::unused_io_amount)]
+        let mut rom: Vec<Byte> = vec![0; info.len() as usize];
+        file.read_exact(&mut rom)
+            .expect("failed to read file into memory");
+
+        rom
+    }
+}

@@ -8,10 +8,10 @@ use minifb::{Key, Window, WindowOptions};
 
 extern crate env_logger;
 
-use std::io::Read;
 use std::ops::{Index,IndexMut};
 
 use cerboy::types::*;
+use cerboy::io::init_rom;
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //
@@ -315,22 +315,6 @@ fn init_mem() -> Memory {
     mem[WX] = 0x00;
     mem[IE] = 0x00;
     mem
-}
-
-fn init_rom(path: &str) -> Vec<Byte> {
-    let mut file = match std::fs::File::open(&path) {
-        Ok(file) => file,
-        Err(file) => panic!("failed to open {}", file),
-    };
-    let info = file.metadata().expect("failed to read file info");
-
-    // todo: not sure if I actually want this but it made clippy happy
-    // consider instead #[allow(clippy::unused_io_amount)]
-    let mut rom: Vec<Byte> = vec![0; info.len() as usize];
-    file.read_exact(&mut rom)
-        .expect("failed to read file into memory");
-
-    rom
 }
 
 const fn hi(reg: Word) -> Byte {

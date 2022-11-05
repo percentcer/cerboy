@@ -138,7 +138,7 @@ pub mod decode {
                     },
                     1 => Instruction {
                         mnm: format!("ADD HL, {_RP_p}"),
-                        len: 2,
+                        len: 1,
                     },
                     _ => Instruction::new(INVALID, 0),
                 },

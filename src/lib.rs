@@ -325,7 +325,7 @@ pub mod decode {
         }
 
         #[test]
-        fn test_rot() {
+        fn test_reg_b() {
             assert_eq!(decodeCB(0x00), Instruction::new("RLC B", 1));
             assert_eq!(decodeCB(0x10), Instruction::new("RL B", 1));
             assert_eq!(decodeCB(0x20), Instruction::new("SLA B", 1));

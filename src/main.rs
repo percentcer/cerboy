@@ -1279,7 +1279,18 @@ const fn dec_a(cpu: CPUState) -> CPUState {
 
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
 //   daa              27         4 z-0x decimal adjust akku
+
 //   cpl              2F         4 -11- A = A xor FF
+// ----------------------------------------------------------------------------
+const fn cpl(cpu: CPUState) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[REG_A] = reg[REG_A] ^ 0xFF;
+    reg[FLAGS] = (reg[FLAGS] & FL_Z) | FL_N | FL_H | (reg[FLAGS] & FL_C);
+    CPUState {
+        reg,
+        ..cpu
+    }.adv_pc(1).tick(4)
+}
 
 // GMB 16bit-Arithmetic/logical Commands
 // ============================================================================
@@ -1781,12 +1792,12 @@ fn main() {
             0x2C => inc_l(cpu),
             0x2D => dec_l(cpu),
             0x2E => ld_l_d8(cpu, mem[pc + 1]),
-            0x2F => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x2F => cpl(cpu),
             0x30 => jr_nc_r8(cpu, signed(mem[pc + 1])),
             0x31 => ld_sp_d16(cpu, mem[pc + 1], mem[pc + 2]),
             0x32 => ldd_HL_a(cpu, &mut mem),
             0x33 => inc_sp(cpu),
-            0x34 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x34 => inc_HL(cpu, &mut mem),
             0x35 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x36 => ld_HL_d8(cpu, mem[pc + 1], &mut mem),
             0x37 => panic!("unknown instruction 0x{:X}", mem[pc]),

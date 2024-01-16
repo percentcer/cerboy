@@ -1986,7 +1986,7 @@ fn main() {
             0xE3 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE5 => push_hl(cpu, &mut mem),
-            0xE6 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE6 => and_d8(cpu, mem[pc + 1]),
             0xE7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE9 => panic!("unknown instruction 0x{:X}", mem[pc]),

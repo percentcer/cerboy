@@ -1233,6 +1233,26 @@ const fn inc_a(cpu: CPUState) -> CPUState {
 }
 
 //   inc  (HL)        34        12 z0h- (HL)=(HL)+1
+// ----------------------------------------------------------------------------
+fn inc_HL(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    let mut reg = cpu.reg;
+
+    // z0h- for inc
+    let (h, (res, _c)) = (mem[cpu.HL()] & 0x0F == 0x0F, mem[cpu.HL()].overflowing_add(1));
+    
+    let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
+    | if res == 0x00 {FL_Z} else {0}
+    | if h {FL_H} else {0};
+    reg[FLAGS] = flags;
+    
+    mem[cpu.HL()] = res;
+
+    CPUState {
+        reg,
+        ..cpu
+    }.adv_pc(1).tick(12)
+}
+
 //   dec  r           xx         4 z1h- r=r-1
 // ----------------------------------------------------------------------------
 const fn dec_b(cpu: CPUState) -> CPUState {
@@ -2322,6 +2342,33 @@ mod tests_cpu {
         mem[cpu.HL()] = 0x0F;
         assert_eq!(add_HL(cpu, &mem).reg[REG_A], 0x10);
         assert_eq!(add_HL(cpu, &mem).reg[FLAGS], FL_H);
+    }
+
+    #[test]
+    fn test_inc_HL() {
+        let mut mem = init_mem();
+        let mut cpu = CPUState {
+            reg: [0, 0, 0, 0, 0, 0x01, FL_Z | FL_N | FL_H | FL_C, 0x01],
+            ..INITIAL
+        };
+        
+        let initial:Byte = 0x0E;
+        mem[cpu.HL()] = initial;
+        cpu = inc_HL(cpu, &mut mem);
+
+        assert_eq!(mem[cpu.HL()], initial+1);
+        assert_eq!(cpu.reg[FLAGS], FL_C); // FL_C remains untouched by this operation
+
+        // increment again, this time 0x0F should half-carry into 0x10
+        cpu = inc_HL(cpu, &mut mem);
+        assert_eq!(mem[cpu.HL()], initial+2);
+        assert_eq!(cpu.reg[FLAGS], FL_H | FL_C); // FL_H from half-carry
+
+        // reset value to 0xFF, confirm we get a FL_Z flag on overflow
+        mem[cpu.HL()] = 0xFF;
+        cpu = inc_HL(cpu, &mut mem);
+        assert_eq!(mem[cpu.HL()], 0);
+        assert_eq!(cpu.reg[FLAGS], FL_Z | FL_H | FL_C); // todo: should FL_H get set here? it does! but should it?
     }
 
     #[test]

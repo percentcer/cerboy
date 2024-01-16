@@ -763,6 +763,40 @@ const fn impl_ld_rr_d16(
     CPUState { reg, ..cpu }
 }
 
+fn impl_push_rr(
+    cpu: CPUState,
+    mem: &mut Memory,
+    reg_high: usize,
+    reg_low: usize,
+) -> CPUState {
+    mem[cpu.sp - 1] = cpu.reg[reg_high];
+    mem[cpu.sp - 2] = cpu.reg[reg_low];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 16,
+        sp: cpu.sp - 2,
+        ..cpu
+    }
+}
+
+fn impl_pop_rr(
+    cpu: CPUState,
+    mem: &Memory,
+    reg_high: usize,
+    reg_low: usize,
+) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[reg_high] = mem[cpu.sp + 1];
+    reg[reg_low] = mem[cpu.sp];
+    CPUState {
+        pc: cpu.pc + 1,
+        tsc: cpu.tsc + 12,
+        sp: cpu.sp + 2,
+        reg,
+        ..cpu
+    }
+}
+
 //   ld   rr,nn       x1 nn nn  12 ---- rr=nn (rr may be BC,DE,HL or SP)
 // ----------------------------------------------------------------------------
 const fn ld_bc_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
@@ -792,31 +826,17 @@ const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   ld   SP,HL       F9         8 ---- SP=HL
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
-fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState {
-    mem[cpu.sp - 1] = cpu.reg[REG_B];
-    mem[cpu.sp - 2] = cpu.reg[REG_C];
-    CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 16,
-        sp: cpu.sp - 2,
-        ..cpu
-    }
-}
+fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState { impl_push_rr(cpu, mem, REG_B, REG_C) }
+fn push_de(cpu: CPUState, mem: &mut Memory) -> CPUState { impl_push_rr(cpu, mem, REG_D, REG_E) }
+fn push_hl(cpu: CPUState, mem: &mut Memory) -> CPUState { impl_push_rr(cpu, mem, REG_H, REG_L) }
+fn push_af(cpu: CPUState, mem: &mut Memory) -> CPUState { impl_push_rr(cpu, mem, REG_A, FLAGS) }
 
 //   pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
-fn pop_bc(cpu: CPUState, mem: &Memory) -> CPUState {
-    let mut reg = cpu.reg;
-    reg[REG_B] = mem[cpu.sp + 1];
-    reg[REG_C] = mem[cpu.sp];
-    CPUState {
-        pc: cpu.pc + 1,
-        tsc: cpu.tsc + 12,
-        sp: cpu.sp + 2,
-        reg,
-        ..cpu
-    }
-}
+fn pop_bc(cpu: CPUState, mem: &Memory) -> CPUState { impl_pop_rr(cpu, mem, REG_B, REG_C) }
+fn pop_de(cpu: CPUState, mem: &Memory) -> CPUState { impl_pop_rr(cpu, mem, REG_D, REG_E) }
+fn pop_hl(cpu: CPUState, mem: &Memory) -> CPUState { impl_pop_rr(cpu, mem, REG_H, REG_L) }
+fn pop_af(cpu: CPUState, mem: &Memory) -> CPUState { impl_pop_rr(cpu, mem, REG_A, FLAGS) } // note that this one writes to flags
 
 // GMB 8bit-Arithmetic/logical Commands
 // ============================================================================
@@ -1914,11 +1934,11 @@ fn main() {
             0xCE => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCF => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD0 => ret_nc(cpu, &mem),
-            0xD1 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD1 => pop_de(cpu, &mem),
             0xD2 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD3 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD4 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xD5 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD5 => push_de(cpu, &mut mem),
             0xD6 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD8 => ret_c(cpu, &mem),
@@ -1930,11 +1950,11 @@ fn main() {
             0xDE => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDF => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE0 => ld_FF00_A8_a(mem[pc + 1], cpu, &mut mem),
-            0xE1 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE1 => pop_hl(cpu, &mem),
             0xE2 => ld_FF00_C_a(cpu, &mut mem),
             0xE3 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE4 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xE5 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE5 => push_hl(cpu, &mut mem),
             0xE6 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE8 => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1946,11 +1966,11 @@ fn main() {
             0xEE => xor_d8(cpu, mem[pc + 1]),
             0xEF => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF0 => ld_a_FF00_A8(cpu, &mem, mem[pc + 1]),
-            0xF1 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xF1 => pop_af(cpu, &mem),
             0xF2 => ld_a_FF00_C(cpu, &mem),
             0xF3 => di(cpu),
             0xF4 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xF5 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xF5 => push_af(cpu, &mut mem),
             0xF6 => or_d8(cpu, mem[pc + 1]),
             0xF7 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF8 => panic!("unknown instruction 0x{:X}", mem[pc]),

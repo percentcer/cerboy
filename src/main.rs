@@ -8,7 +8,7 @@ use minifb::{Key, Window, WindowOptions};
 
 extern crate env_logger;
 
-use std::ops::{Index,IndexMut};
+use std::ops::{Index, IndexMut};
 
 use cerboy::bits::*;
 use cerboy::io::init_rom;
@@ -64,9 +64,9 @@ const MEM_SIZE: usize = 0xFFFF + 1;
 const PAL_CLASSIC: [u32; 4] = [0xE0F8D0, 0x88C070, 0x346856, 0x081820];
 const PAL_ICE_CREAM: [u32; 4] = [0xFFF6D3, 0xF9A875, 0xEB6B6F, 0x7C3F58];
 
-fn palette_lookup(color: Byte, plt: Byte, lut: &[u32;4]) -> u32 {
+fn palette_lookup(color: Byte, plt: Byte, lut: &[u32; 4]) -> u32 {
     let idx = match color & 0b11 {
-        0b00 => (plt & 0b11),                   // white
+        0b00 => plt & 0b11,                     // white
         0b01 => (plt & (0b11 << 2)) >> 2,       // light
         0b10 => (plt & (0b11 << 4)) >> 4,       // dark
         0b11 => (plt & (0b11 << 6)) >> 6,       // black
@@ -155,7 +155,7 @@ const IF: Word = 0xFF0F;
 const IE: Word = 0xFFFF;
 
 struct Memory([Byte; MEM_SIZE]);
-impl const Index<Word> for Memory {
+impl Index<Word> for Memory {
     type Output = Byte;
 
     fn index(&self, index: Word) -> &Self::Output {
@@ -167,9 +167,9 @@ impl IndexMut<Word> for Memory {
         match index {
             DMA => println!("write DMA"),
             LCDC => println!("write LCDC"),
-            _ => ()
+            _ => (),
         }
-        
+
         &mut self.0[index as usize]
     }
 }
@@ -510,7 +510,7 @@ const fn ld_a_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   ld   r,(HL)      xx         8 ---- r=(HL)
 // ----------------------------------------------------------------------------
-const fn ld_b_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ld_b_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ld_r_d8(cpu, REG_B, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 fn ld_c_HL(cpu: CPUState, mem: &Memory) -> CPUState {
@@ -564,7 +564,7 @@ fn ld_HL_d8(cpu: CPUState, val: Byte, mem: &mut Memory) -> CPUState {
 
 //   ld   A,(BC)      0A         8 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_BC(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ld_a_BC(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[combine(reg[REG_B], reg[REG_C])];
     CPUState {
@@ -577,7 +577,7 @@ const fn ld_a_BC(cpu: CPUState, mem: &Memory) -> CPUState {
 
 //   ld   A,(DE)      1A         8 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_DE(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ld_a_DE(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[combine(reg[REG_D], reg[REG_E])];
     CPUState {
@@ -590,7 +590,7 @@ const fn ld_a_DE(cpu: CPUState, mem: &Memory) -> CPUState {
 
 //   ld   A,(nn)      FA nn nn        16 ----
 // ----------------------------------------------------------------------------
-const fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &Memory) -> CPUState {
+fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
     reg[REG_A] = mem[combine(high, low)];
     CPUState {
@@ -638,9 +638,9 @@ fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState 
 
 //   ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
-const fn ld_a_FF00_A8(cpu: CPUState, mem: &Memory, off: Byte) -> CPUState {
+fn ld_a_FF00_A8(cpu: CPUState, mem: &Memory, off: Byte) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(MEM_IO_PORTS + off as Word)];
+    reg[REG_A] = mem[MEM_IO_PORTS + off as Word];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -652,7 +652,7 @@ const fn ld_a_FF00_A8(cpu: CPUState, mem: &Memory, off: Byte) -> CPUState {
 //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
 // ----------------------------------------------------------------------------
 fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
-    mem[(MEM_IO_PORTS + off as Word)] = cpu.reg[REG_A];
+    mem[MEM_IO_PORTS + off as Word] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 2,
         tsc: cpu.tsc + 12,
@@ -662,9 +662,9 @@ fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
 
 //   ld   A,(FF00+C)  F2         8 ---- read from io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
-const fn ld_a_FF00_C(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ld_a_FF00_C(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_A] = mem[(MEM_IO_PORTS + reg[REG_C] as Word)];
+    reg[REG_A] = mem[MEM_IO_PORTS + reg[REG_C] as Word];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -676,7 +676,7 @@ const fn ld_a_FF00_C(cpu: CPUState, mem: &Memory) -> CPUState {
 //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
 // ----------------------------------------------------------------------------
 fn ld_FF00_C_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
-    mem[(MEM_IO_PORTS + cpu.reg[REG_C] as Word)] = cpu.reg[REG_A];
+    mem[MEM_IO_PORTS + cpu.reg[REG_C] as Word] = cpu.reg[REG_A];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 8,
@@ -793,8 +793,8 @@ const fn ld_sp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
 fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState {
-    mem[(cpu.sp - 1)] = cpu.reg[REG_B];
-    mem[(cpu.sp - 2)] = cpu.reg[REG_C];
+    mem[cpu.sp - 1] = cpu.reg[REG_B];
+    mem[cpu.sp - 2] = cpu.reg[REG_C];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 16,
@@ -805,10 +805,10 @@ fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState {
 
 //   pop  rr          x1        12 (AF) rr=(SP)  SP=SP+2   (rr may be BC,DE,HL,AF)
 // ----------------------------------------------------------------------------
-const fn pop_bc(cpu: CPUState, mem: &Memory) -> CPUState {
+fn pop_bc(cpu: CPUState, mem: &Memory) -> CPUState {
     let mut reg = cpu.reg;
-    reg[REG_B] = mem[(cpu.sp + 1)];
-    reg[REG_C] = mem[(cpu.sp)];
+    reg[REG_B] = mem[cpu.sp + 1];
+    reg[REG_C] = mem[cpu.sp];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
@@ -964,7 +964,7 @@ const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   add  A,(HL)      86         8 z0hc A=A+(HL)
 // ----------------------------------------------------------------------------
-const fn add_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn add_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_add(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1000,7 +1000,7 @@ const fn adc_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   adc  A,(HL)      8E         8 z0hc A=A+(HL)+cy
 // ----------------------------------------------------------------------------
-const fn adc_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn adc_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_adc(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1036,7 +1036,7 @@ const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   sub  (HL)        96         8 z1hc A=A-(HL)
 // ----------------------------------------------------------------------------
-const fn sub_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn sub_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_sub(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1076,7 +1076,7 @@ const fn and_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   and  (HL)        A6         8 z010 A=A & (HL)
 // ----------------------------------------------------------------------------
-const fn and_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn and_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_and(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1112,7 +1112,7 @@ const fn xor_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   xor  (HL)        AE         8 z000
 // ----------------------------------------------------------------------------
-const fn xor_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn xor_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_xor(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1148,7 +1148,7 @@ const fn or_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   or   (HL)        B6         8 z000 A=A | (HL)
 // ----------------------------------------------------------------------------
-const fn or_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn or_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_or(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1184,7 +1184,7 @@ const fn cp_d8(cpu: CPUState, d8: Byte) -> CPUState {
 
 //   cp   (HL)        BE         8 z1hc compare A-(HL)
 // ----------------------------------------------------------------------------
-const fn cp_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+fn cp_HL(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_cp(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
 }
 
@@ -1503,9 +1503,9 @@ fn call_d16(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState 
 
 //   ret            C9          16 ---- return, PC=(SP), SP=SP+2
 // ----------------------------------------------------------------------------
-const fn ret(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ret(cpu: CPUState, mem: &Memory) -> CPUState {
     CPUState {
-        pc: combine(mem[(cpu.sp + 2)], mem[(cpu.sp + 1)]),
+        pc: combine(mem[cpu.sp + 2], mem[cpu.sp + 1]),
         tsc: cpu.tsc + 16,
         sp: cpu.sp + 2,
         ..cpu
@@ -1514,7 +1514,7 @@ const fn ret(cpu: CPUState, mem: &Memory) -> CPUState {
 
 //   ret  f         xx        20;8 ---- conditional return if nz,z,nc,c
 // ----------------------------------------------------------------------------
-const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &Memory) -> CPUState {
+fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &Memory) -> CPUState {
     if condition {
         ret(cpu, mem).tick(4)
     } else {
@@ -1525,22 +1525,22 @@ const fn impl_ret_conditional(condition: bool, cpu: CPUState, mem: &Memory) -> C
         }
     }
 }
-const fn ret_nz(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ret_nz(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_Z == 0, cpu, mem)
 }
-const fn ret_z(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ret_z(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_Z != 0, cpu, mem)
 }
-const fn ret_nc(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ret_nc(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_C == 0, cpu, mem)
 }
-const fn ret_c(cpu: CPUState, mem: &Memory) -> CPUState {
+fn ret_c(cpu: CPUState, mem: &Memory) -> CPUState {
     impl_ret_conditional(cpu.reg[FLAGS] & FL_C != 0, cpu, mem)
 }
 
 //   reti           D9          16 ---- return and enable interrupts (IME=1)
 // ----------------------------------------------------------------------------
-const fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
+fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
     CPUState {
         ime: true,
         // except for the ime change, reti is identical to ret
@@ -1556,8 +1556,8 @@ const fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
 fn handle_int(cpu: CPUState, mem: &mut Memory, fl_int: Byte, vec_int: Word) -> CPUState {
     mem[IF] &= !fl_int; // acknowledge the request flag (set to 0)
                         // push current position to stack to prepare for jump
-    mem[(cpu.sp - 0)] = hi(cpu.pc);
-    mem[(cpu.sp - 1)] = lo(cpu.pc);
+    mem[cpu.sp - 0] = hi(cpu.pc);
+    mem[cpu.sp - 1] = lo(cpu.pc);
 
     CPUState {
         ime: mem[IF] != 0, // only lock the ime if we're handling the final request
@@ -1598,11 +1598,11 @@ fn tima_reset(mem: &mut Memory) {
     mem[TIMA] = mem[TMA];
 }
 
-const fn tac_enabled(mem: &Memory) -> bool {
+fn tac_enabled(mem: &Memory) -> bool {
     mem[TAC] & 0b100 > 0
 }
 
-const fn tac_cycles_per_inc(mem: &Memory) -> Result<u64, &'static str> {
+fn tac_cycles_per_inc(mem: &Memory) -> Result<u64, &'static str> {
     match mem[TAC] & 0b11 {
         0b00 => Ok(1024),
         0b01 => Ok(16),
@@ -1612,7 +1612,7 @@ const fn tac_cycles_per_inc(mem: &Memory) -> Result<u64, &'static str> {
     }
 }
 
-const fn lcd_mode(mem: &Memory) -> Byte {
+fn lcd_mode(mem: &Memory) -> Byte {
     mem[STAT] & 0b11
 }
 
@@ -2001,7 +2001,7 @@ fn main() {
                     };
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;
-                    
+
                     // todo: removeme: for fun
                     // mem[SCX] = (f32::sin((mem[LY] as f32) * 0.1f32 + (cpu.tsc as f32)*0.000001f32)*5f32).trunc() as Byte;
 
@@ -2033,7 +2033,7 @@ fn main() {
                     // FE00-FE9F   Sprite Attribute Table (OAM)
                     // -------------------------------------------
                     // for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
-                        // oijf
+                    // oijf
                     // }
 
                     // draw window
@@ -2071,13 +2071,25 @@ fn main() {
                     window
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
-        
+
                     // print LCDC diagnostics
                     let lcdc_7 = if bit(7, mem[LCDC]) { " on" } else { "off" };
-                    let lcdc_6 = if bit(6, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_6 = if bit(6, mem[LCDC]) {
+                        "0x9C00"
+                    } else {
+                        "0x9800"
+                    };
                     let lcdc_5 = if bit(5, mem[LCDC]) { " on" } else { "off" };
-                    let lcdc_4 = if bit(4, mem[LCDC]) { "0x8000" } else { "0x8800" };
-                    let lcdc_3 = if bit(3, mem[LCDC]) { "0x9C00" } else { "0x9800" };
+                    let lcdc_4 = if bit(4, mem[LCDC]) {
+                        "0x8000"
+                    } else {
+                        "0x8800"
+                    };
+                    let lcdc_3 = if bit(3, mem[LCDC]) {
+                        "0x9C00"
+                    } else {
+                        "0x9800"
+                    };
                     let lcdc_2 = if bit(2, mem[LCDC]) { "16" } else { " 8" };
                     let lcdc_1 = if bit(1, mem[LCDC]) { " on" } else { "off" };
                     let lcdc_0 = if bit(0, mem[LCDC]) { " on" } else { "off" };
@@ -2297,12 +2309,12 @@ mod tests_cpu {
         let mut mem = init_mem();
         let result = call_d16(0x01, 0x02, INITIAL, &mut mem);
         assert_eq!(
-            mem[(INITIAL.sp - 0)],
+            mem[INITIAL.sp - 0],
             hi(INITIAL.adv_pc(3).pc),
             "failed high check"
         );
         assert_eq!(
-            mem[(INITIAL.sp - 1)],
+            mem[INITIAL.sp - 1],
             lo(INITIAL.adv_pc(3).pc),
             "failed low check"
         );
@@ -2485,8 +2497,8 @@ mod tests_cpu {
         };
         let mut mem = init_mem();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
-        assert_eq!(mem[(cpu.sp - 1)], cpu.reg[REG_B]);
-        assert_eq!(mem[(cpu.sp - 2)], cpu.reg[REG_C]);
+        assert_eq!(mem[cpu.sp - 1], cpu.reg[REG_B]);
+        assert_eq!(mem[cpu.sp - 2], cpu.reg[REG_C]);
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use cerboy::io::init_rom;
-use cerboy::types::{Byte, Instruction};
+use cerboy::types::{Byte, Instruction, InstructionCB};
 use cerboy::decode::{decode, decodeCB};
 
 fn main() {
@@ -44,8 +44,9 @@ fn main() {
         let argc = inst.len as usize;
         if inst.prefix() {
             i += 1; // (all cb instructions are 1 byte for the prefix and 1 byte for the opcode)
-            let cb: Instruction = decodeCB(rom[i]);
-            println!("{}", cb.mnm);
+            let cb: InstructionCB = decodeCB(rom[i]);
+            let cbinst: Instruction = Instruction::from_cb(&cb);
+            println!("{}", cbinst.mnm);
         } else {
             match argc {
                 1 => println!("{}", inst.mnm),

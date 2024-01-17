@@ -25,11 +25,28 @@ pub mod types {
         pub mnm: String,
         pub len: u8, // bytes to read
     }
+    #[derive(PartialEq, Debug)]
+    pub struct InstructionCB {
+        pub opcode: &'static str,
+        pub bit: u8,
+        pub reg: usize,
+    }
     impl Instruction {
         pub fn new(text: &str, len: u8) -> Self {
             Self {
                 mnm: String::from(text),
                 len,
+            }
+        }
+
+        pub fn from_cb(icb: &InstructionCB) -> Self {
+            Self {
+                mnm: if icb.bit < 0xff {
+                    format!("{} {}, {}", icb.opcode, icb.bit, crate::decode::R[icb.reg])
+                } else {
+                    format!("{}, {}", icb.opcode, crate::decode::R[icb.reg])
+                },
+                len: 1
             }
         }
 
@@ -52,13 +69,18 @@ pub mod types {
 }
 
 pub mod decode {
-    use crate::types::{Byte, Instruction};
+    use crate::types::{Byte, Instruction, InstructionCB};
+    use crate::types::{REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, REG_A};
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
     // https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
 
-    // arg tables
-    const R: [&'static str; 8] = ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
+    // used for CB decoding, some bit functions reference (HL) instead of a register
+    pub const ADR_HL: usize = 6;
+    const R_ID: [usize; 8] = [REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, ADR_HL, REG_A];
+
+    // arg tables for printing mnemonics
+    pub const R: [&'static str; 8] = ["B", "C", "D", "E", "H", "L", "(HL)", "A"];
     const RP: [&'static str; 4] = ["BC", "DE", "HL", "SP"];
     const RP2: [&'static str; 4] = ["BC", "DE", "HL", "AF"];
     const CC: [&'static str; 4] = ["NZ", "Z", "NC", "C"];
@@ -286,28 +308,41 @@ pub mod decode {
     }
 
     #[allow(non_snake_case)]
-    pub fn decodeCB(op: Byte) -> Instruction {
+    pub fn decodeCB(op: Byte) -> InstructionCB {
         let _ROT_y = ROT[y(op) as usize];
-        let _R_z = R[z(op) as usize];
+        let _R_z = R_ID[z(op) as usize];
         let _y = y(op);
         match x(op) {
-            0 => Instruction {
-                mnm: format!("{_ROT_y} {_R_z}"),
-                len: 1,
+            0 => InstructionCB 
+            {
+                // mnm: format!("{_ROT_y} {_R_z}"),
+                opcode: _ROT_y,
+                bit: 0xFF,
+                reg: _R_z,
             },
-            1 => Instruction {
-                mnm: format!("BIT {_y}, {_R_z}"),
-                len: 1,
+            1 => InstructionCB {
+                // mnm: format!("BIT {_y}, {_R_z}"),
+                opcode: "BIT",
+                bit: _y,
+                reg: _R_z,
             },
-            2 => Instruction {
-                mnm: format!("RES {_y}, {_R_z}"),
-                len: 1,
+            2 => InstructionCB {
+                // mnm: format!("RES {_y}, {_R_z}"),
+                opcode: "RES",
+                bit: _y,
+                reg: _R_z,
             },
-            3 => Instruction {
-                mnm: format!("SET {_y}, {_R_z}"),
-                len: 1,
+            3 => InstructionCB {
+                // mnm: format!("SET {_y}, {_R_z}"),
+                opcode: "SET",
+                bit: _y,
+                reg: _R_z,
             },
-            _ => Instruction::new(INVALID, 0),
+            _ => InstructionCB {
+                opcode: "INVALID",
+                bit: 0xFF,
+                reg: usize::max_value(),
+            },
         }
     }
 
@@ -326,22 +361,22 @@ pub mod decode {
 
         #[test]
         fn test_reg_b() {
-            assert_eq!(decodeCB(0x00), Instruction::new("RLC B", 1));
-            assert_eq!(decodeCB(0x10), Instruction::new("RL B", 1));
-            assert_eq!(decodeCB(0x20), Instruction::new("SLA B", 1));
-            assert_eq!(decodeCB(0x30), Instruction::new("SWAP B", 1));
-            assert_eq!(decodeCB(0x40), Instruction::new("BIT 0, B", 1));
-            assert_eq!(decodeCB(0x50), Instruction::new("BIT 2, B", 1));
-            assert_eq!(decodeCB(0x60), Instruction::new("BIT 4, B", 1));
-            assert_eq!(decodeCB(0x70), Instruction::new("BIT 6, B", 1));
-            assert_eq!(decodeCB(0x80), Instruction::new("RES 0, B", 1));
-            assert_eq!(decodeCB(0x90), Instruction::new("RES 2, B", 1));
-            assert_eq!(decodeCB(0xA0), Instruction::new("RES 4, B", 1));
-            assert_eq!(decodeCB(0xB0), Instruction::new("RES 6, B", 1));
-            assert_eq!(decodeCB(0xC0), Instruction::new("SET 0, B", 1));
-            assert_eq!(decodeCB(0xD0), Instruction::new("SET 2, B", 1));
-            assert_eq!(decodeCB(0xE0), Instruction::new("SET 4, B", 1));
-            assert_eq!(decodeCB(0xF0), Instruction::new("SET 6, B", 1));
+            assert_eq!(decodeCB(0x00), InstructionCB{opcode:"RLC",  bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x10), InstructionCB{opcode:"RL",   bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x20), InstructionCB{opcode:"SLA",  bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x30), InstructionCB{opcode:"SWAP", bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x40), InstructionCB{opcode:"BIT",  bit: 0,    reg: REG_B});
+            assert_eq!(decodeCB(0x50), InstructionCB{opcode:"BIT",  bit: 2,    reg: REG_B});
+            assert_eq!(decodeCB(0x60), InstructionCB{opcode:"BIT",  bit: 4,    reg: REG_B});
+            assert_eq!(decodeCB(0x70), InstructionCB{opcode:"BIT",  bit: 6,    reg: REG_B});
+            assert_eq!(decodeCB(0x80), InstructionCB{opcode:"RES",  bit: 0,    reg: REG_B});
+            assert_eq!(decodeCB(0x90), InstructionCB{opcode:"RES",  bit: 2,    reg: REG_B});
+            assert_eq!(decodeCB(0xA0), InstructionCB{opcode:"RES",  bit: 4,    reg: REG_B});
+            assert_eq!(decodeCB(0xB0), InstructionCB{opcode:"RES",  bit: 6,    reg: REG_B});
+            assert_eq!(decodeCB(0xC0), InstructionCB{opcode:"SET",  bit: 0,    reg: REG_B});
+            assert_eq!(decodeCB(0xD0), InstructionCB{opcode:"SET",  bit: 2,    reg: REG_B});
+            assert_eq!(decodeCB(0xE0), InstructionCB{opcode:"SET",  bit: 4,    reg: REG_B});
+            assert_eq!(decodeCB(0xF0), InstructionCB{opcode:"SET",  bit: 6,    reg: REG_B});
         }
     }
 }

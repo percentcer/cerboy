@@ -64,6 +64,7 @@ const MEM_SIZE: usize = 0xFFFF + 1;
 // classic gameboy only has four shades, white (00), light (01), dark (10), black (11)
 const PAL_CLASSIC: [u32; 4] = [0xE0F8D0, 0x88C070, 0x346856, 0x081820];
 const PAL_ICE_CREAM: [u32; 4] = [0xFFF6D3, 0xF9A875, 0xEB6B6F, 0x7C3F58];
+const PAL_VBOY: [u32; 4] = [0xEF0000, 0xA40000, 0x550000, 0x000000];
 
 fn palette_lookup(color: Byte, plt: Byte, lut: &[u32; 4]) -> u32 {
     let idx = match color & 0b11 {
@@ -2121,7 +2122,7 @@ fn main() {
                         let bg_tile_low_value =
                             (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
                         let bg_tile_pixel_color_id = bg_tile_high_value | bg_tile_low_value;
-                        *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_CLASSIC);
+                        *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_VBOY);
                     }
 
                     // draw sprites

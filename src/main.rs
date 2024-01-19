@@ -207,6 +207,14 @@ impl CPUState {
     const fn HL(&self) -> Word {
         combine(self.reg[REG_H], self.reg[REG_L])
     }
+    /// Combines the B and C registers for 16b operations
+    const fn BC(&self) -> Word {
+        combine(self.reg[REG_B], self.reg[REG_C])
+    }
+    /// Combines the D and E registers for 16b operations
+    const fn DE(&self) -> Word {
+        combine(self.reg[REG_D], self.reg[REG_E])
+    }
 
     /// Advance the program counter
     ///

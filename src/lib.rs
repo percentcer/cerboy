@@ -424,6 +424,8 @@ pub mod bits {
 
     pub const HIGH_MASK: Word = 0xFF00;
     pub const LOW_MASK: Word = 0x00FF;
+    pub const HIGH_MASK_NIB: Byte = 0xF0;
+    pub const LOW_MASK_NIB: Byte = 0x0F;
 
     pub const fn hi(reg: Word) -> Byte {
         (reg >> Byte::BITS) as Byte
@@ -435,6 +437,30 @@ pub mod bits {
     
     pub const fn combine(high: Byte, low: Byte) -> Word {
         (high as Word) << Byte::BITS | (low as Word)
+    }
+
+    pub const fn fl_z(val: Byte) -> Byte
+    {
+        if val == 0 {crate::types::FL_Z} else {0}
+    }
+
+    pub const fn test(val: Byte, bit: Byte) -> Byte 
+    {
+        (val & (1 << bit)) >> bit
+    }
+    
+    #[test]
+    fn test_bit_test()
+    {
+        let x: Byte = 0b00000101;
+        assert_eq!(test(x, 7), 0);
+        assert_eq!(test(x, 6), 0);
+        assert_eq!(test(x, 5), 0);
+        assert_eq!(test(x, 4), 0);
+        assert_eq!(test(x, 3), 0);
+        assert_eq!(test(x, 2), 1);
+        assert_eq!(test(x, 1), 0);
+        assert_eq!(test(x, 0), 1);
     }
 
     // can't be const for some reason https://github.com/rust-lang/rust/issues/53605

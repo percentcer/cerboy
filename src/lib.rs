@@ -20,6 +20,16 @@ pub mod types {
     pub const FL_H: Byte = 1 << 5;
     pub const FL_C: Byte = 1 << 4;
 
+    // bit masks
+    pub const BIT_0: Byte = 1 << 0;
+    pub const BIT_1: Byte = 1 << 1;
+    pub const BIT_2: Byte = 1 << 2;
+    pub const BIT_3: Byte = 1 << 3;
+    pub const BIT_4: Byte = 1 << 4;
+    pub const BIT_5: Byte = 1 << 5;
+    pub const BIT_6: Byte = 1 << 6;
+    pub const BIT_7: Byte = 1 << 7;
+
     #[derive(PartialEq, Debug)]
     pub struct Instruction {
         pub mnm: String,

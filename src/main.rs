@@ -1611,6 +1611,22 @@ fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
 }
 
 //   rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
+// ----------------------------------------------------------------------------
+fn rst_n(cpu: CPUState, mem: &mut Memory, opcode: Byte) -> CPUState {
+    let cpu = cpu.adv_pc(1).tick(16);
+
+    let vst_hi = (opcode & HIGH_MASK_NIB) - 0xC0;
+    let vst_lo = opcode & 0x08;
+    let vst_addr = vst_hi | vst_lo;
+
+    mem[cpu.sp - 0] = hi(cpu.pc);
+    mem[cpu.sp - 1] = lo(cpu.pc);
+    CPUState {
+        sp: cpu.sp - 2,
+        pc: vst_addr as Word,
+        ..cpu
+    }.tick(16)
+}
 
 // ============================================================================
 // interrupts
@@ -1955,7 +1971,7 @@ fn main() {
             0xC4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xC5 => push_bc(cpu, &mut mem),
             0xC6 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xC7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xC7 => rst_n(cpu, &mut mem, 0xC7),
             0xC8 => ret_z(cpu, &mem),
             0xC9 => ret(cpu, &mem),
             0xCA => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1991,7 +2007,7 @@ fn main() {
             0xCC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCD => call_d16(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
             0xCE => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xCF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xCF => rst_n(cpu, &mut mem, 0xCF),
             0xD0 => ret_nc(cpu, &mem),
             0xD1 => pop_de(cpu, &mem),
             0xD2 => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1999,7 +2015,7 @@ fn main() {
             0xD4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD5 => push_de(cpu, &mut mem),
             0xD6 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xD7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD7 => rst_n(cpu, &mut mem, 0xD7),
             0xD8 => ret_c(cpu, &mem),
             0xD9 => reti(cpu, &mem),
             0xDA => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -2007,7 +2023,7 @@ fn main() {
             0xDC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDD => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDE => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xDF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xDF => rst_n(cpu, &mut mem, 0xDF),
             0xE0 => ld_FF00_A8_a(mem[pc + 1], cpu, &mut mem),
             0xE1 => pop_hl(cpu, &mem),
             0xE2 => ld_FF00_C_a(cpu, &mut mem),
@@ -2015,7 +2031,7 @@ fn main() {
             0xE4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE5 => push_hl(cpu, &mut mem),
             0xE6 => and_d8(cpu, mem[pc + 1]),
-            0xE7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE7 => rst_n(cpu, &mut mem, 0xE7),
             0xE8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE9 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEA => ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
@@ -2023,7 +2039,7 @@ fn main() {
             0xEC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xED => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEE => xor_d8(cpu, mem[pc + 1]),
-            0xEF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xEF => rst_n(cpu, &mut mem, 0xEF),
             0xF0 => ld_a_FF00_A8(cpu, &mem, mem[pc + 1]),
             0xF1 => pop_af(cpu, &mem),
             0xF2 => ld_a_FF00_C(cpu, &mem),
@@ -2031,7 +2047,7 @@ fn main() {
             0xF4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF5 => push_af(cpu, &mut mem),
             0xF6 => or_d8(cpu, mem[pc + 1]),
-            0xF7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xF7 => rst_n(cpu, &mut mem, 0xF7),
             0xF8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF9 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFA => ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem),
@@ -2039,7 +2055,7 @@ fn main() {
             0xFC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFD => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFE => cp_d8(cpu, mem[pc + 1]),
-            0xFF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xFF => rst_n(cpu, &mut mem, 0xFF),
         };
         let dt_cyc = cpu.tsc - tsc_prev;
 

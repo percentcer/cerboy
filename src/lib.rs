@@ -387,6 +387,23 @@ pub mod decode {
             assert_eq!(decodeCB(0xD0), InstructionCB{opcode:"SET",  bit: 2,    reg: REG_B});
             assert_eq!(decodeCB(0xE0), InstructionCB{opcode:"SET",  bit: 4,    reg: REG_B});
             assert_eq!(decodeCB(0xF0), InstructionCB{opcode:"SET",  bit: 6,    reg: REG_B});
+            
+            assert_eq!(decodeCB(0x08), InstructionCB{opcode:"RRC",  bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x18), InstructionCB{opcode:"RR",   bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x28), InstructionCB{opcode:"SRA",  bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x38), InstructionCB{opcode:"SRL",  bit: 0xff, reg: REG_B});
+            assert_eq!(decodeCB(0x48), InstructionCB{opcode:"BIT",  bit: 1,    reg: REG_B});
+            assert_eq!(decodeCB(0x58), InstructionCB{opcode:"BIT",  bit: 3,    reg: REG_B});
+            assert_eq!(decodeCB(0x68), InstructionCB{opcode:"BIT",  bit: 5,    reg: REG_B});
+            assert_eq!(decodeCB(0x78), InstructionCB{opcode:"BIT",  bit: 7,    reg: REG_B});
+            assert_eq!(decodeCB(0x88), InstructionCB{opcode:"RES",  bit: 1,    reg: REG_B});
+            assert_eq!(decodeCB(0x98), InstructionCB{opcode:"RES",  bit: 3,    reg: REG_B});
+            assert_eq!(decodeCB(0xA8), InstructionCB{opcode:"RES",  bit: 5,    reg: REG_B});
+            assert_eq!(decodeCB(0xB8), InstructionCB{opcode:"RES",  bit: 7,    reg: REG_B});
+            assert_eq!(decodeCB(0xC8), InstructionCB{opcode:"SET",  bit: 1,    reg: REG_B});
+            assert_eq!(decodeCB(0xD8), InstructionCB{opcode:"SET",  bit: 3,    reg: REG_B});
+            assert_eq!(decodeCB(0xE8), InstructionCB{opcode:"SET",  bit: 5,    reg: REG_B});
+            assert_eq!(decodeCB(0xF8), InstructionCB{opcode:"SET",  bit: 7,    reg: REG_B});
         }
     }
 }
@@ -417,6 +434,8 @@ pub mod bits {
 
     pub const HIGH_MASK: Word = 0xFF00;
     pub const LOW_MASK: Word = 0x00FF;
+    pub const HIGH_MASK_NIB: Byte = 0xF0;
+    pub const LOW_MASK_NIB: Byte = 0x0F;
 
     pub const fn hi(reg: Word) -> Byte {
         (reg >> Byte::BITS) as Byte
@@ -428,6 +447,30 @@ pub mod bits {
     
     pub const fn combine(high: Byte, low: Byte) -> Word {
         (high as Word) << Byte::BITS | (low as Word)
+    }
+
+    pub const fn fl_z(val: Byte) -> Byte
+    {
+        if val == 0 {crate::types::FL_Z} else {0}
+    }
+
+    pub const fn test(val: Byte, bit: Byte) -> Byte 
+    {
+        (val & (1 << bit)) >> bit
+    }
+    
+    #[test]
+    fn test_bit_test()
+    {
+        let x: Byte = 0b00000101;
+        assert_eq!(test(x, 7), 0);
+        assert_eq!(test(x, 6), 0);
+        assert_eq!(test(x, 5), 0);
+        assert_eq!(test(x, 4), 0);
+        assert_eq!(test(x, 3), 0);
+        assert_eq!(test(x, 2), 1);
+        assert_eq!(test(x, 1), 0);
+        assert_eq!(test(x, 0), 1);
     }
 
     // can't be const for some reason https://github.com/rust-lang/rust/issues/53605

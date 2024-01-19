@@ -13,6 +13,7 @@ use std::ops::{Index, IndexMut};
 use cerboy::bits::*;
 use cerboy::io::init_rom;
 use cerboy::types::*;
+use cerboy::decode::decodeCB;
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //
@@ -1343,13 +1344,6 @@ const fn dec_sp(cpu: CPUState) -> CPUState {
 
 // GMB Rotate- und Shift-Commands
 // ============================================================================
-const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
-    let mut reg = cpu.reg;
-    reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
-    reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
-    // CB command, has an extra arg and extra tick
-    CPUState { reg, ..cpu }
-}
 
 //   rlca           07           4 000c rotate akku left
 // ----------------------------------------------------------------------------
@@ -1381,30 +1375,32 @@ const fn rla(cpu: CPUState) -> CPUState {
 
 //   rrca           0F           4 000c rotate akku right
 //   rra            1F           4 000c rotate akku right through carry
+
 //   rlc  r         CB 0x        8 z00c rotate left
+// ----------------------------------------------------------------------------
+const fn impl_rlc_r(cpu: CPUState, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let result = reg[dst].rotate_left(1);
+    let fl_c = if (result & 1) > 0 {FL_C} else {0};
+
+    reg[dst] = result;
+    reg[FLAGS] = fl_z(result) | fl_c;
+
+    CPUState 
+    {
+        reg,
+        ..cpu
+    }.adv_pc(2).tick(8)
+}
+
 //   rlc  (HL)      CB 06       16 z00c rotate left
 //   rl   r         CB 1x        8 z00c rotate left through carry
 // ----------------------------------------------------------------------------
-const fn rl_b(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_B).adv_pc(2).tick(8)
-}
-const fn rl_c(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_C).adv_pc(2).tick(8)
-}
-const fn rl_d(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_D).adv_pc(2).tick(8)
-}
-const fn rl_e(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_E).adv_pc(2).tick(8)
-}
-const fn rl_h(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_H).adv_pc(2).tick(8)
-}
-const fn rl_l(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_L).adv_pc(2).tick(8)
-}
-const fn rl_a(cpu: CPUState) -> CPUState {
-    impl_rl_r(cpu, REG_A).adv_pc(2).tick(8)
+const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
+    reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
+    CPUState { reg, ..cpu }.adv_pc(2).tick(8)
 }
 
 //   rl   (HL)      CB 16       16 z00c rotate left through carry
@@ -1415,6 +1411,14 @@ const fn rl_a(cpu: CPUState) -> CPUState {
 //   sla  r         CB 2x        8 z00c shift left arithmetic (b0=0)
 //   sla  (HL)      CB 26       16 z00c shift left arithmetic (b0=0)
 //   swap r         CB 3x        8 z000 exchange low/hi-nibble
+// ----------------------------------------------------------------------------
+const fn impl_swap_r(cpu: CPUState, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    reg[dst] = (reg[dst] >> 4) | (reg[dst] << 4);
+    reg[FLAGS] = fl_z(reg[dst]);
+    CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+}
+
 //   swap (HL)      CB 36       16 z000 exchange low/hi-nibble
 //   sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
 //   sra  (HL)      CB 2E       16 z00c shift right arithmetic (b7=b7)
@@ -1423,21 +1427,28 @@ const fn rl_a(cpu: CPUState) -> CPUState {
 
 // GMB Singlebit Operation Commands
 // ============================================================================
+//   bit  n,r       CB xx        8 z01- test bit n
+// ----------------------------------------------------------------------------
 const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
     let mut reg = cpu.reg;
     let mask = 1 << bit;
 
     reg[FLAGS] = if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
-    CPUState { reg, ..cpu }
-}
-//   bit  n,r       CB xx        8 z01- test bit n
-// ----------------------------------------------------------------------------
-const fn bit_7_h(cpu: CPUState) -> CPUState {
-    impl_bit(cpu, 7, REG_H).adv_pc(2).tick(8)
+    CPUState { reg, ..cpu }.adv_pc(2).tick(8)
 }
 
 //   bit  n,(HL)    CB xx       12 z01- test bit n
 //   set  n,r       CB xx        8 ---- set bit n
+// ----------------------------------------------------------------------------
+const fn impl_set(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let mask = 1 << bit;
+
+    reg[dst] |= mask;
+
+    CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+}
+
 //   set  n,(HL)    CB xx       16 ---- set bit n
 //   res  n,r       CB xx        8 ---- reset bit n
 //   res  n,(HL)    CB xx       16 ---- reset bit n
@@ -1600,6 +1611,22 @@ fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
 }
 
 //   rst  n         xx          16 ---- call to 00,08,10,18,20,28,30,38
+// ----------------------------------------------------------------------------
+fn rst_n(cpu: CPUState, mem: &mut Memory, opcode: Byte) -> CPUState {
+    let cpu = cpu.adv_pc(1).tick(16);
+
+    let vst_hi = (opcode & HIGH_MASK_NIB) - 0xC0;
+    let vst_lo = opcode & 0x08;
+    let vst_addr = vst_hi | vst_lo;
+
+    mem[cpu.sp - 0] = hi(cpu.pc);
+    mem[cpu.sp - 1] = lo(cpu.pc);
+    CPUState {
+        sp: cpu.sp - 2,
+        pc: vst_addr as Word,
+        ..cpu
+    }.tick(16)
+}
 
 // ============================================================================
 // interrupts
@@ -1944,26 +1971,43 @@ fn main() {
             0xC4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xC5 => push_bc(cpu, &mut mem),
             0xC6 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xC7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xC7 => rst_n(cpu, &mut mem, 0xC7),
             0xC8 => ret_z(cpu, &mem),
             0xC9 => ret(cpu, &mem),
             0xCA => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xCB => match mem[pc + 1] {
-                0x10 => rl_b(cpu),
-                0x11 => rl_c(cpu),
-                0x12 => rl_d(cpu),
-                0x13 => rl_e(cpu),
-                0x14 => rl_h(cpu),
-                0x15 => rl_l(cpu),
-                // 0x16 => rl_HL(cpu),
-                0x17 => rl_a(cpu),
-                0x7C => bit_7_h(cpu),
-                _ => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+            0xCB => {
+                let icb = decodeCB(mem[pc + 1]);
+                match icb.opcode {
+                    "RLC" => impl_rlc_r(cpu, icb.reg),
+                    // "RRC" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "RL" => impl_rl_r(cpu, icb.reg),
+                    // "RR" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    // "SLA" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    // "SRA" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "SWAP" => impl_swap_r(cpu, icb.reg),
+                    // "SRL" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "BIT" => impl_bit(cpu, icb.bit, icb.reg),
+                    // "RES" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "SET" => impl_set(cpu, icb.bit, icb.reg),
+                    _ => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc + 1])
+                }
             },
+            // match mem[pc + 1] {
+            //     0x10 => rl_b(cpu),
+            //     0x11 => rl_c(cpu),
+            //     0x12 => rl_d(cpu),
+            //     0x13 => rl_e(cpu),
+            //     0x14 => rl_h(cpu),
+            //     0x15 => rl_l(cpu),
+            //     // 0x16 => rl_HL(cpu),
+            //     0x17 => rl_a(cpu),
+            //     0x7C => bit_7_h(cpu),
+            //     _ => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+            // },
             0xCC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCD => call_d16(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
             0xCE => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xCF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xCF => rst_n(cpu, &mut mem, 0xCF),
             0xD0 => ret_nc(cpu, &mem),
             0xD1 => pop_de(cpu, &mem),
             0xD2 => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1971,7 +2015,7 @@ fn main() {
             0xD4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xD5 => push_de(cpu, &mut mem),
             0xD6 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xD7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xD7 => rst_n(cpu, &mut mem, 0xD7),
             0xD8 => ret_c(cpu, &mem),
             0xD9 => reti(cpu, &mem),
             0xDA => panic!("unknown instruction 0x{:X}", mem[pc]),
@@ -1979,7 +2023,7 @@ fn main() {
             0xDC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDD => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xDE => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xDF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xDF => rst_n(cpu, &mut mem, 0xDF),
             0xE0 => ld_FF00_A8_a(mem[pc + 1], cpu, &mut mem),
             0xE1 => pop_hl(cpu, &mem),
             0xE2 => ld_FF00_C_a(cpu, &mut mem),
@@ -1987,7 +2031,7 @@ fn main() {
             0xE4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE5 => push_hl(cpu, &mut mem),
             0xE6 => and_d8(cpu, mem[pc + 1]),
-            0xE7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE7 => rst_n(cpu, &mut mem, 0xE7),
             0xE8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xE9 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEA => ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
@@ -1995,7 +2039,7 @@ fn main() {
             0xEC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xED => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEE => xor_d8(cpu, mem[pc + 1]),
-            0xEF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xEF => rst_n(cpu, &mut mem, 0xEF),
             0xF0 => ld_a_FF00_A8(cpu, &mem, mem[pc + 1]),
             0xF1 => pop_af(cpu, &mem),
             0xF2 => ld_a_FF00_C(cpu, &mem),
@@ -2003,7 +2047,7 @@ fn main() {
             0xF4 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF5 => push_af(cpu, &mut mem),
             0xF6 => or_d8(cpu, mem[pc + 1]),
-            0xF7 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xF7 => rst_n(cpu, &mut mem, 0xF7),
             0xF8 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xF9 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFA => ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem),
@@ -2011,7 +2055,7 @@ fn main() {
             0xFC => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFD => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xFE => cp_d8(cpu, mem[pc + 1]),
-            0xFF => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xFF => rst_n(cpu, &mut mem, 0xFF),
         };
         let dt_cyc = cpu.tsc - tsc_prev;
 
@@ -2673,25 +2717,26 @@ mod tests_cpu {
         assert_eq!(rla(rla(cpu)).reg[REG_A], 0x01);
         assert_eq!(rla(rla(cpu)).reg[FLAGS], 0x00);
 
-        assert_eq!(rl_b(cpu).reg[REG_B], 0x80);
-        assert_eq!(rl_c(cpu).reg[REG_C], 0x80);
-        assert_eq!(rl_d(cpu).reg[REG_D], 0x80);
-        assert_eq!(rl_e(cpu).reg[REG_E], 0x80);
-        assert_eq!(rl_h(cpu).reg[REG_H], 0x80);
-        assert_eq!(rl_l(cpu).reg[REG_L], 0x80);
-        assert_eq!(rl_a(cpu).reg[REG_A], 0x00);
-        assert_eq!(rl_a(cpu).reg[FLAGS], FL_Z | FL_C);
-        assert_eq!(rl_a(rl_a(cpu)).reg[REG_A], 0x01);
+        assert_eq!(impl_rl_r(cpu, REG_B).reg[REG_B], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_C).reg[REG_C], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_D).reg[REG_D], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_E).reg[REG_E], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_H).reg[REG_H], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_L).reg[REG_L], 0x80);
+        assert_eq!(impl_rl_r(cpu, REG_A).reg[REG_A], 0x00);
+        assert_eq!(impl_rl_r(cpu, REG_A).reg[FLAGS], FL_Z | FL_C);
+        assert_eq!(impl_rl_r(impl_rl_r(cpu, REG_A), REG_A).reg[REG_A], 0x01);
     }
 
     #[test]
     fn test_bit() {
         let cpu = CPUState {
-            //    B     C     D     E     H     L     fl    A
+            //    B          C       D       E       H       L      fl     A
             reg: [1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, FL_C, 1 << 7],
             ..INITIAL
         };
-        assert_eq!(bit_7_h(cpu).reg[FLAGS], FL_H | cpu.reg[FLAGS]);
+        assert_eq!(impl_bit(cpu, 7, REG_H).reg[FLAGS], FL_H | cpu.reg[FLAGS]);
+        assert_eq!(impl_set(cpu, 7, REG_H).reg[REG_H], cpu.reg[REG_H] | 0x80);
     }
 
     #[test]
@@ -2736,5 +2781,30 @@ mod tests_cpu {
         let mut mem = init_mem();
         set_lcd_mode(3, &mut mem);
         assert_eq!(lcd_mode(&mem), 3);
+    }
+
+    #[test]
+    fn test_impl_rlc_r() {
+        let cpu = CPUState { 
+            //    B     C     D     E     H     L     fl    A
+            reg: [0x00, 0x01, 0x80, 0x03, 0x11, 0xFF, FL_C, 0xAA],
+            ..INITIAL 
+        };
+
+        let rot_b = impl_rlc_r(cpu, REG_B);
+        assert_eq!(rot_b.reg[REG_B], 0x00);
+        assert_eq!(rot_b.reg[FLAGS], FL_Z);
+
+        let rot_c = impl_rlc_r(cpu, REG_C);
+        assert_eq!(rot_c.reg[REG_C], 0x02);
+        assert_eq!(rot_c.reg[FLAGS], 0x00);
+
+        let rot_d = impl_rlc_r(cpu, REG_D);
+        assert_eq!(rot_d.reg[REG_D], 0x01);
+        assert_eq!(rot_d.reg[FLAGS], FL_C);
+
+        let rot_l = impl_rlc_r(cpu, REG_L);
+        assert_eq!(rot_l.reg[REG_L], 0xFF);
+        assert_eq!(rot_l.reg[FLAGS], FL_C);
     }
 }

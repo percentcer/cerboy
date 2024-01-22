@@ -1974,7 +1974,7 @@ fn main() {
             0xBE => cp_HL(cpu, &mem),
             0xBF => cp_a(cpu),
             0xC0 => ret_nz(cpu, &mem),
-            0xC1 => pop_bc(cpu, &mut mem),
+            0xC1 => pop_bc(cpu, &mem),
             0xC2 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xC3 => jp_d16(cpu, mem[pc + 1], mem[pc + 2]),
             0xC4 => panic!("unknown instruction 0x{:X}", mem[pc]),

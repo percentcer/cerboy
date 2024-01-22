@@ -2,3 +2,7 @@
 .vscode/launch.json
 rom/*.gb
 DMG_ROM.bin
+
+/coverage
+*.profraw
+*.profdata

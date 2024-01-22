@@ -26,10 +26,10 @@ fn main() {
         print!("{b:02X} ");
         i += 1;
         if i % 16 == 0 {
-            print!("\n");
+            println!();
         }
     }
-    print!("\n");
+    println!();
 
     // dis
     // ------------

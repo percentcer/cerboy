@@ -1,6 +1,7 @@
 $env:RUSTFLAGS="-C instrument-coverage"
 
 # create the coverage data *.profraw
+cargo clean
 cargo test
 
 # merge it into a format we can pass to cov

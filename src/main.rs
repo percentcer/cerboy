@@ -1645,18 +1645,33 @@ fn reti(cpu: CPUState, mem: &Memory) -> CPUState {
 // ----------------------------------------------------------------------------
 fn rst_n(cpu: CPUState, mem: &mut Memory, opcode: Byte) -> CPUState {
     let cpu = cpu.adv_pc(1).tick(16);
-
-    let vst_hi = (opcode & HIGH_MASK_NIB) - 0xC0;
-    let vst_lo = opcode & 0x08;
-    let vst_addr = vst_hi | vst_lo;
+    let rst_hi = (opcode & HIGH_MASK_NIB) - 0xC0;
+    let rst_lo = opcode & 0x08;
+    let rst_addr = rst_hi | rst_lo;
 
     mem[cpu.sp - 0] = hi(cpu.pc);
     mem[cpu.sp - 1] = lo(cpu.pc);
     CPUState {
         sp: cpu.sp - 2,
-        pc: vst_addr as Word,
+        pc: rst_addr as Word,
         ..cpu
-    }.tick(16)
+    }
+}
+
+#[test]
+fn test_rst_n() {
+    let cpu = CPUState::new();
+    let mut mem = init_mem();
+    
+    assert_eq!(rst_n(cpu, &mut mem, 0xC7).pc, VEC_RST_00);
+    assert_eq!(rst_n(cpu, &mut mem, 0xD7).pc, VEC_RST_10);
+    assert_eq!(rst_n(cpu, &mut mem, 0xE7).pc, VEC_RST_20);
+    assert_eq!(rst_n(cpu, &mut mem, 0xF7).pc, VEC_RST_30);
+
+    assert_eq!(rst_n(cpu, &mut mem, 0xCF).pc, VEC_RST_08);
+    assert_eq!(rst_n(cpu, &mut mem, 0xDF).pc, VEC_RST_18);
+    assert_eq!(rst_n(cpu, &mut mem, 0xEF).pc, VEC_RST_28);
+    assert_eq!(rst_n(cpu, &mut mem, 0xFF).pc, VEC_RST_38);
 }
 
 // ============================================================================

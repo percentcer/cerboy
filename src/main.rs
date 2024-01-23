@@ -1304,7 +1304,29 @@ const fn cpl(cpu: CPUState) -> CPUState {
 
 // GMB 16bit-Arithmetic/logical Commands
 // ============================================================================
+
 //   add  HL,rr     x9           8 -0hc HL = HL+rr     ;rr may be BC,DE,HL,SP
+// ----------------------------------------------------------------------------
+const fn impl_add_hl_rr(cpu: CPUState, rr: Word) -> CPUState {
+    let mut reg = cpu.reg;
+
+    let h: bool = ((cpu.reg[REG_L] & 0x0f) + (lo(rr) & 0x0f)) & 0x10 > 0;
+    let (result, c) = cpu.HL().overflowing_add(rr);
+    
+    reg[FLAGS] = (reg[FLAGS] & FL_Z) | if h {FL_H} else {0} | if c {FL_C} else {0};
+    reg[REG_H] = hi(result);
+    reg[REG_L] = lo(result);
+
+    CPUState {
+        reg,
+        ..cpu
+    }.adv_pc(1).tick(8)
+}
+
+const fn add_hl_bc(cpu: CPUState) -> CPUState { impl_add_hl_rr(cpu, cpu.BC()) }
+const fn add_hl_de(cpu: CPUState) -> CPUState { impl_add_hl_rr(cpu, cpu.DE()) }
+const fn add_hl_hl(cpu: CPUState) -> CPUState { impl_add_hl_rr(cpu, cpu.HL()) }
+const fn add_hl_sp(cpu: CPUState) -> CPUState { impl_add_hl_rr(cpu, cpu.sp) }
 
 //   inc  rr        x3           8 ---- rr = rr+1      ;rr may be BC,DE,HL,SP
 // ----------------------------------------------------------------------------
@@ -1786,7 +1808,7 @@ fn main() {
             0x06 => ld_b_d8(cpu, mem[pc + 1]),
             0x07 => rlca(cpu),
             0x08 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0x09 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x09 => add_hl_bc(cpu),
             0x0A => ld_a_BC(cpu, &mem),
             0x0B => dec_bc(cpu),
             0x0C => inc_c(cpu),
@@ -1802,7 +1824,7 @@ fn main() {
             0x16 => ld_d_d8(cpu, mem[pc + 1]),
             0x17 => rla(cpu),
             0x18 => jr_r8(cpu, signed(mem[pc + 1])),
-            0x19 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x19 => add_hl_de(cpu),
             0x1A => ld_a_DE(cpu, &mem),
             0x1B => dec_de(cpu),
             0x1C => inc_e(cpu),
@@ -1818,7 +1840,7 @@ fn main() {
             0x26 => ld_h_d8(cpu, mem[pc + 1]),
             0x27 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x28 => jr_z_r8(cpu, signed(mem[pc + 1])),
-            0x29 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x29 => add_hl_hl(cpu),
             0x2A => ldi_a_HL(cpu, &mut mem),
             0x2B => dec_hl(cpu),
             0x2C => inc_l(cpu),
@@ -1834,7 +1856,7 @@ fn main() {
             0x36 => ld_HL_d8(cpu, mem[pc + 1], &mut mem),
             0x37 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x38 => jr_c_r8(cpu, signed(mem[pc + 1])),
-            0x39 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x39 => add_hl_sp(cpu),
             0x3A => ldd_a_HL(cpu, &mut mem),
             0x3B => dec_sp(cpu),
             0x3C => inc_a(cpu),
@@ -2206,6 +2228,12 @@ fn main() {
 mod tests_cpu {
     use super::*;
 
+    // tsc: 0,
+    // //    B     C     D     E     H     L     fl    A
+    // reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
+    // sp: 0xFFFE,
+    // pc: 0x0000,
+    // ime: false,
     const INITIAL: CPUState = CPUState::new();
 
     #[test]
@@ -2354,6 +2382,24 @@ mod tests_cpu {
             0x00,
             "failed 0x01 flags"
         );
+    }
+
+    #[test]
+    fn test_add_hl_rr() {
+        assert_eq!(add_hl_bc(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.BC()).0);
+        assert_eq!(add_hl_de(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.DE()).0);
+        assert_eq!(add_hl_hl(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.HL()).0);
+        assert_eq!(add_hl_sp(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.sp).0);
+
+        // test flags (-0hc)
+        let mut reg = INITIAL.reg;
+        reg[REG_H] = 0x00;
+        reg[REG_L] = 0xFF;
+        reg[REG_B] = 0x00;
+        reg[REG_C] = 0x01;
+        assert_eq!(add_hl_bc(CPUState{reg, ..INITIAL}).reg[FLAGS], INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | 0);
+        reg[REG_H] = 0xFF;
+        assert_eq!(add_hl_bc(CPUState{reg, ..INITIAL}).reg[FLAGS], INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | FL_C);
     }
 
     #[test]

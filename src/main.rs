@@ -1536,6 +1536,21 @@ const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
 }
 
 //   jp   HL        E9           4 ---- jump to HL, PC=HL
+// ----------------------------------------------------------------------------
+const fn jp_hl(cpu: CPUState) -> CPUState {
+    CPUState {
+        pc: cpu.HL(),
+        ..cpu
+    }.tick(4)
+}
+
+#[test]
+fn test_jp_hl()
+{
+    let cpu = CPUState::new();
+    assert_eq!(jp_hl(cpu).pc, cpu.HL())
+}
+
 //   jp   f,nn      xx nn nn 16;12 ---- conditional jump if nz,z,nc,c
 
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
@@ -2075,7 +2090,7 @@ fn main() {
             0xE6 => and_d8(cpu, mem[pc + 1]),
             0xE7 => rst_n(cpu, &mut mem, 0xE7),
             0xE8 => panic!("unknown instruction 0x{:X}", mem[pc]),
-            0xE9 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0xE9 => jp_hl(cpu),
             0xEA => ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, &mut mem),
             0xEB => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xEC => panic!("unknown instruction 0x{:X}", mem[pc]),

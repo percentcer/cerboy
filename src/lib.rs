@@ -454,23 +454,26 @@ pub mod bits {
         if val == 0 {crate::types::FL_Z} else {0}
     }
 
-    pub const fn test(val: Byte, bit: Byte) -> Byte 
-    {
-        (val & (1 << bit)) >> bit
+    pub const fn bit(idx: Byte, val: Byte) -> Byte {
+        (val >> idx) & 1
+    }
+
+    pub const fn bit_test(idx: Byte, val: Byte) -> bool {
+        bit(idx, val) != 0
     }
     
     #[test]
     fn test_bit_test()
     {
         let x: Byte = 0b00000101;
-        assert_eq!(test(x, 7), 0);
-        assert_eq!(test(x, 6), 0);
-        assert_eq!(test(x, 5), 0);
-        assert_eq!(test(x, 4), 0);
-        assert_eq!(test(x, 3), 0);
-        assert_eq!(test(x, 2), 1);
-        assert_eq!(test(x, 1), 0);
-        assert_eq!(test(x, 0), 1);
+        assert_eq!(bit_test(7, x), false);
+        assert_eq!(bit_test(6, x), false);
+        assert_eq!(bit_test(5, x), false);
+        assert_eq!(bit_test(4, x), false);
+        assert_eq!(bit_test(3, x), false);
+        assert_eq!(bit_test(2, x), true);
+        assert_eq!(bit_test(1, x), false);
+        assert_eq!(bit_test(0, x), true);
     }
 
     // can't be const for some reason https://github.com/rust-lang/rust/issues/53605

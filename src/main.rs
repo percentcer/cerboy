@@ -1662,10 +1662,6 @@ fn handle_int(cpu: CPUState, mem: &mut Memory, fl_int: Byte, vec_int: Word) -> C
 // ============================================================================
 // memory functions
 // ============================================================================
-fn bit(idx: Byte, val: Byte) -> bool {
-    ((val >> idx) & 1) == 1
-}
-
 fn request_interrupt(mem: &mut Memory, int_flag: Byte) {
     mem[IF] |= int_flag;
 }
@@ -2095,8 +2091,8 @@ fn main() {
                     // -------------------------------------------
                     // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
                     // but cerboy currently only draws the line in a single shot (instead of per-dot)
-                    let bg_tilemap_start: Word = if bit(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
-                    let (bg_signed_addressing, bg_tile_data_start) = if bit(4, mem[LCDC]) {
+                    let bg_tilemap_start: Word = if bit_test(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
+                    let (bg_signed_addressing, bg_tile_data_start) = if bit_test(4, mem[LCDC]) {
                         (false, MEM_VRAM as Word)
                     } else {
                         // in signed addressing the 0 tile is at 0x9000
@@ -2177,26 +2173,26 @@ fn main() {
                         .unwrap();
 
                     // print LCDC diagnostics
-                    let lcdc_7 = if bit(7, mem[LCDC]) { " on" } else { "off" };
-                    let lcdc_6 = if bit(6, mem[LCDC]) {
+                    let lcdc_7 = if bit_test(7, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_6 = if bit_test(6, mem[LCDC]) {
                         "0x9C00"
                     } else {
                         "0x9800"
                     };
-                    let lcdc_5 = if bit(5, mem[LCDC]) { " on" } else { "off" };
-                    let lcdc_4 = if bit(4, mem[LCDC]) {
+                    let lcdc_5 = if bit_test(5, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_4 = if bit_test(4, mem[LCDC]) {
                         "0x8000"
                     } else {
                         "0x8800"
                     };
-                    let lcdc_3 = if bit(3, mem[LCDC]) {
+                    let lcdc_3 = if bit_test(3, mem[LCDC]) {
                         "0x9C00"
                     } else {
                         "0x9800"
                     };
-                    let lcdc_2 = if bit(2, mem[LCDC]) { "16" } else { " 8" };
-                    let lcdc_1 = if bit(1, mem[LCDC]) { " on" } else { "off" };
-                    let lcdc_0 = if bit(0, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_2 = if bit_test(2, mem[LCDC]) { "16" } else { " 8" };
+                    let lcdc_1 = if bit_test(1, mem[LCDC]) { " on" } else { "off" };
+                    let lcdc_0 = if bit_test(0, mem[LCDC]) { " on" } else { "off" };
                     let lcdc_v = mem[LCDC];
                     println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
                 }

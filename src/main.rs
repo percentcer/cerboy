@@ -2078,7 +2078,11 @@ fn main() {
             0xC9 => ret(cpu, &mem),
             0xCA => panic!("unknown instruction 0x{:X}", mem[pc]),
             0xCB => {
-                let icb = decodeCB(mem[pc + 1]);
+                let op_cb = mem[pc + 1];
+                if ((op_cb & 0xF) == 0x6) || ((op_cb & 0xF) == 0xE) {
+                    panic!("[HL] instructions not yet implemented");
+                }
+                let icb = decodeCB(op_cb);
                 match icb.opcode {
                     "RLC" => impl_rlc_r(cpu, icb.reg),
                     // "RRC" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
@@ -2091,7 +2095,7 @@ fn main() {
                     "BIT" => impl_bit(cpu, icb.bit, icb.reg),
                     "RES" => impl_res_n_r(cpu, icb.bit, icb.reg),
                     "SET" => impl_set(cpu, icb.bit, icb.reg),
-                    _ => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc + 1])
+                    _ => panic!("unknown instruction (0xCB) 0x{:X} ({})", op_cb, icb.opcode)
                 }
             },
             // match mem[pc + 1] {

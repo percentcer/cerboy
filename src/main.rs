@@ -2188,6 +2188,7 @@ fn main() {
             // oam search
             2 => {
                 if lcd_timing >= TICKS_PER_OAM_SEARCH {
+                    // todo: oam search
                     set_lcd_mode(3, &mut mem);
                     lcd_timing -= TICKS_PER_OAM_SEARCH;
                 }

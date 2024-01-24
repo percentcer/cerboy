@@ -1288,6 +1288,24 @@ const fn dec_a(cpu: CPUState) -> CPUState {
 }
 
 //   dec  (HL)        35        12 z1h- (HL)=(HL)-1
+// ----------------------------------------------------------------------------
+fn dec_HL(cpu: CPUState, mem: &mut Memory) -> CPUState {
+    let mut reg = cpu.reg;
+    let (h, (res, _c)) = (mem[cpu.HL()] & 0x0F == 0x00, mem[cpu.HL()].overflowing_sub(1));
+    
+    let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
+    | if res == 0x00 {FL_Z} else {0}
+    | if h {FL_H} else {0};
+    reg[FLAGS] = flags;
+    
+    mem[cpu.HL()] = res;
+
+    CPUState {
+        reg,
+        ..cpu
+    }.adv_pc(1).tick(12)
+}
+
 //   daa              27         4 z-0x decimal adjust akku
 
 //   cpl              2F         4 -11- A = A xor FF
@@ -1882,7 +1900,7 @@ fn main() {
             0x32 => ldd_HL_a(cpu, &mut mem),
             0x33 => inc_sp(cpu),
             0x34 => inc_HL(cpu, &mut mem),
-            0x35 => panic!("unknown instruction 0x{:X}", mem[pc]),
+            0x35 => dec_HL(cpu, &mut mem),
             0x36 => ld_HL_d8(cpu, mem[pc + 1], &mut mem),
             0x37 => panic!("unknown instruction 0x{:X}", mem[pc]),
             0x38 => jr_c_r8(cpu, signed(mem[pc + 1])),

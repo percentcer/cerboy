@@ -1722,7 +1722,7 @@ fn rst_n(cpu: CPUState, mem: &mut Memory, opcode: Byte) -> CPUState {
 fn test_rst_n() {
     let cpu = CPUState::new();
     let mut mem = init_mem();
-    
+
     assert_eq!(rst_n(cpu, &mut mem, 0xC7).pc, VEC_RST_00);
     assert_eq!(rst_n(cpu, &mut mem, 0xD7).pc, VEC_RST_10);
     assert_eq!(rst_n(cpu, &mut mem, 0xE7).pc, VEC_RST_20);

@@ -779,8 +779,8 @@ fn impl_push_rr(
     reg_high: usize,
     reg_low: usize,
 ) -> CPUState {
-    mem[cpu.sp - 1] = cpu.reg[reg_high];
-    mem[cpu.sp - 2] = cpu.reg[reg_low];
+    mem[cpu.sp - 0] = cpu.reg[reg_high];
+    mem[cpu.sp - 1] = cpu.reg[reg_low];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 16,
@@ -796,8 +796,8 @@ fn impl_pop_rr(
     reg_low: usize,
 ) -> CPUState {
     let mut reg = cpu.reg;
-    reg[reg_high] = mem[cpu.sp + 1];
-    reg[reg_low] = mem[cpu.sp];
+    reg[reg_high] = mem[cpu.sp + 2];
+    reg[reg_low] = mem[cpu.sp + 1];
     CPUState {
         pc: cpu.pc + 1,
         tsc: cpu.tsc + 12,
@@ -2718,8 +2718,8 @@ mod tests_cpu {
         };
         let mut mem = init_mem();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
-        assert_eq!(mem[cpu.sp - 1], cpu.reg[REG_B]);
-        assert_eq!(mem[cpu.sp - 2], cpu.reg[REG_C]);
+        assert_eq!(mem[cpu.sp - 2], cpu.reg[REG_B]);
+        assert_eq!(mem[cpu.sp - 1], cpu.reg[REG_C]);
     }
 
     #[test]

@@ -1541,7 +1541,13 @@ const fn nop(cpu: CPUState) -> CPUState {
 }
 
 //   halt           76         N*4 ---- halt until interrupt occurs (low power)
+
 //   stop           10 00        ? ---- low power standby mode (VERY low power)
+// ----------------------------------------------------------------------------
+const fn stop(cpu: CPUState) -> CPUState {
+    // todo: not sure what to do here
+    cpu.adv_pc(2).tick(0)
+}
 
 //   di             F3           4 ---- disable interrupts, IME=0
 // ----------------------------------------------------------------------------
@@ -1908,7 +1914,7 @@ fn main() {
             0x0D => dec_c(cpu),
             0x0E => ld_c_d8(cpu, mem[pc + 1]),
             0x0F => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
-            0x10 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0x10 => stop(cpu),
             0x11 => ld_de_d16(cpu, mem[pc + 1], mem[pc + 2]),
             0x12 => ld_DE_a(cpu, &mut mem),
             0x13 => inc_de(cpu),

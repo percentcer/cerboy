@@ -1563,6 +1563,13 @@ const fn ei(cpu: CPUState) -> CPUState {
 
 // GMB Jumpcommands
 // ============================================================================
+const fn impl_jp(cpu: CPUState, addr: Word) -> CPUState {
+    CPUState {
+        pc: addr,
+        ..cpu
+    }
+}
+
 const fn impl_jr(cpu: CPUState, arg: SByte) -> CPUState {
     CPUState {
         pc: cpu.pc.wrapping_add(arg as Word),
@@ -1573,20 +1580,13 @@ const fn impl_jr(cpu: CPUState, arg: SByte) -> CPUState {
 //   jp   nn        C3 nn nn    16 ---- jump to nn, PC=nn
 // ----------------------------------------------------------------------------
 const fn jp_d16(cpu: CPUState, low: Byte, high: Byte) -> CPUState {
-    let cpu = cpu.adv_pc(3).tick(16);
-    CPUState {
-        pc: combine(high, low),
-        ..cpu
-    }
+    impl_jp(cpu, combine(high, low)).tick(16)
 }
 
 //   jp   HL        E9           4 ---- jump to HL, PC=HL
 // ----------------------------------------------------------------------------
 const fn jp_hl(cpu: CPUState) -> CPUState {
-    CPUState {
-        pc: cpu.HL(),
-        ..cpu
-    }.tick(4)
+    impl_jp(cpu, cpu.HL()).tick(4)
 }
 
 #[test]
@@ -1597,6 +1597,22 @@ fn test_jp_hl()
 }
 
 //   jp   f,nn      xx nn nn 16;12 ---- conditional jump if nz,z,nc,c
+// ----------------------------------------------------------------------------
+const fn jp_f_d16(cpu: CPUState, low: Byte, high: Byte, op: Byte) -> CPUState {
+    // 0xC2: NZ | 0xD2: NC | 0xCA: Z | 0xDA: C
+    let do_jump = match op {
+        0xC2 => (cpu.reg[FLAGS] & FL_Z) == 0,
+        0xD2 => (cpu.reg[FLAGS] & FL_C) == 0,
+        0xCA => (cpu.reg[FLAGS] & FL_Z) != 0,
+        0xDA => (cpu.reg[FLAGS] & FL_C) != 0,
+        _ => panic!("jp_f_d16 unreachable")
+    };
+    if do_jump {
+        impl_jp(cpu, combine(high, low)).tick(16)
+    } else {
+        cpu.adv_pc(3).tick(12)
+    }
+}
 
 //   jr   PC+dd     18 dd       12 ---- relative jump to nn (PC=PC+/-7bit)
 // ----------------------------------------------------------------------------
@@ -2070,7 +2086,7 @@ fn main() {
             0xBF => cp_a(cpu),
             0xC0 => ret_nz(cpu, &mem),
             0xC1 => pop_bc(cpu, &mem),
-            0xC2 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xC2 => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2),
             0xC3 => jp_d16(cpu, mem[pc + 1], mem[pc + 2]),
             0xC4 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xC5 => push_bc(cpu, &mut mem),
@@ -2078,7 +2094,7 @@ fn main() {
             0xC7 => rst_n(cpu, &mut mem, 0xC7),
             0xC8 => ret_z(cpu, &mem),
             0xC9 => ret(cpu, &mem),
-            0xCA => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xCA => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xCA),
             0xCB => {
                 let op_cb = mem[pc + 1];
                 if ((op_cb & 0xF) == 0x6) || ((op_cb & 0xF) == 0xE) {
@@ -2106,7 +2122,7 @@ fn main() {
             0xCF => rst_n(cpu, &mut mem, 0xCF),
             0xD0 => ret_nc(cpu, &mem),
             0xD1 => pop_de(cpu, &mem),
-            0xD2 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xD2 => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2),
             0xD3 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xD4 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xD5 => push_de(cpu, &mut mem),
@@ -2114,7 +2130,7 @@ fn main() {
             0xD7 => rst_n(cpu, &mut mem, 0xD7),
             0xD8 => ret_c(cpu, &mem),
             0xD9 => reti(cpu, &mem),
-            0xDA => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xDA => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA),
             0xDB => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xDC => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xDD => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
@@ -2217,7 +2233,7 @@ fn main() {
                         let bg_tile_low_value =
                             (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
                         let bg_tile_pixel_color_id = bg_tile_high_value | bg_tile_low_value;
-                        *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_VBOY);
+                        *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_CLASSIC);
                     }
 
                     // draw sprites

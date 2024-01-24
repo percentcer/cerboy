@@ -1499,7 +1499,34 @@ const fn impl_set(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
 }
 
 //   set  n,(HL)    CB xx       16 ---- set bit n
+
 //   res  n,r       CB xx        8 ---- reset bit n
+// ----------------------------------------------------------------------------
+const fn impl_res_n_r(cpu: CPUState, n: Byte, r: usize) -> CPUState {
+    let mut reg = cpu.reg;
+    let mask = 1 << n;
+
+    reg[r] &= !mask;
+
+    CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+}
+
+#[test]
+fn test_impl_res_n_r() {
+    let cpu = CPUState {
+        reg: [0xFE,0,0,0,0,0,0,0],
+        ..CPUState::new()
+    };
+    assert_eq!(impl_res_n_r(cpu, 0, REG_B).reg[REG_B], 0b11111110);
+    assert_eq!(impl_res_n_r(cpu, 1, REG_B).reg[REG_B], 0b11111100);
+    assert_eq!(impl_res_n_r(cpu, 2, REG_B).reg[REG_B], 0b11111010);
+    assert_eq!(impl_res_n_r(cpu, 3, REG_B).reg[REG_B], 0b11110110);
+    assert_eq!(impl_res_n_r(cpu, 4, REG_B).reg[REG_B], 0b11101110);
+    assert_eq!(impl_res_n_r(cpu, 5, REG_B).reg[REG_B], 0b11011110);
+    assert_eq!(impl_res_n_r(cpu, 6, REG_B).reg[REG_B], 0b10111110);
+    assert_eq!(impl_res_n_r(cpu, 7, REG_B).reg[REG_B], 0b01111110);
+}
+
 //   res  n,(HL)    CB xx       16 ---- reset bit n
 
 // GMB CPU-Controlcommands
@@ -2062,7 +2089,7 @@ fn main() {
                     "SWAP" => impl_swap_r(cpu, icb.reg),
                     // "SRL" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
                     "BIT" => impl_bit(cpu, icb.bit, icb.reg),
-                    // "RES" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "RES" => impl_res_n_r(cpu, icb.bit, icb.reg),
                     "SET" => impl_set(cpu, icb.bit, icb.reg),
                     _ => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc + 1])
                 }

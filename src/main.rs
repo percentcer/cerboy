@@ -2749,9 +2749,10 @@ mod tests_cpu {
             sp: 0xDEAD,
             ..INITIAL
         };
+        
         let mut mem = init_mem();
-        mem[0xDEAD] = 0xAD;
-        mem[0xDEAD + 1] = 0xDE;
+        mem[0xDEAD + 1] = 0xAD;
+        mem[0xDEAD + 2] = 0xDE;
 
         assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
         assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);

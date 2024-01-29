@@ -9,10 +9,10 @@ use minifb::{Key, Window, WindowOptions};
 extern crate env_logger;
 
 use cerboy::bits::*;
+use cerboy::decode::decodeCB;
 use cerboy::io::init_rom;
 use cerboy::memory::*;
 use cerboy::types::*;
-use cerboy::decode::decodeCB;
 
 // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
 //

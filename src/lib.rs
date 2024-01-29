@@ -219,8 +219,7 @@ pub mod types {
 }
 
 pub mod decode {
-    use crate::types::{Byte, Instruction, InstructionCB};
-    use crate::types::{REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, REG_A};
+    use crate::types::*;
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
     // https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html
@@ -509,6 +508,7 @@ pub mod decode {
         }
 
         #[test]
+        #[rustfmt::skip]
         fn test_reg_b() {
             assert_eq!(decodeCB(0x00), InstructionCB{opcode:"RLC",  bit: 0xff, reg: REG_B});
             assert_eq!(decodeCB(0x10), InstructionCB{opcode:"RL",   bit: 0xff, reg: REG_B});

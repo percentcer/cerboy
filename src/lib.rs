@@ -193,11 +193,11 @@ pub mod types {
                 } else {
                     format!("{}, {}", icb.opcode, crate::decode::R[icb.reg])
                 },
-                len: 1
+                len: 1,
             }
         }
 
-        pub fn valid(&self) -> bool { 
+        pub fn valid(&self) -> bool {
             self.len > 0
         }
 
@@ -208,8 +208,11 @@ pub mod types {
         pub fn mnm_args(&self, rom: &[Byte]) -> String {
             match rom.len() {
                 1 => self.mnm.replace('n', &format!("${:02x}", rom[0])),
-                2 => self.mnm.replace("nn", &format!("${:04x}", crate::bits::combine(rom[1], rom[0]))),
-                _ => panic!("mnemonic only intended for instructions with args")
+                2 => self.mnm.replace(
+                    "nn",
+                    &format!("${:04x}", crate::bits::combine(rom[1], rom[0])),
+                ),
+                _ => panic!("mnemonic only intended for instructions with args"),
             }
         }
     }
@@ -460,8 +463,7 @@ pub mod decode {
         let _R_z = R_ID[z(op) as usize];
         let _y = y(op);
         match x(op) {
-            0 => InstructionCB 
-            {
+            0 => InstructionCB {
                 // mnm: format!("{_ROT_y} {_R_z}"),
                 opcode: _ROT_y,
                 bit: 0xFF,
@@ -567,7 +569,7 @@ pub mod io {
 }
 
 pub mod bits {
-    use crate::types::{Byte,Word,SByte};
+    use crate::types::{Byte, SByte, Word};
 
     pub const HIGH_MASK: Word = 0xFF00;
     pub const LOW_MASK: Word = 0x00FF;
@@ -577,18 +579,21 @@ pub mod bits {
     pub const fn hi(reg: Word) -> Byte {
         (reg >> Byte::BITS) as Byte
     }
-    
+
     pub const fn lo(reg: Word) -> Byte {
         (reg & LOW_MASK) as Byte
     }
-    
+
     pub const fn combine(high: Byte, low: Byte) -> Word {
         (high as Word) << Byte::BITS | (low as Word)
     }
 
-    pub const fn fl_z(val: Byte) -> Byte
-    {
-        if val == 0 {crate::types::FL_Z} else {0}
+    pub const fn fl_z(val: Byte) -> Byte {
+        if val == 0 {
+            crate::types::FL_Z
+        } else {
+            0
+        }
     }
 
     pub const fn bit(idx: Byte, val: Byte) -> Byte {
@@ -598,10 +603,9 @@ pub mod bits {
     pub const fn bit_test(idx: Byte, val: Byte) -> bool {
         bit(idx, val) != 0
     }
-    
+
     #[test]
-    fn test_bit_test()
-    {
+    fn test_bit_test() {
         let x: Byte = 0b00000101;
         assert_eq!(bit_test(7, x), false);
         assert_eq!(bit_test(6, x), false);

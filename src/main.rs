@@ -8,10 +8,9 @@ use minifb::{Key, Window, WindowOptions};
 
 extern crate env_logger;
 
-use std::ops::{Index, IndexMut};
-
 use cerboy::bits::*;
 use cerboy::io::init_rom;
+use cerboy::memory::*;
 use cerboy::types::*;
 use cerboy::decode::decodeCB;
 
@@ -58,8 +57,6 @@ const MEM_HRAM: Word = 0xFF80;
 
 const GB_SCREEN_WIDTH: usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
-const ROM_MAX: usize = 0x200000;
-const MEM_SIZE: usize = 0xFFFF + 1;
 
 // classic gameboy only has four shades, white (00), light (01), dark (10), black (11)
 const PAL_CLASSIC: [u32; 4] = [0xE0F8D0, 0x88C070, 0x346856, 0x081820];
@@ -96,85 +93,6 @@ const FL_INT_STAT: Byte = 1 << 1;
 const FL_INT_TIMER: Byte = 1 << 2;
 const FL_INT_SERIAL: Byte = 1 << 3;
 const FL_INT_JOYPAD: Byte = 1 << 4;
-
-// RST locations (vectors)
-const VEC_RST_00: Word = 0x0000;
-const VEC_RST_08: Word = 0x0008;
-const VEC_RST_10: Word = 0x0010;
-const VEC_RST_18: Word = 0x0018;
-const VEC_RST_20: Word = 0x0020;
-const VEC_RST_28: Word = 0x0028;
-const VEC_RST_30: Word = 0x0030;
-const VEC_RST_38: Word = 0x0038;
-
-// Interrupt locations (vectors)
-const VEC_INT_VBLANK: Word = 0x0040;
-const VEC_INT_STAT: Word = 0x0048;
-const VEC_INT_TIMER: Word = 0x0050;
-const VEC_INT_SERIAL: Word = 0x0058;
-const VEC_INT_JOYPAD: Word = 0x0060;
-// named I/O memory locations [FF00..FF7F]
-const JOYP: Word = 0xFF00;
-// timers
-const DIV: Word = 0xFF04;
-const TIMA: Word = 0xFF05;
-const TMA: Word = 0xFF06;
-const TAC: Word = 0xFF07;
-// audio
-const NR10: Word = 0xFF10;
-const NR11: Word = 0xFF11;
-const NR12: Word = 0xFF12;
-const NR14: Word = 0xFF14;
-const NR21: Word = 0xFF16;
-const NR22: Word = 0xFF17;
-const NR24: Word = 0xFF19;
-const NR30: Word = 0xFF1A;
-const NR31: Word = 0xFF1B;
-const NR32: Word = 0xFF1C;
-const NR33: Word = 0xFF1E;
-const NR41: Word = 0xFF20;
-const NR42: Word = 0xFF21;
-const NR43: Word = 0xFF22;
-const NR44: Word = 0xFF23;
-const NR50: Word = 0xFF24;
-const NR51: Word = 0xFF25;
-const NR52: Word = 0xFF26;
-// rendering
-const LCDC: Word = 0xFF40;
-const STAT: Word = 0xFF41;
-const SCY: Word = 0xFF42;
-const SCX: Word = 0xFF43;
-const LY: Word = 0xFF44;
-const LYC: Word = 0xFF45;
-const DMA: Word = 0xFF46; // <-- OAM memory transfer
-const BGP: Word = 0xFF47;
-const OBP0: Word = 0xFF48;
-const OBP1: Word = 0xFF49;
-const WY: Word = 0xFF4A;
-const WX: Word = 0xFF4B;
-// interrupt registers
-const IF: Word = 0xFF0F;
-const IE: Word = 0xFFFF;
-
-struct Memory([Byte; MEM_SIZE]);
-impl Index<Word> for Memory {
-    type Output = Byte;
-
-    fn index(&self, index: Word) -> &Self::Output {
-        &self.0[index as usize]
-    }
-}
-impl IndexMut<Word> for Memory {
-    fn index_mut(&mut self, index: Word) -> &mut Self::Output {
-        match index {
-            DMA => println!("write DMA"),
-            LCDC => println!("write LCDC"),
-            _ => (),
-        }
-
-        &mut self.0[index as usize]
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 struct CPUState {
@@ -287,42 +205,6 @@ fn update_clocks(state: HardwareTimers, mem: &mut Memory, cycles: u64) -> Hardwa
     }
 
     result
-}
-
-fn init_mem() -> Memory {
-    let mut mem = Memory([0; MEM_SIZE]);
-    mem[TIMA] = 0x00;
-    mem[TMA] = 0x00;
-    mem[TAC] = 0x00;
-    mem[NR10] = 0x80;
-    mem[NR11] = 0xBF;
-    mem[NR12] = 0xF3;
-    mem[NR14] = 0xBF;
-    mem[NR21] = 0x3F;
-    mem[NR22] = 0x00;
-    mem[NR24] = 0xBF;
-    mem[NR30] = 0x7F;
-    mem[NR31] = 0xFF;
-    mem[NR32] = 0x9F;
-    mem[NR33] = 0xBF;
-    mem[NR41] = 0xFF;
-    mem[NR42] = 0x00;
-    mem[NR43] = 0x00;
-    mem[NR44] = 0xBF;
-    mem[NR50] = 0x77;
-    mem[NR51] = 0xF3;
-    mem[NR52] = 0xF1;
-    mem[LCDC] = 0x91;
-    mem[SCY] = 0x00;
-    mem[SCX] = 0x00;
-    mem[LYC] = 0x00;
-    mem[BGP] = 0xFC;
-    mem[OBP0] = 0xFF;
-    mem[OBP1] = 0xFF;
-    mem[WY] = 0x00;
-    mem[WX] = 0x00;
-    mem[IE] = 0x00;
-    mem
 }
 
 // GMB 8bit-Loadcommands
@@ -1743,7 +1625,7 @@ fn rst_n(cpu: CPUState, mem: &mut Memory, opcode: Byte) -> CPUState {
 #[test]
 fn test_rst_n() {
     let cpu = CPUState::new();
-    let mut mem = init_mem();
+    let mut mem = Memory::new();
 
     assert_eq!(rst_n(cpu, &mut mem, 0xC7).pc, VEC_RST_00);
     assert_eq!(rst_n(cpu, &mut mem, 0xD7).pc, VEC_RST_10);
@@ -1783,11 +1665,6 @@ fn handle_int(cpu: CPUState, mem: &mut Memory, fl_int: Byte, vec_int: Word) -> C
 // ============================================================================
 fn request_interrupt(mem: &mut Memory, int_flag: Byte) {
     mem[IF] |= int_flag;
-}
-
-fn load_rom(mem: &mut Memory, rom: &[Byte]) {
-    // raw copy, skip mem checks
-    mem.0[0..rom.len()].copy_from_slice(rom)
 }
 
 fn mem_inc(mem: &mut Memory, loc: Word) -> (Byte, bool) {
@@ -1855,10 +1732,10 @@ fn main() {
     // ------------
     let rom: Vec<Byte> = init_rom(rom_path);
     let mut cpu = CPUState::new();
-    let mut mem: Memory = init_mem();
-    load_rom(&mut mem, &rom); // load cartridge
-    let boot = init_rom("./rom/boot/DMG_ROM.bin");
-    load_rom(&mut mem, &boot);
+    let mut mem: Memory = Memory::new();
+    mem.load_rom(&rom); // load cartridge
+    // let boot = init_rom("./rom/boot/DMG_ROM.bin");
+    // load_rom(&mut mem, &boot);
 
     let mut timers = HardwareTimers::new();
     let mut lcd_timing: u64 = 0;
@@ -2532,7 +2409,7 @@ mod tests_cpu {
 
     #[test]
     fn test_add_HL() {
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         let cpu = CPUState {
             reg: [0, 0, 0, 0, 0, 0x01, 0, 0x01],
             ..INITIAL
@@ -2544,7 +2421,7 @@ mod tests_cpu {
 
     #[test]
     fn test_inc_HL() {
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         let mut cpu = CPUState {
             reg: [0, 0, 0, 0, 0, 0x01, FL_Z | FL_N | FL_H | FL_C, 0x01],
             ..INITIAL
@@ -2571,7 +2448,7 @@ mod tests_cpu {
 
     #[test]
     fn test_call_d16() {
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         let result = call_d16(0x01, 0x02, INITIAL, &mut mem);
         assert_eq!(
             mem[INITIAL.sp - 0],
@@ -2630,7 +2507,7 @@ mod tests_cpu {
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x12, FL_C, 0x11],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[cpu.HL()] = cpu.reg[REG_L];
 
         assert_eq!(cp_b(cpu).reg[FLAGS], FL_N);
@@ -2720,7 +2597,7 @@ mod tests_cpu {
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         impl_ld_HL_d8(cpu, &mut mem, 0x22);
         assert_eq!(mem[cpu.HL()], 0x22);
     }
@@ -2732,7 +2609,7 @@ mod tests_cpu {
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[cpu.HL()] = 0x0F;
         assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
         assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] + 1);
@@ -2746,7 +2623,7 @@ mod tests_cpu {
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0x22, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[cpu.HL()] = 0x0F;
         assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
         assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] - 1);
@@ -2760,7 +2637,7 @@ mod tests_cpu {
             reg: [0x00, 0x01, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         assert_eq!(push_bc(cpu, &mut mem).sp, cpu.sp - 2);
         assert_eq!(mem[cpu.sp - 2], cpu.reg[REG_B]);
         assert_eq!(mem[cpu.sp - 1], cpu.reg[REG_C]);
@@ -2772,8 +2649,8 @@ mod tests_cpu {
             sp: 0xDEAD,
             ..INITIAL
         };
-        
-        let mut mem = init_mem();
+
+        let mut mem = Memory::new();
         mem[0xDEAD + 1] = 0xAD;
         mem[0xDEAD + 2] = 0xDE;
 
@@ -2790,7 +2667,7 @@ mod tests_cpu {
             sp: 0xFFFC,
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[0xFFFE] = 0xBE;
         mem[0xFFFD] = 0xEF;
         assert_eq!(ret(cpu, &mem).pc, 0xBEEF);
@@ -2804,7 +2681,7 @@ mod tests_cpu {
             reg: [0xBB, 0xCC, 0xDD, 0xEE, 0x11, 0x22, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[0xBBCC] = 0xAB;
         mem[0xDDEE] = 0xAD;
         assert_eq!(ld_a_BC(cpu, &mem).reg[REG_A], mem[0xBBCC]);
@@ -2827,7 +2704,7 @@ mod tests_cpu {
             reg: [0x00, 0xCC, 0x02, 0x03, 0x11, 0xFF, FL_C, 0xAA],
             ..INITIAL
         };
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[0xFF00] = 0;
         mem[0xFF01] = 1;
         mem[0xFF02] = 2;
@@ -2885,7 +2762,7 @@ mod tests_cpu {
 
     #[test]
     fn test_timers() {
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         mem[TIMA] = 0;
         mem[TMA] = 0;
         mem[TAC] = 0;
@@ -2922,7 +2799,7 @@ mod tests_cpu {
 
     #[test]
     fn test_lcd() {
-        let mut mem = init_mem();
+        let mut mem = Memory::new();
         set_lcd_mode(3, &mut mem);
         assert_eq!(lcd_mode(&mem), 3);
     }

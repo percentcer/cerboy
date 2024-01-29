@@ -1,3 +1,140 @@
+pub mod memory {
+    use crate::types::*;
+    use std::ops::{Index, IndexMut};
+
+    // RST locations (vectors)
+    pub const VEC_RST_00: Word = 0x0000;
+    pub const VEC_RST_08: Word = 0x0008;
+    pub const VEC_RST_10: Word = 0x0010;
+    pub const VEC_RST_18: Word = 0x0018;
+    pub const VEC_RST_20: Word = 0x0020;
+    pub const VEC_RST_28: Word = 0x0028;
+    pub const VEC_RST_30: Word = 0x0030;
+    pub const VEC_RST_38: Word = 0x0038;
+
+    // Interrupt locations (vectors)
+    pub const VEC_INT_VBLANK: Word = 0x0040;
+    pub const VEC_INT_STAT: Word = 0x0048;
+    pub const VEC_INT_TIMER: Word = 0x0050;
+    pub const VEC_INT_SERIAL: Word = 0x0058;
+    pub const VEC_INT_JOYPAD: Word = 0x0060;
+    // named I/O memory locations [FF00..FF7F]
+    pub const JOYP: Word = 0xFF00;
+    // timers
+    pub const DIV: Word = 0xFF04;
+    pub const TIMA: Word = 0xFF05;
+    pub const TMA: Word = 0xFF06;
+    pub const TAC: Word = 0xFF07;
+    // audio
+    pub const NR10: Word = 0xFF10;
+    pub const NR11: Word = 0xFF11;
+    pub const NR12: Word = 0xFF12;
+    pub const NR14: Word = 0xFF14;
+    pub const NR21: Word = 0xFF16;
+    pub const NR22: Word = 0xFF17;
+    pub const NR24: Word = 0xFF19;
+    pub const NR30: Word = 0xFF1A;
+    pub const NR31: Word = 0xFF1B;
+    pub const NR32: Word = 0xFF1C;
+    pub const NR33: Word = 0xFF1E;
+    pub const NR41: Word = 0xFF20;
+    pub const NR42: Word = 0xFF21;
+    pub const NR43: Word = 0xFF22;
+    pub const NR44: Word = 0xFF23;
+    pub const NR50: Word = 0xFF24;
+    pub const NR51: Word = 0xFF25;
+    pub const NR52: Word = 0xFF26;
+    // rendering
+    pub const LCDC: Word = 0xFF40;
+    pub const STAT: Word = 0xFF41;
+    pub const SCY: Word = 0xFF42;
+    pub const SCX: Word = 0xFF43;
+    pub const LY: Word = 0xFF44;
+    pub const LYC: Word = 0xFF45;
+    pub const DMA: Word = 0xFF46; // <-- OAM memory transfer
+    pub const BGP: Word = 0xFF47;
+    pub const OBP0: Word = 0xFF48;
+    pub const OBP1: Word = 0xFF49;
+    pub const WY: Word = 0xFF4A;
+    pub const WX: Word = 0xFF4B;
+    // interrupt registers
+    pub const IF: Word = 0xFF0F;
+    pub const IE: Word = 0xFFFF;
+
+    // sizes
+    pub const ROM_MAX: usize = 0x200000;
+    pub const MEM_SIZE: usize = 0xFFFF + 1;
+    pub const BANK_SIZE: usize = 0x4000 + 1;
+
+    pub struct Memory([Byte; MEM_SIZE]);
+    impl Memory {
+        pub fn new() -> Memory {
+            let mut mem = Memory([0; MEM_SIZE]);
+            mem[TIMA] = 0x00;
+            mem[TMA] = 0x00;
+            mem[TAC] = 0x00;
+            mem[NR10] = 0x80;
+            mem[NR11] = 0xBF;
+            mem[NR12] = 0xF3;
+            mem[NR14] = 0xBF;
+            mem[NR21] = 0x3F;
+            mem[NR22] = 0x00;
+            mem[NR24] = 0xBF;
+            mem[NR30] = 0x7F;
+            mem[NR31] = 0xFF;
+            mem[NR32] = 0x9F;
+            mem[NR33] = 0xBF;
+            mem[NR41] = 0xFF;
+            mem[NR42] = 0x00;
+            mem[NR43] = 0x00;
+            mem[NR44] = 0xBF;
+            mem[NR50] = 0x77;
+            mem[NR51] = 0xF3;
+            mem[NR52] = 0xF1;
+            mem[LCDC] = 0x91;
+            mem[SCY] = 0x00;
+            mem[SCX] = 0x00;
+            mem[LYC] = 0x00;
+            mem[BGP] = 0xFC;
+            mem[OBP0] = 0xFF;
+            mem[OBP1] = 0xFF;
+            mem[WY] = 0x00;
+            mem[WX] = 0x00;
+            mem[IE] = 0x00;
+            mem
+        }
+        pub fn load_rom(&mut self, rom: &[Byte]) {
+            // raw copy, skip mem checks
+            self.0[0..rom.len()].copy_from_slice(rom)
+        }
+        pub fn bank0(&mut self) -> &mut [Byte] {
+            &mut self.0[0x0000..0x4000]
+        }
+        pub fn bank1(&mut self) -> &mut [Byte] {
+            &mut self.0[0x4000..0x8000]
+        }
+    }
+    impl Index<Word> for Memory {
+        type Output = Byte;
+
+        fn index(&self, index: Word) -> &Self::Output {
+            &self.0[index as usize]
+        }
+    }
+    impl IndexMut<Word> for Memory {
+        fn index_mut(&mut self, index: Word) -> &mut Self::Output {
+            match index {
+                DMA => println!("[write] DMA"),
+                LCDC => println!("[write] LCDC"),
+                _ => (),
+            }
+
+            &mut self.0[index as usize]
+        }
+    }
+    pub type Bank = [Byte; BANK_SIZE];
+}
+
 pub mod types {
     pub type Byte = u8;
     pub type Word = u16;

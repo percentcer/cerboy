@@ -125,6 +125,10 @@ impl CPUState {
     const fn HL(&self) -> Word {
         combine(self.reg[REG_H], self.reg[REG_L])
     }
+    /// Combines the A and FLAG registers for 16b operations
+    const fn AF(&self) -> Word {
+        combine(self.reg[REG_A], self.reg[FLAGS])
+    }
     /// Combines the B and C registers for 16b operations
     const fn BC(&self) -> Word {
         combine(self.reg[REG_B], self.reg[REG_C])

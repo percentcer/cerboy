@@ -64,7 +64,7 @@ pub mod memory {
     // sizes
     pub const ROM_MAX: usize = 0x200000;
     pub const MEM_SIZE: usize = 0xFFFF + 1;
-    pub const BANK_SIZE: usize = 0x4000 + 1;
+    pub const BANK_SIZE: usize = 0x4000;
 
     pub struct Memory([Byte; MEM_SIZE]);
     impl Memory {

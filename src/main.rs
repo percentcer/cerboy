@@ -1743,6 +1743,7 @@ fn main() {
 
     let mut timers = HardwareTimers::new();
     let mut lcd_timing: u64 = 0;
+    let mut ei_delay = 0;
 
     // loop
     // ------------
@@ -1752,13 +1753,14 @@ fn main() {
 
         // set start tsc for timer update (later)
         let tsc_prev = cpu.tsc;
-
+        
         // check interrupts
         // -----------------
-        // todo: The effect of EI is delayed by one instruction.
+        // The effect of EI is delayed by one instruction.
         // This means that EI followed immediately by DI does not
         // allow interrupts between the EI and the DI.
-        if cpu.ime {
+        ei_delay = std::cmp::max(-1, ei_delay - 1);
+        if cpu.ime && ei_delay < 0 {
             let enabled_flags = mem[IE] & mem[IF];
             if (enabled_flags & FL_INT_VBLANK) > 0 {
                 cpu = handle_int(cpu, &mut mem, FL_INT_VBLANK, VEC_INT_VBLANK);
@@ -2016,7 +2018,10 @@ fn main() {
             0xD6 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xD7 => rst_n(cpu, &mut mem, 0xD7),
             0xD8 => ret_c(cpu, &mem),
-            0xD9 => reti(cpu, &mem),
+            0xD9 => {
+                ei_delay = 1; 
+                reti(cpu, &mem)
+            },
             0xDA => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA),
             0xDB => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xDC => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
@@ -2050,7 +2055,10 @@ fn main() {
             0xF8 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xF9 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xFA => ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem),
-            0xFB => ei(cpu),
+            0xFB => {
+                ei_delay = 1;
+                ei(cpu)
+            },
             0xFC => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xFD => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xFE => cp_d8(cpu, mem[pc + 1]),

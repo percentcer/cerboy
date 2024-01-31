@@ -1,6 +1,6 @@
 pub mod memory {
     use crate::types::*;
-    use std::ops::{Index, IndexMut};
+    use std::{ops::{Index, IndexMut}, str::{from_utf8}};
 
     // RST locations (vectors)
     pub const VEC_RST_00: Word = 0x0000;
@@ -62,9 +62,126 @@ pub mod memory {
     pub const IE: Word = 0xFFFF;
 
     // sizes
-    pub const ROM_MAX: usize = 0x200000;
+    pub const KB: usize = 0x0400; // one kilobyte
+    pub const CART_SIZE_MAX: usize = 0x200000;
     pub const MEM_SIZE: usize = 0xFFFF + 1;
     pub const BANK_SIZE: usize = 0x4000;
+
+    // ROM Header
+    pub const ROM_ENTRY: Word = 0x0100;
+    pub const ROM_LOGO: Word = 0x0104;
+    pub const ROM_TITLE: Word = 0x0134;
+    pub const ROM_TITLE_END: Word = 0x0143 + 1;
+    pub const ROM_MFR_CODE: Word = 0x013F;
+    pub const ROM_SGB: Word = 0x0146;
+    pub const ROM_TYPE: Word = 0x0147;
+    pub const ROM_SIZE: Word = 0x0148;
+    pub const ROM_RAM_SIZE: Word = 0x0149;
+    pub const ROM_DESTINATION: Word = 0x014A;
+
+    pub struct Cartridge(Box<[Byte]>);
+    impl Cartridge {
+        // todo: CGB flag
+        // todo: MFR codes
+        // todo: Licensee codes
+        // todo: SGB flag
+        // todo: Old Licensee code
+        // todo: Mask rom version number
+        // todo: Checksum
+        // todo: Checksum (Global)
+        pub fn new(rom_path: &str) -> Cartridge {
+            let rom: Vec<Byte> = crate::io::read_bytes(rom_path);
+            Cartridge(rom.into_boxed_slice())
+        }
+        pub fn title(&self) -> &str {
+            from_utf8(&self.0[ROM_TITLE as usize..ROM_TITLE_END as usize]).unwrap()
+        }
+        pub fn size(&self) -> usize {
+            if self[ROM_SIZE] < 0x50 {
+                BANK_SIZE << (1 + self[ROM_SIZE])
+            } else {
+                match self[ROM_SIZE] {
+                    0x52 => 72 * BANK_SIZE,
+                    0x53 => 80 * BANK_SIZE,
+                    0x54 => 96 * BANK_SIZE,
+                    _inv => panic!("Invalid rom size {}", _inv)
+                }
+            }
+        }
+        pub fn num_banks(&self) -> usize {
+            // utility, this is inferred from size, not stored directly
+            if self.size() > BANK_SIZE*2 {self.size() / BANK_SIZE} else {0}
+        }
+        pub fn size_ram(&self) -> usize {
+            match self[ROM_RAM_SIZE] {
+                0x00 => KB * 0,
+                0x01 => KB * 2,
+                0x02 => KB * 8,
+                0x03 => KB * 32,
+                0x04 => KB * 128,
+                0x05 => KB * 64,
+                _inv => panic!("Invalid RAM size {}", _inv)
+            }
+        }
+        pub fn hardware_type(&self) -> &str {
+            match self[ROM_TYPE] {
+                0x00 => "ROM ONLY",
+                0x01 => "MBC1",
+                0x02 => "MBC1+RAM",
+                0x03 => "MBC1+RAM+BATTERY",
+                0x05 => "MBC2",
+                0x06 => "MBC2+BATTERY",
+                0x08 => "ROM+RAM",
+                0x09 => "ROM+RAM+BATTERY",
+                0x0B => "MMM01",
+                0x0C => "MMM01+RAM",
+                0x0D => "MMM01+RAM+BATTERY",
+                0x0F => "MBC3+TIMER+BATTERY",
+                0x10 => "MBC3+TIMER+RAM+BATTERY",
+                0x11 => "MBC3",
+                0x12 => "MBC3+RAM",
+                0x13 => "MBC3+RAM+BATTERY",
+                0x19 => "MBC5",
+                0x1A => "MBC5+RAM",
+                0x1B => "MBC5+RAM+BATTERY",
+                0x1C => "MBC5+RUMBLE",
+                0x1D => "MBC5+RUMBLE+RAM",
+                0x1E => "MBC5+RUMBLE+RAM+BATTERY",
+                0x20 => "MBC6",
+                0x22 => "MBC7+SENSOR+RUMBLE+RAM+BATTERY",
+                0xFC => "POCKET CAMERA",
+                0xFD => "BANDAI TAMA5",
+                0xFE => "HuC3",
+                0xFF => "HuC1+RAM+BATTERY",
+                _    => "???"
+            }
+        }
+        pub fn destination_code(&self) -> &str {
+            match self[ROM_DESTINATION] {
+                0x00 => "Japanese",
+                0x01 => "Non-Japanese",
+                _ => "???",
+            }
+        }
+    }
+    impl Index<Word> for Cartridge {
+        type Output = Byte;
+        fn index(&self, index: Word) -> &Self::Output {
+            &self.0[index as usize]
+        }
+    }
+    impl Index<usize> for Cartridge {
+        type Output = Byte;
+        fn index(&self, index: usize) -> &Self::Output {
+            &self.0[index]
+        }
+    }
+    impl Index<std::ops::Range<usize>> for Cartridge {
+        type Output = [Byte];
+        fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
+            &self.0[index]
+        }
+    }
 
     pub struct Memory([Byte; MEM_SIZE]);
     impl Memory {
@@ -103,9 +220,9 @@ pub mod memory {
             mem[IE] = 0x00;
             mem
         }
-        pub fn load_rom(&mut self, rom: &[Byte]) {
+        pub fn load_rom(&mut self, cart: &Cartridge) {
             // raw copy, skip mem checks
-            self.0[0..rom.len()].copy_from_slice(rom)
+            self.0[0..0x8000].copy_from_slice(&cart.0[0..0x8000])
         }
         pub fn bank0(&mut self) -> &mut [Byte] {
             &mut self.0[0x0000..0x4000]
@@ -132,7 +249,6 @@ pub mod memory {
             &mut self.0[index as usize]
         }
     }
-    pub type Bank = [Byte; BANK_SIZE];
 }
 
 pub mod types {
@@ -551,7 +667,7 @@ pub mod io {
     use crate::types::Byte;
     use std::io::Read;
 
-    pub fn init_rom(path: &str) -> Vec<Byte> {
+    pub fn read_bytes(path: &str) -> Vec<Byte> {
         let mut file = match std::fs::File::open(&path) {
             Ok(file) => file,
             Err(file) => panic!("failed to open {}", file),

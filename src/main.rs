@@ -10,7 +10,6 @@ extern crate env_logger;
 
 use cerboy::bits::*;
 use cerboy::decode::decodeCB;
-use cerboy::io::init_rom;
 use cerboy::memory::*;
 use cerboy::types::*;
 
@@ -1734,10 +1733,10 @@ fn main() {
 
     // init system
     // ------------
-    let rom: Vec<Byte> = init_rom(rom_path);
+    let cart = Cartridge::new(rom_path);
     let mut cpu = CPUState::new();
     let mut mem: Memory = Memory::new();
-    mem.load_rom(&rom); // load cartridge
+    mem.load_rom(&cart); // load cartridge
     // let boot = init_rom("./rom/boot/DMG_ROM.bin");
     // load_rom(&mut mem, &boot);
 

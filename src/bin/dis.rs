@@ -1,5 +1,5 @@
-use cerboy::io::init_rom;
 use cerboy::types::{Byte, Instruction, InstructionCB};
+use cerboy::memory::*;
 use cerboy::decode::{decode, decodeCB};
 
 fn main() {
@@ -16,13 +16,25 @@ fn main() {
 
     // print rom
     // ------------
-    let rom: Vec<Byte> = init_rom(rom_path);
+    let cart = Cartridge::new(rom_path);
+    let mut mem: Memory = Memory::new();
+    mem.load_rom(&cart);
+
+    println!(
+        "{} | size: {} | banks: {} | ram: {} | hw: {} | dst: {}", 
+        cart.title(),
+        cart.size(),
+        cart.num_banks(),
+        cart.size_ram(),
+        cart.hardware_type(),
+        cart.destination_code()
+    );
 
     // hex
     // ------------
     let mut i = 0;
-    while i < rom.len() {
-        let b = rom[i];
+    while i < cart.size() {
+        let b = cart[i];
         print!("{b:02X} ");
         i += 1;
         if i % 16 == 0 {
@@ -34,8 +46,8 @@ fn main() {
     // dis
     // ------------
     let mut i = 0;
-    while i < rom.len() {
-        let inst: Instruction = decode(rom[i]);
+    while i < cart.size() {
+        let inst: Instruction = decode(cart[i]);
         if !inst.valid() {
             i += 1;
             println!("[invalid instruction]");
@@ -44,13 +56,13 @@ fn main() {
         let argc = inst.len as usize;
         if inst.prefix() {
             i += 1; // (all cb instructions are 1 byte for the prefix and 1 byte for the opcode)
-            let cb: InstructionCB = decodeCB(rom[i]);
+            let cb: InstructionCB = decodeCB(cart[i]);
             let cbinst: Instruction = Instruction::from_cb(&cb);
             println!("{}", cbinst.mnm);
         } else {
             match argc {
                 1 => println!("{}", inst.mnm),
-                2..=3 => println!("{}", inst.mnm_args(&rom[i+1..i+argc])),
+                2..=3 => println!("{}", inst.mnm_args(&cart[i+1..i+argc])),
                 _ => panic!("(unreachable) todo: this is getting messy"),
             }
         }

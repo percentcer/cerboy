@@ -113,7 +113,7 @@ impl CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x13, 0x00, 0xD8, 0x01, 0x4D, 0xB0, 0x01],
             sp: 0xFFFE,
-            pc: 0x0100,
+            pc: ROM_ENTRY,
             ime: false,
         }
     }
@@ -2564,7 +2564,7 @@ mod tests_cpu {
         assert_eq!(inc_de(cpu).reg[REG_E], 0x04);
         assert_eq!(inc_hl(cpu).reg[REG_H], 0x12);
         assert_eq!(inc_hl(cpu).reg[REG_L], 0x00);
-        assert_eq!(inc_sp(cpu).sp, 0x0100);
+        assert_eq!(inc_sp(cpu).sp, ROM_ENTRY);
     }
 
     #[test]

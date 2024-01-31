@@ -291,12 +291,12 @@ pub mod decode {
                     0 => Instruction::new("NOP", 1),
                     1 => Instruction::new("LD (nn), SP", 3),
                     2 => Instruction::new("STOP", 1),
-                    3 => Instruction::new("JR d", 2),
+                    3 => Instruction::new("JR n", 2),
                     v @ 4..=7 => {
                         let i: usize = (v - 4) as usize;
                         let _CC_i: &'static str = CC[i];
                         Instruction {
-                            mnm: format!("JR {_CC_i}, d"),
+                            mnm: format!("JR {_CC_i}, n"),
                             len: 2,
                         }
                     }
@@ -387,9 +387,9 @@ pub mod decode {
                         len: 1,
                     },
                     4 => Instruction::new("LD (0xFF00 + n), A", 2),
-                    5 => Instruction::new("ADD SP, d", 2),
+                    5 => Instruction::new("ADD SP, n", 2),
                     6 => Instruction::new("LD A, (0xFF00 + n)", 2),
-                    7 => Instruction::new("LD HL, SP + d", 2),
+                    7 => Instruction::new("LD HL, SP + n", 2),
                     _ => Instruction::new(INVALID, 0),
                 },
                 1 => match q(op) {

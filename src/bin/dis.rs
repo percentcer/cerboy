@@ -1,4 +1,4 @@
-use cerboy::types::{Byte, Instruction, InstructionCB};
+use cerboy::types::{Instruction, InstructionCB};
 use cerboy::memory::*;
 use cerboy::decode::{decode, decodeCB};
 

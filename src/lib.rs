@@ -1,6 +1,30 @@
 pub mod memory {
     use crate::types::*;
-    use std::{ops::{Index, IndexMut}, str::{from_utf8}};
+    use std::{ops::{Index, IndexMut}, str::from_utf8};
+
+    // 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
+    pub const MEM_BANK_00: Word = 0x0000;
+    // 4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
+    pub const MEM_BANK_NN: Word = 0x4000;
+    // 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
+    pub const MEM_VRAM: Word = 0x8000;
+    // A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
+    pub const MEM_EXT: Word = 0xA000;
+    // C000-CFFF   4KB Work RAM Bank 0 (WRAM)
+    pub const MEM_WRAM_0: Word = 0xC000;
+    // D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
+    pub const MEM_WRAM_1: Word = 0xD000;
+    // E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
+    pub const MEM_ECHO: Word = 0xE000;
+    // FE00-FE9F   Sprite Attribute Table (OAM)
+    pub const MEM_OAM: Word = 0xFE00;
+    // FEA0-FEFF   Not Usable
+    pub const MEM_NOT_USABLE: Word = 0xFEA0;
+    // FF00-FF7F   I/O Ports
+    pub const MEM_IO_PORTS: Word = 0xFF00;
+    // FF80-FFFE   High RAM (HRAM)
+    pub const MEM_HRAM: Word = 0xFF80;
+    // FFFF        Interrupt Enable Register
 
     // RST locations (vectors)
     pub const VEC_RST_00: Word = 0x0000;
@@ -183,10 +207,13 @@ pub mod memory {
         }
     }
 
-    pub struct Memory([Byte; MEM_SIZE]);
+    pub struct Memory{
+        data: [Byte; MEM_SIZE],
+        pub dma_req: bool,
+    }
     impl Memory {
         pub fn new() -> Memory {
-            let mut mem = Memory([0; MEM_SIZE]);
+            let mut mem = Memory { data: [0; MEM_SIZE], dma_req: false };
             mem[TIMA] = 0x00;
             mem[TMA] = 0x00;
             mem[TAC] = 0x00;
@@ -222,31 +249,56 @@ pub mod memory {
         }
         pub fn load_rom(&mut self, cart: &Cartridge) {
             // raw copy, skip mem checks
-            self.0[0..0x8000].copy_from_slice(&cart.0[0..0x8000])
+            self.data[MEM_BANK_00 as usize..MEM_VRAM as usize].copy_from_slice(&cart.0[MEM_BANK_00 as usize..MEM_VRAM as usize])
         }
         pub fn bank0(&mut self) -> &mut [Byte] {
-            &mut self.0[0x0000..0x4000]
+            &mut self.data[MEM_BANK_00 as usize..MEM_BANK_NN as usize]
         }
         pub fn bank1(&mut self) -> &mut [Byte] {
-            &mut self.0[0x4000..0x8000]
+            &mut self.data[MEM_BANK_NN as usize..MEM_VRAM as usize]
+        }
+        /// Update is called once per instruction decode
+        /// 
+        /// todo: this shouldn't really be tied to the decode loop, the memory unit operates on its own little timeline
+        pub fn update(&mut self) {
+            if self.dma_req {
+                self.dma_req = false;
+                // todo: on real hardware this doesn't happen instantaneously, may need some code to delay the full transfer based on tsc
+                // (e.g. while DMA is active the memory unit restricts access to everything but the HRAM)
+                // https://gbdev.io/pandocs/OAM_DMA_Transfer.html#ff46--dma-oam-dma-source-address--start
+                // Source:      $XX00-$XX9F   ;XX = $00 to $DF
+                // Destination: $FE00-$FE9F
+                let offset = self[DMA];
+                let dma_start = crate::bits::combine(offset, 0x00) as usize;
+                let dma_end = (crate::bits::combine(offset, 0x9F) + 1) as usize;
+                let (main_chunk, oam_chunk) = self.data.split_at_mut(MEM_OAM as usize);
+                oam_chunk[0..0xA0].copy_from_slice(&main_chunk[dma_start..dma_end]);
+            }
         }
     }
     impl Index<Word> for Memory {
         type Output = Byte;
-
         fn index(&self, index: Word) -> &Self::Output {
-            &self.0[index as usize]
+            &self.data[index as usize]
         }
     }
     impl IndexMut<Word> for Memory {
         fn index_mut(&mut self, index: Word) -> &mut Self::Output {
             match index {
-                DMA => println!("[write] DMA"),
+                DMA => {
+                    println!("[write] DMA 0x{:X}", self[index]);
+                    self.dma_req = true;
+                },
                 LCDC => println!("[write] LCDC"),
                 _ => (),
             }
-
-            &mut self.0[index as usize]
+            &mut self.data[index as usize]
+        }
+    }
+    impl Index<std::ops::Range<usize>> for Memory {
+        type Output = [Byte];
+        fn index(&self, index: std::ops::Range<usize>) -> &Self::Output {
+            &self.data[index]
         }
     }
 }

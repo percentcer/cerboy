@@ -29,30 +29,6 @@ use cerboy::types::*;
 // Vert Sync    - 59.73 Hz (61.17 Hz for SGB)
 // Sound        - 4 channels with stereo sound
 // Power        - DC6V 0.7W (DC3V 0.7W for GB Pocket, DC3V 0.6W for CGB)
-//
-// 0000-3FFF   16KB ROM Bank 00     (in cartridge, fixed at bank 00)
-const MEM_BANK_00: Word = 0x0000;
-// 4000-7FFF   16KB ROM Bank 01..NN (in cartridge, switchable bank number)
-const MEM_BANK_NN: Word = 0x4000;
-// 8000-9FFF   8KB Video RAM (VRAM) (switchable bank 0-1 in CGB Mode)
-const MEM_VRAM: Word = 0x8000;
-// A000-BFFF   8KB External RAM     (in cartridge, switchable bank, if any)
-const MEM_EXT: Word = 0xA000;
-// C000-CFFF   4KB Work RAM Bank 0 (WRAM)
-const MEM_WRAM_0: Word = 0xC000;
-// D000-DFFF   4KB Work RAM Bank 1 (WRAM)  (switchable bank 1-7 in CGB Mode)
-const MEM_WRAM_1: Word = 0xD000;
-// E000-FDFF   Same as C000-DDFF (ECHO)    (typically not used)
-const MEM_ECHO: Word = 0xE000;
-// FE00-FE9F   Sprite Attribute Table (OAM)
-const MEM_OAM: Word = 0xFE00;
-// FEA0-FEFF   Not Usable
-const MEM_NOT_USABLE: Word = 0xFEA0;
-// FF00-FF7F   I/O Ports
-const MEM_IO_PORTS: Word = 0xFF00;
-// FF80-FFFE   High RAM (HRAM)
-const MEM_HRAM: Word = 0xFF80;
-// FFFF        Interrupt Enable Register
 
 const GB_SCREEN_WIDTH: usize = 160;
 const GB_SCREEN_HEIGHT: usize = 144;
@@ -2064,9 +2040,13 @@ fn main() {
             0xFF => rst_n(cpu, &mut mem, 0xFF),
         };
         let dt_cyc = cpu.tsc - tsc_prev;
+        
+        // update memory (e.g. handle any pending DMA transfers)
+        // ------------------------------------------------
+        mem.update();
 
         // update timers
-        // -----------------
+        // ------------------------------------------------
         timers = update_clocks(timers, &mut mem, dt_cyc);
         lcd_timing += dt_cyc;
 

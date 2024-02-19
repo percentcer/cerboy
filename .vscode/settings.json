@@ -3,5 +3,8 @@
   "lldb.dereferencePointers": true,
   "workbench.preferredDarkColorTheme": "Red",
   "workbench.preferredLightColorTheme": "Red",
-  "workbench.colorTheme": "Amber"
+  "workbench.colorTheme": "Amber",
+  "rust-analyzer.linkedProjects": [
+    ".\\dbg\\Cargo.toml"
+  ]
 }

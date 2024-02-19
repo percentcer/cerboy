@@ -1,0 +1,32 @@
+[package]
+name = "cerdbg"
+version = "0.1.0"
+edition = "2018"
+default-run = "cerdbg"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+env_logger = "0.8.4"
+minifb = "0.19.3"
+const_format = "0.2.26"
+unroll = "0.1.5"
+sdl2 = "0.34.5"
+imgui = "0.11.0"
+glow = "0.12.0"
+imgui-glow-renderer = "0.11.0"
+
+# [dev-dependencies]
+# https://doc.rust-lang.org/rustc/instrument-coverage.html
+# rustup component add llvm-tools
+# rustfilt = "0.2"
+# cargo-binutils = "0.3"
+
+# [[bin]]
+# name = "dis"
+# path = "src/bin/dis.rs"
+
+# [[bin]]
+# name = "dbg"
+# path = "src/bin/dbg.rs"

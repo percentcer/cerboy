@@ -25,16 +25,17 @@ fn main() {
     /* hint SDL to initialize an OpenGL 3.3 core profile context */
     let gl_attr = video_subsystem.gl_attr();
 
-    gl_attr.set_context_version(3, 3);
+    // gl_attr.set_context_version(3, 3);
+    gl_attr.set_context_version(4, 6);
     gl_attr.set_context_profile(GLProfile::Core);
 
     /* create a new window, be sure to call opengl method on the builder when using glow! */
     let window = video_subsystem
-        .window("Hello imgui-rs!", 1280, 720)
+        .window("debugcer", 1280, 720)
         .allow_highdpi()
         .opengl()
         .position_centered()
-        .resizable()
+        // .resizable()
         .build()
         .unwrap();
 

@@ -7,3 +7,5 @@ DMG_ROM.bin
 /coverage
 *.profraw
 *.profdata
+
+Cargo.lock

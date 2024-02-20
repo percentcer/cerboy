@@ -1,96 +1,89 @@
-use glow::HasContext;
-use imgui::Context;
-use imgui_glow_renderer::AutoRenderer;
+//! A basic example showing imgui rendering on top of a simple custom scene.
 
-use cerdbg::*;
+use std::{num::NonZeroU32, time::Instant};
 
-use sdl2::{
-    event::Event,
-    video::{GLProfile, Window},
-};
+mod utils;
 
-
-// Create a new glow context.
-fn glow_context(window: &Window) -> glow::Context {
-    unsafe {
-        glow::Context::from_loader_function(|s| window.subsystem().gl_get_proc_address(s) as _)
-    }
-}
+use glutin::surface::GlSurface;
+use utils::Triangler;
 
 fn main() {
-    /* initialize SDL and its video subsystem */
-    let sdl = sdl2::init().unwrap();
-    let video_subsystem = sdl.video().unwrap();
+    let (event_loop, window, surface, context) = utils::create_window("Hello, triangle!", None);
+    let (mut winit_platform, mut imgui_context) = utils::imgui_init(&window);
+    let gl = utils::glow_context(&context);
 
-    /* hint SDL to initialize an OpenGL 3.3 core profile context */
-    let gl_attr = video_subsystem.gl_attr();
+    let mut ig_renderer = imgui_glow_renderer::AutoRenderer::initialize(gl, &mut imgui_context)
+        .expect("failed to create renderer");
+    let tri_renderer = Triangler::new(ig_renderer.gl_context(), "#version 330");
 
-    // gl_attr.set_context_version(3, 3);
-    gl_attr.set_context_version(4, 6);
-    gl_attr.set_context_profile(GLProfile::Core);
+    let mut last_frame = Instant::now();
+    event_loop
+        .run(move |event, window_target| {
+            match event {
+                winit::event::Event::NewEvents(_) => {
+                    let now = Instant::now();
+                    imgui_context
+                        .io_mut()
+                        .update_delta_time(now.duration_since(last_frame));
+                    last_frame = now;
+                }
+                winit::event::Event::AboutToWait => {
+                    winit_platform
+                        .prepare_frame(imgui_context.io_mut(), &window)
+                        .unwrap();
 
-    /* create a new window, be sure to call opengl method on the builder when using glow! */
-    let window = video_subsystem
-        .window("debugcer", 1280, 720)
-        .allow_highdpi()
-        .opengl()
-        .position_centered()
-        // .resizable()
-        .build()
-        .unwrap();
+                    window.request_redraw();
+                }
+                winit::event::Event::WindowEvent {
+                    event: winit::event::WindowEvent::RedrawRequested,
+                    ..
+                } => {
+                    // Render your custom scene, note we need to borrow the OpenGL
+                    // context from the `AutoRenderer`, which takes ownership of it.
+                    tri_renderer.render(ig_renderer.gl_context());
 
-    /* create a new OpenGL context and make it current */
-    let gl_context = window.gl_create_context().unwrap();
-    window.gl_make_current(&gl_context).unwrap();
+                    let ui = imgui_context.frame();
+                    ui.show_demo_window(&mut true);
 
-    /* enable vsync to cap framerate */
-    window.subsystem().gl_set_swap_interval(1).unwrap();
+                    winit_platform.prepare_render(ui, &window);
+                    let draw_data = imgui_context.render();
 
-    /* create new glow and imgui contexts */
-    let gl = glow_context(&window);
+                    // Render imgui on top of it
+                    ig_renderer
+                        .render(draw_data)
+                        .expect("error rendering imgui");
 
-    /* create context */
-    let mut imgui = Context::create();
-
-    /* disable creation of files on disc */
-    imgui.set_ini_filename(None);
-    imgui.set_log_filename(None);
-
-    /* setup platform and renderer, and fonts to imgui */
-    imgui
-        .fonts()
-        .add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-
-    /* create platform and renderer */
-    let mut platform = SdlPlatform::init(&mut imgui);
-    let mut renderer = AutoRenderer::initialize(gl, &mut imgui).unwrap();
-
-    /* start main loop */
-    let mut event_pump = sdl.event_pump().unwrap();
-
-    'main: loop {
-        for event in event_pump.poll_iter() {
-            /* pass all events to imgui platfrom */
-            platform.handle_event(&mut imgui, &event);
-
-            if let Event::Quit { .. } = event {
-                break 'main;
+                    surface
+                        .swap_buffers(&context)
+                        .expect("Failed to swap buffers");
+                }
+                winit::event::Event::WindowEvent {
+                    event: winit::event::WindowEvent::CloseRequested,
+                    ..
+                } => {
+                    window_target.exit();
+                }
+                winit::event::Event::WindowEvent {
+                    event: winit::event::WindowEvent::Resized(new_size),
+                    ..
+                } => {
+                    if new_size.width > 0 && new_size.height > 0 {
+                        surface.resize(
+                            &context,
+                            NonZeroU32::new(new_size.width).unwrap(),
+                            NonZeroU32::new(new_size.height).unwrap(),
+                        );
+                    }
+                    winit_platform.handle_event(imgui_context.io_mut(), &window, &event);
+                }
+                winit::event::Event::LoopExiting => {
+                    let gl = ig_renderer.gl_context();
+                    tri_renderer.destroy(gl);
+                }
+                event => {
+                    winit_platform.handle_event(imgui_context.io_mut(), &window, &event);
+                }
             }
-        }
-
-        /* call prepare_frame before calling imgui.new_frame() */
-        platform.prepare_frame(&mut imgui, &window, &event_pump);
-
-        let ui = imgui.new_frame();
-        /* create imgui UI here */
-        ui.show_demo_window(&mut true);
-
-        /* render */
-        let draw_data = imgui.render();
-
-        unsafe { renderer.gl_context().clear(glow::COLOR_BUFFER_BIT) };
-        renderer.render(draw_data).unwrap();
-
-        window.gl_swap_window();
-    }
+        })
+        .expect("EventLoop error");
 }

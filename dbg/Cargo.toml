@@ -4,30 +4,18 @@ version = "0.1.0"
 edition = "2018"
 default-run = "cerdbg"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-log = "0.4"
-env_logger = "0.8.4"
-minifb = "0.19.3"
-const_format = "0.2.26"
-unroll = "0.1.5"
-sdl2 = {version="0.34.5",features=["gfx"]}
-imgui = "0.11.0"
-glow = "0.12.0"
-imgui-glow-renderer = "0.11.0"
-cerboy = { path = "../" }
-
-# [dev-dependencies]
-# https://doc.rust-lang.org/rustc/instrument-coverage.html
-# rustup component add llvm-tools
-# rustfilt = "0.2"
-# cargo-binutils = "0.3"
-
-# [[bin]]
-# name = "dis"
-# path = "src/bin/dis.rs"
-
 [[bin]]
 name = "demo"
 path = "src/demo.rs"
+
+[dependencies]
+imgui = { version = "0.11.0", path="..\\..\\imgui-rs\\imgui" }
+imgui-glow-renderer = { version = "0.11.0", path="..\\..\\imgui-rs\\imgui-glow-renderer" }
+imgui-winit-support = { version = "0.11.0", path="..\\..\\imgui-rs\\imgui-winit-support"}
+glow = "0.12.0"
+memoffset = "0.9"
+glutin = "0.31.1"
+glutin-winit = "0.4.2"
+image = "0.23"
+raw-window-handle = "0.5.0"
+winit = { version = "0.29.3", features = ["rwh_05"] }

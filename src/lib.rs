@@ -70,9 +70,9 @@ pub mod cpu {
         inst_count: u64, // counting instructions since reset
         inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
         // ------------ hardware
-        reg: [Byte; 8],
-        sp: Word,
-        pc: Word,
+        pub(crate) reg: [Byte; 8],
+        pub(crate) sp: Word,
+        pub(crate) pc: Word,
         ime: bool, // true == interrupts enabled
     }
 
@@ -2803,8 +2803,37 @@ pub mod bits {
 }
 
 pub mod dbg {
+    use std::io::Write;
     use std::fs;
+
+    use crate::cpu::*;
     use crate::memory::*;
+    use crate::types::*;
+
+    pub fn log_cpu(path: &str, cpu: &CPUState, mem: &Memory) -> std::io::Result<()> {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        write!(file,"A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}\n",
+        cpu.reg[REG_A],
+        cpu.reg[FLAGS],
+        cpu.reg[REG_B],
+        cpu.reg[REG_C],
+        cpu.reg[REG_D],
+        cpu.reg[REG_E],
+        cpu.reg[REG_H],
+        cpu.reg[REG_L],
+        cpu.sp,
+        cpu.pc,
+        mem[cpu.pc],
+        mem[cpu.pc+1],
+        mem[cpu.pc+2],
+        mem[cpu.pc+3],
+        )?;
+        Ok(())
+    }
 
     pub fn dump(path: &str, mem: &Memory) -> std::io::Result<()> {
         fs::write(path, mem.data)?;

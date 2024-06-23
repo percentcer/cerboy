@@ -2214,7 +2214,7 @@ pub mod memory {
     }
 
     pub struct Memory {
-        data: [Byte; MEM_SIZE],
+        pub(crate) data: [Byte; MEM_SIZE],
         pub dma_req: bool,
     }
     impl Memory {
@@ -2798,5 +2798,15 @@ pub mod bits {
     // can't be const for some reason https://github.com/rust-lang/rust/issues/53605
     pub fn signed(val: Byte) -> SByte {
         unsafe { std::mem::transmute(val) }
+    }
+}
+
+pub mod dbg {
+    use std::fs;
+    use crate::memory::*;
+
+    pub fn dump(path: &str, mem: &Memory) -> std::io::Result<()> {
+        fs::write(path, mem.data)?;
+        Ok(())
     }
 }

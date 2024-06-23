@@ -9,3 +9,4 @@ DMG_ROM.bin
 *.profdata
 
 Cargo.lock
+mem.bin

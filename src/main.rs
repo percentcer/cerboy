@@ -10,6 +10,7 @@ extern crate env_logger;
 
 use cerboy::bits::*;
 use cerboy::cpu::*;
+use cerboy::dbg::*;
 use cerboy::memory::*;
 use cerboy::types::*;
 
@@ -210,6 +211,7 @@ fn main() {
                         .unwrap();
 
                     print_lcdc(&mem);
+                    dump("mem.bin", &mem).unwrap();
                 }
             }
             _ => panic!("invalid LCD mode"),

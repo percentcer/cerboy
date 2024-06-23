@@ -6,5 +6,6 @@
   "workbench.colorTheme": "Amber",
   "rust-analyzer.linkedProjects": [
     ".\\dbg\\Cargo.toml"
-  ]
+  ],
+  "editor.bracketPairColorization.enabled": false
 }

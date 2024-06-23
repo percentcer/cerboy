@@ -9,9 +9,9 @@ use minifb::{Key, Window, WindowOptions};
 extern crate env_logger;
 
 use cerboy::bits::*;
+use cerboy::cpu::*;
 use cerboy::memory::*;
 use cerboy::types::*;
-use cerboy::cpu::*;
 
 fn print_lcdc(mem: &Memory) {
     // print LCDC diagnostics
@@ -74,6 +74,7 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Memory = Memory::new();
     mem.load_rom(&cart); // load cartridge
+
     // todo: boot doesn't work anymore with the new cartridge setup
     // let boot = init_rom("./rom/boot/DMG_ROM.bin");
     // load_rom(&mut mem, &boot);
@@ -90,7 +91,7 @@ fn main() {
         let cpu_prev = cpu;
         cpu = next(cpu_prev, &mut mem);
         let dt_cyc = cpu.tsc - cpu_prev.tsc;
-        
+
         // update memory (e.g. handle any pending DMA transfers)
         // ------------------------------------------------
         mem.update();
@@ -123,7 +124,11 @@ fn main() {
                     // -------------------------------------------
                     // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
                     // but cerboy currently only draws the line in a single shot (instead of per-dot)
-                    let bg_tilemap_start: Word = if bit_test(3, mem[LCDC]) { 0x9C00 } else { 0x9800 };
+                    let bg_tilemap_start: Word = if bit_test(3, mem[LCDC]) {
+                        0x9C00
+                    } else {
+                        0x9800
+                    };
                     let (bg_signed_addressing, bg_tile_data_start) = if bit_test(4, mem[LCDC]) {
                         (false, MEM_VRAM as Word)
                     } else {
@@ -374,10 +379,22 @@ mod tests_cpu {
 
     #[test]
     fn test_add_hl_rr() {
-        assert_eq!(add_hl_bc(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.BC()).0);
-        assert_eq!(add_hl_de(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.DE()).0);
-        assert_eq!(add_hl_hl(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.HL()).0);
-        assert_eq!(add_hl_sp(INITIAL).HL(), INITIAL.HL().overflowing_add(INITIAL.sp).0);
+        assert_eq!(
+            add_hl_bc(INITIAL).HL(),
+            INITIAL.HL().overflowing_add(INITIAL.BC()).0
+        );
+        assert_eq!(
+            add_hl_de(INITIAL).HL(),
+            INITIAL.HL().overflowing_add(INITIAL.DE()).0
+        );
+        assert_eq!(
+            add_hl_hl(INITIAL).HL(),
+            INITIAL.HL().overflowing_add(INITIAL.HL()).0
+        );
+        assert_eq!(
+            add_hl_sp(INITIAL).HL(),
+            INITIAL.HL().overflowing_add(INITIAL.sp).0
+        );
 
         // test flags (-0hc)
         let mut reg = INITIAL.reg;
@@ -385,9 +402,15 @@ mod tests_cpu {
         reg[REG_L] = 0xFF;
         reg[REG_B] = 0x00;
         reg[REG_C] = 0x01;
-        assert_eq!(add_hl_bc(CPUState{reg, ..INITIAL}).reg[FLAGS], INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | 0);
+        assert_eq!(
+            add_hl_bc(CPUState { reg, ..INITIAL }).reg[FLAGS],
+            INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | 0
+        );
         reg[REG_H] = 0xFF;
-        assert_eq!(add_hl_bc(CPUState{reg, ..INITIAL}).reg[FLAGS], INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | FL_C);
+        assert_eq!(
+            add_hl_bc(CPUState { reg, ..INITIAL }).reg[FLAGS],
+            INITIAL.reg[FLAGS] & FL_Z | 0 | FL_H | FL_C
+        );
     }
 
     #[test]
@@ -445,17 +468,17 @@ mod tests_cpu {
             reg: [0, 0, 0, 0, 0, 0x01, FL_Z | FL_N | FL_H | FL_C, 0x01],
             ..INITIAL
         };
-        
-        let initial:Byte = 0x0E;
+
+        let initial: Byte = 0x0E;
         mem[cpu.HL()] = initial;
         cpu = inc_HL(cpu, &mut mem);
 
-        assert_eq!(mem[cpu.HL()], initial+1);
+        assert_eq!(mem[cpu.HL()], initial + 1);
         assert_eq!(cpu.reg[FLAGS], FL_C); // FL_C remains untouched by this operation
 
         // increment again, this time 0x0F should half-carry into 0x10
         cpu = inc_HL(cpu, &mut mem);
-        assert_eq!(mem[cpu.HL()], initial+2);
+        assert_eq!(mem[cpu.HL()], initial + 2);
         assert_eq!(cpu.reg[FLAGS], FL_H | FL_C); // FL_H from half-carry
 
         // reset value to 0xFF, confirm we get a FL_Z flag on overflow
@@ -825,10 +848,10 @@ mod tests_cpu {
 
     #[test]
     fn test_impl_rlc_r() {
-        let cpu = CPUState { 
+        let cpu = CPUState {
             //    B     C     D     E     H     L     fl    A
             reg: [0x00, 0x01, 0x80, 0x03, 0x11, 0xFF, FL_C, 0xAA],
-            ..INITIAL 
+            ..INITIAL
         };
 
         let rot_b = impl_rlc_r(cpu, REG_B);

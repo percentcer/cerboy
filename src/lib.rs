@@ -781,6 +781,7 @@ pub mod cpu {
         CPUState {
             pc: cpu.pc + 3,
             tsc: cpu.tsc + 16,
+            reg,
             ..cpu
         }
     }

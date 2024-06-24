@@ -70,9 +70,9 @@ pub mod cpu {
         inst_count: u64, // counting instructions since reset
         inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
         // ------------ hardware
-        reg: [Byte; 8],
-        sp: Word,
-        pc: Word,
+        pub(crate) reg: [Byte; 8],
+        pub(crate) sp: Word,
+        pub(crate) pc: Word,
         ime: bool, // true == interrupts enabled
     }
 
@@ -416,7 +416,7 @@ pub mod cpu {
             0xC1 => pop_bc(cpu, &mem),
             0xC2 => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2),
             0xC3 => jp_d16(cpu, mem[pc + 1], mem[pc + 2]),
-            0xC4 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xC4 => call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xC4),
             0xC5 => push_bc(cpu, mem),
             0xC6 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xC7 => rst_n(cpu, mem, 0xC7),
@@ -444,7 +444,7 @@ pub mod cpu {
                     _ => panic!("unknown instruction (0xCB) 0x{:X} ({})", op_cb, icb.opcode)
                 }
             },
-            0xCC => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xCC => call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xCC),
             0xCD => call_d16(mem[pc + 1], mem[pc + 2], cpu, mem),
             0xCE => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xCF => rst_n(cpu, mem, 0xCF),
@@ -452,7 +452,7 @@ pub mod cpu {
             0xD1 => pop_de(cpu, &mem),
             0xD2 => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2),
             0xD3 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
-            0xD4 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xD4 => call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xD4),
             0xD5 => push_de(cpu, mem),
             0xD6 => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xD7 => rst_n(cpu, mem, 0xD7),
@@ -460,7 +460,7 @@ pub mod cpu {
             0xD9 => reti(cpu, &mem),
             0xDA => jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA),
             0xDB => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
-            0xDC => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
+            0xDC => call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xDC),
             0xDD => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xDE => panic!("unknown instruction 0x{:X} ({})", mem[pc], inst.mnm),
             0xDF => rst_n(cpu, mem, 0xDF),
@@ -781,6 +781,7 @@ pub mod cpu {
         CPUState {
             pc: cpu.pc + 3,
             tsc: cpu.tsc + 16,
+            reg,
             ..cpu
         }
     }
@@ -1853,6 +1854,22 @@ pub mod cpu {
     }
 
     //   call f,nn      xx nn nn 24;12 ---- conditional call if nz,z,nc,c
+    // ----------------------------------------------------------------------------
+    fn call_f_d16(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory, op: Byte) -> CPUState {
+        // 0xC4: NZ | 0xD4: NC | 0xCC: Z | 0xDC: C
+        let do_call = match op {
+            0xC4 => (cpu.reg[FLAGS] & FL_Z) == 0,
+            0xD4 => (cpu.reg[FLAGS] & FL_C) == 0,
+            0xCC => (cpu.reg[FLAGS] & FL_Z) != 0,
+            0xDC => (cpu.reg[FLAGS] & FL_C) != 0,
+            _ => panic!("call_f_d16 unreachable"),
+        };
+        if do_call {
+            call_d16(low, high, cpu, mem)
+        } else {
+            cpu.adv_pc(3).tick(12)
+        }
+    }
 
     //   ret            C9          16 ---- return, PC=(SP), SP=SP+2
     // ----------------------------------------------------------------------------
@@ -2290,6 +2307,10 @@ pub mod memory {
         type Output = Byte;
         fn index(&self, index: Word) -> &Self::Output {
             &self.data[index as usize]
+            // match index {
+            //     LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
+            //     _ => &self.data[index as usize],
+            // }
         }
     }
     impl IndexMut<Word> for Memory {
@@ -2802,8 +2823,45 @@ pub mod bits {
 }
 
 pub mod dbg {
+    use std::io::Write;
     use std::fs;
+
+    use crate::cpu::*;
     use crate::memory::*;
+    use crate::types::*;
+
+    pub fn mock_mem_read(addr: Word, mem: &Memory) -> Byte {
+        if addr == LY {
+            0x90
+        } else {
+            mem[addr]
+        }
+    }
+
+    pub fn log_cpu(path: &str, cpu: &CPUState, mem: &Memory) -> std::io::Result<()> {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+        write!(file,"A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}\n",
+        cpu.reg[REG_A],
+        cpu.reg[FLAGS],
+        cpu.reg[REG_B],
+        cpu.reg[REG_C],
+        cpu.reg[REG_D],
+        cpu.reg[REG_E],
+        cpu.reg[REG_H],
+        cpu.reg[REG_L],
+        cpu.sp,
+        cpu.pc,
+        mock_mem_read(cpu.pc+0, &mem),
+        mock_mem_read(cpu.pc+1, &mem),
+        mock_mem_read(cpu.pc+2, &mem),
+        mock_mem_read(cpu.pc+3, &mem),
+        )?;
+        Ok(())
+    }
 
     pub fn dump(path: &str, mem: &Memory) -> std::io::Result<()> {
         fs::write(path, mem.data)?;

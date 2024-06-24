@@ -56,15 +56,26 @@ fn main() {
 
     let mut timers = HardwareTimers::new();
     let mut lcd_timing: u64 = 0;
+    
+    // init logging
+    // ------------
+    let mut cpu_log_lines = Vec::new();
 
     // loop
     // ------------
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
-
+        log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
         let cpu_prev = cpu;
-        cpu = next(cpu_prev, &mut mem);
+        cpu = match next(cpu_prev, &mut mem) {
+            Ok(cpu) => cpu,
+            Err(e) => {
+                cpu_log_lines.push(e.to_string());
+                std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
+                panic!("{}", e.to_string());
+            }
+        };
         let dt_cyc = cpu.tsc - cpu_prev.tsc;
 
         // update memory (e.g. handle any pending DMA transfers)

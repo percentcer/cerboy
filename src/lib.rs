@@ -2809,4 +2809,30 @@ pub mod dbg {
         fs::write(path, mem.data)?;
         Ok(())
     }
+
+    fn print_lcdc(mem: &Memory) {
+        // print LCDC diagnostics
+        let lcdc_7 = if bit_test(7, mem[LCDC]) { " on" } else { "off" };
+        let lcdc_6 = if bit_test(6, mem[LCDC]) {
+            "0x9C00"
+        } else {
+            "0x9800"
+        };
+        let lcdc_5 = if bit_test(5, mem[LCDC]) { " on" } else { "off" };
+        let lcdc_4 = if bit_test(4, mem[LCDC]) {
+            "0x8000"
+        } else {
+            "0x8800"
+        };
+        let lcdc_3 = if bit_test(3, mem[LCDC]) {
+            "0x9C00"
+        } else {
+            "0x9800"
+        };
+        let lcdc_2 = if bit_test(2, mem[LCDC]) { "16" } else { " 8" };
+        let lcdc_1 = if bit_test(1, mem[LCDC]) { " on" } else { "off" };
+        let lcdc_0 = if bit_test(0, mem[LCDC]) { " on" } else { "off" };
+        let lcdc_v = mem[LCDC];
+        println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
+    }
 }

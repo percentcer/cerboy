@@ -2878,7 +2878,7 @@ pub mod dbg {
         Ok(())
     }
 
-    fn print_lcdc(mem: &Memory) {
+    pub fn print_lcdc(mem: &Memory) {
         // print LCDC diagnostics
         let lcdc_7 = if bit_test(7, mem[LCDC]) { " on" } else { "off" };
         let lcdc_6 = if bit_test(6, mem[LCDC]) {

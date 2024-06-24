@@ -8,7 +8,6 @@ use minifb::{Key, Window, WindowOptions};
 
 extern crate env_logger;
 
-use cerboy::bits::*;
 use cerboy::cpu::*;
 use cerboy::dbg::*;
 use cerboy::memory::*;
@@ -19,7 +18,7 @@ fn main() {
 
     // window management
     // -----------------
-    let mut buffer: Vec<u32> = vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT];
+    let buffer: Vec<u32> = vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT];
     let mut window = Window::new(
         "cerboy",
         GB_SCREEN_WIDTH * 4,
@@ -49,11 +48,11 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Memory = Memory::new();
     mem.load_rom(&cart); // load cartridge
-
+    
     // todo: boot doesn't work anymore with the new cartridge setup
     // let boot = init_rom("./rom/boot/DMG_ROM.bin");
     // load_rom(&mut mem, &boot);
-
+    
     let mut timers = HardwareTimers::new();
     let mut lcd_timing: u64 = 0;
     
@@ -195,7 +194,7 @@ fn main() {
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
 
-                    print_lcdc(&mem);
+                    // cerboy::dbg::print_lcdc(&mem);
                     dump("mem.bin", &mem).unwrap();
                 }
             }

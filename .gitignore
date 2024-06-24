@@ -10,3 +10,5 @@ DMG_ROM.bin
 
 Cargo.lock
 mem.bin
+cpu.log
+mem.raw

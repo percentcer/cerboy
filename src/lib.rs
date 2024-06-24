@@ -2291,6 +2291,10 @@ pub mod memory {
         type Output = Byte;
         fn index(&self, index: Word) -> &Self::Output {
             &self.data[index as usize]
+            // match index {
+            //     LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
+            //     _ => &self.data[index as usize],
+            // }
         }
     }
     impl IndexMut<Word> for Memory {
@@ -2810,6 +2814,14 @@ pub mod dbg {
     use crate::memory::*;
     use crate::types::*;
 
+    pub fn mock_mem_read(addr: Word, mem: &Memory) -> Byte {
+        if addr == LY {
+            0x90
+        } else {
+            mem[addr]
+        }
+    }
+
     pub fn log_cpu(path: &str, cpu: &CPUState, mem: &Memory) -> std::io::Result<()> {
         let mut file = fs::OpenOptions::new()
             .create(true)
@@ -2827,10 +2839,10 @@ pub mod dbg {
         cpu.reg[REG_L],
         cpu.sp,
         cpu.pc,
-        mem[cpu.pc],
-        mem[cpu.pc+1],
-        mem[cpu.pc+2],
-        mem[cpu.pc+3],
+        mock_mem_read(cpu.pc+0, &mem),
+        mock_mem_read(cpu.pc+1, &mem),
+        mock_mem_read(cpu.pc+2, &mem),
+        mock_mem_read(cpu.pc+3, &mem),
         )?;
         Ok(())
     }

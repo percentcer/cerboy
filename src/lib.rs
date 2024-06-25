@@ -444,13 +444,13 @@ pub mod cpu {
                 let icb = decodeCB(op_cb);
                 match icb.opcode {
                     "RLC" => Ok(impl_rlc_r(cpu, icb.reg)),
-                    // "RRC" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "RRC" => Ok(impl_rrc_r(cpu, icb.reg)),
                     "RL" => Ok(impl_rl_r(cpu, icb.reg)),
-                    // "RR" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
-                    // "SLA" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
-                    // "SRA" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "RR" => Ok(impl_rr_r(cpu, icb.reg)),
+                    "SLA" => Ok(impl_sla_r(cpu, icb.reg)),
+                    "SRA" => Ok(impl_sra_r(cpu, icb.reg)),
                     "SWAP" => Ok(impl_swap_r(cpu, icb.reg)),
-                    // "SRL" => panic!("unknown instruction (0xCB) 0x{:X}", mem[pc]),
+                    "SRL" => Ok(impl_srl_r(cpu, icb.reg)),
                     "BIT" => Ok(impl_bit(cpu, icb.bit, icb.reg)),
                     "RES" => Ok(impl_res_n_r(cpu, icb.bit, icb.reg)),
                     "SET" => Ok(impl_set(cpu, icb.bit, icb.reg)),
@@ -1647,25 +1647,85 @@ pub mod cpu {
     }
 
     //   rl   (HL)      CB 16       16 z00c rotate left through carry
+    
     //   rrc  r         CB 0x        8 z00c rotate right
+    // ----------------------------------------------------------------------------
+    const fn impl_rrc_r(cpu: CPUState, dst: usize) -> CPUState {
+        let mut reg = cpu.reg;
+        let result = reg[dst].rotate_right(1);
+        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+
+        reg[dst] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+    }
     //   rrc  (HL)      CB 0E       16 z00c rotate right
+
     //   rr   r         CB 1x        8 z00c rotate right through carry
+    // ----------------------------------------------------------------------------
+    const fn impl_rr_r(cpu: CPUState, dst: usize) -> CPUState {
+        let mut reg = cpu.reg;
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+
+        reg[dst] = (cpu.reg[dst].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
+        reg[FLAGS] = fl_c | fl_z(reg[dst]);
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+    }
     //   rr   (HL)      CB 1E       16 z00c rotate right through carry
+
     //   sla  r         CB 2x        8 z00c shift left arithmetic (b0=0)
+    // ----------------------------------------------------------------------------
+    const fn impl_sla_r(cpu: CPUState, dst: usize) -> CPUState {
+        let mut reg = cpu.reg;
+        let fl_c: Byte = if cpu.reg[dst] & 0x80 > 0 {FL_C} else {0};
+
+        reg[dst] = reg[dst] << 1;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+    }
     //   sla  (HL)      CB 26       16 z00c shift left arithmetic (b0=0)
+
     //   swap r         CB 3x        8 z000 exchange low/hi-nibble
     // ----------------------------------------------------------------------------
     const fn impl_swap_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         reg[dst] = (reg[dst] >> 4) | (reg[dst] << 4);
         reg[FLAGS] = fl_z(reg[dst]);
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+    }
+    //   swap (HL)      CB 36       16 z000 exchange low/hi-nibble
+    
+    //   sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
+    // ----------------------------------------------------------------------------
+    const fn impl_sra_r(cpu: CPUState, dst: usize) -> CPUState {
+        let mut reg = cpu.reg;
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+
+        reg[dst] = (cpu.reg[dst] & 0x80) | reg[dst] >> 1;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
 
-    //   swap (HL)      CB 36       16 z000 exchange low/hi-nibble
-    //   sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
     //   sra  (HL)      CB 2E       16 z00c shift right arithmetic (b7=b7)
+
     //   srl  r         CB 3x        8 z00c shift right logical (b7=0)
+    // ----------------------------------------------------------------------------
+    const fn impl_srl_r(cpu: CPUState, dst: usize) -> CPUState {
+        let mut reg = cpu.reg;
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+
+        reg[dst] = reg[dst] >> 1;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(8)
+    }
+
     //   srl  (HL)      CB 3E       16 z00c shift right logical (b7=0)
 
     // GMB Singlebit Operation Commands

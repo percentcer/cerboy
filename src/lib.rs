@@ -248,7 +248,7 @@ pub mod cpu {
             0x0C => Ok(inc_c(cpu)),
             0x0D => Ok(dec_c(cpu)),
             0x0E => Ok(ld_c_d8(cpu, mem[pc + 1])),
-            0x0F => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
+            0x0F => Ok(rrca(cpu)),
             0x10 => Ok(stop(cpu)),
             0x11 => Ok(ld_de_d16(cpu, mem[pc + 1], mem[pc + 2])),
             0x12 => Ok(ld_DE_a(cpu, mem)),
@@ -264,7 +264,7 @@ pub mod cpu {
             0x1C => Ok(inc_e(cpu)),
             0x1D => Ok(dec_e(cpu)),
             0x1E => Ok(ld_e_d8(cpu, mem[pc + 1])),
-            0x1F => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
+            0x1F => Ok(rra(cpu)),
             0x20 => Ok(jr_nz_r8(cpu, signed(mem[pc + 1]))),
             0x21 => Ok(ld_hl_d16(cpu, mem[pc + 1], mem[pc + 2])),
             0x22 => Ok(ldi_HL_a(cpu, mem)),
@@ -1621,7 +1621,32 @@ pub mod cpu {
     }
 
     //   rrca           0F           4 000c rotate akku right
+    // ----------------------------------------------------------------------------
+    const fn rrca(cpu: CPUState) -> CPUState {
+        let mut reg = cpu.reg;
+        reg[FLAGS] = (cpu.reg[REG_A] & 1) << 4;
+        reg[REG_A] = cpu.reg[REG_A].rotate_right(1);
+        CPUState {
+            pc: cpu.pc + 1,
+            tsc: cpu.tsc + 4,
+            reg,
+            ..cpu
+        }
+    }
+
     //   rra            1F           4 000c rotate akku right through carry
+    // ----------------------------------------------------------------------------
+    const fn rra(cpu: CPUState) -> CPUState {
+        let mut reg = cpu.reg;
+        reg[FLAGS] = (cpu.reg[REG_A] & 1) << 4;
+        reg[REG_A] = (cpu.reg[REG_A].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
+        CPUState {
+            pc: cpu.pc + 1,
+            tsc: cpu.tsc + 4,
+            reg,
+            ..cpu
+        }
+    }
 
     //   rlc  r         CB 0x        8 z00c rotate left
     // ----------------------------------------------------------------------------

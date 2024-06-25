@@ -8,6 +8,7 @@ use minifb::{Key, Window, WindowOptions};
 
 extern crate env_logger;
 
+use cerboy::bits::*;
 use cerboy::cpu::*;
 use cerboy::dbg::*;
 use cerboy::memory::*;
@@ -18,7 +19,7 @@ fn main() {
 
     // window management
     // -----------------
-    let buffer: Vec<u32> = vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT];
+    let mut buffer: Vec<u32> = vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT];
     let mut window = Window::new(
         "cerboy",
         GB_SCREEN_WIDTH * 4,
@@ -200,6 +201,7 @@ fn main() {
             _ => panic!("invalid LCD mode"),
         };
     }
+    std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
 }
 
 #[cfg(test)]

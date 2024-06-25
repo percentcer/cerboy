@@ -70,7 +70,6 @@ fn main() {
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
             Err(e) => {
-                cpu_log_lines.push(e.to_string());
                 std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
                 panic!("{}", e.to_string());
             }

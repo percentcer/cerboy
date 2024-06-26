@@ -989,8 +989,10 @@ pub mod cpu {
 
     fn impl_pop_rr(cpu: CPUState, mem: &Memory, reg_high: usize, reg_low: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         reg[reg_high] = mem[cpu.sp + 2];
-        reg[reg_low] = mem[cpu.sp + 1];
+        reg[reg_low] = mem[cpu.sp + 1] & (if reg_low == FLAGS {0xF0} else {0xFF}); // special case: FLAGS low nibble is always 0
+
         CPUState {
             pc: cpu.pc + 1,
             tsc: cpu.tsc + 12,

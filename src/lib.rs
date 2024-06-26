@@ -473,7 +473,7 @@ pub mod cpu {
             },
             0xCC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xCC)),
             0xCD => Ok(call_d16(mem[pc + 1], mem[pc + 2], cpu, mem)),
-            0xCE => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
+            0xCE => Ok(adc_d8(cpu, mem[pc + 1])),
             0xCF => Ok(rst_n(cpu, mem, 0xCF)),
             0xD0 => Ok(ret_nc(cpu, &mem)),
             0xD1 => Ok(pop_de(cpu, &mem)),

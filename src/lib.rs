@@ -438,23 +438,37 @@ pub mod cpu {
             0xCA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xCA)),
             0xCB => {
                 let op_cb = mem[pc + 1];
-                if ((op_cb & 0xF) == 0x6) || ((op_cb & 0xF) == 0xE) {
-                    panic!("[HL] instructions not yet implemented");
-                }
                 let icb = decodeCB(op_cb);
-                match icb.opcode {
-                    "RLC" => Ok(impl_rlc_r(cpu, icb.reg)),
-                    "RRC" => Ok(impl_rrc_r(cpu, icb.reg)),
-                    "RL" => Ok(impl_rl_r(cpu, icb.reg)),
-                    "RR" => Ok(impl_rr_r(cpu, icb.reg)),
-                    "SLA" => Ok(impl_sla_r(cpu, icb.reg)),
-                    "SRA" => Ok(impl_sra_r(cpu, icb.reg)),
-                    "SWAP" => Ok(impl_swap_r(cpu, icb.reg)),
-                    "SRL" => Ok(impl_srl_r(cpu, icb.reg)),
-                    "BIT" => Ok(impl_bit(cpu, icb.bit, icb.reg)),
-                    "RES" => Ok(impl_res_n_r(cpu, icb.bit, icb.reg)),
-                    "SET" => Ok(impl_set(cpu, icb.bit, icb.reg)),
-                    _ => Err(UnknownInstructionError{op: op_cb, mnm: format!("0xCB: {}", icb.opcode)}),
+                if icb.reg == ADR_HL {
+                    match icb.opcode {
+                        "RLC" => Ok(rlc_hl(cpu, mem)),
+                        "RRC" => Ok(rrc_hl(cpu, mem)),
+                        "RL" => Ok(rl_hl(cpu, mem)),
+                        "RR" => Ok(rr_hl(cpu, mem)),
+                        "SLA" => Ok(sla_hl(cpu, mem)),
+                        "SRA" => Ok(sra_hl(cpu, mem)),
+                        "SWAP" => Ok(swap_hl(cpu, mem)),
+                        "SRL" => Ok(srl_hl(cpu, mem)),
+                        "BIT" => Ok(bit_hl(cpu, mem, icb.bit)),
+                        "RES" => Ok(res_n_hl(cpu, mem, icb.bit)),
+                        "SET" => Ok(set_hl(cpu, mem, icb.bit)),
+                        _ => panic!("[HL] instruction not yet implemented"),
+                    }
+                } else {
+                    match icb.opcode {
+                        "RLC" => Ok(rlc_r(cpu, icb.reg)),
+                        "RRC" => Ok(rrc_r(cpu, icb.reg)),
+                        "RL" => Ok(rl_r(cpu, icb.reg)),
+                        "RR" => Ok(rr_r(cpu, icb.reg)),
+                        "SLA" => Ok(sla_r(cpu, icb.reg)),
+                        "SRA" => Ok(sra_r(cpu, icb.reg)),
+                        "SWAP" => Ok(swap_r(cpu, icb.reg)),
+                        "SRL" => Ok(srl_r(cpu, icb.reg)),
+                        "BIT" => Ok(bit_r(cpu, icb.bit, icb.reg)),
+                        "RES" => Ok(res_n_r(cpu, icb.bit, icb.reg)),
+                        "SET" => Ok(set_r(cpu, icb.bit, icb.reg)),
+                        _ => Err(UnknownInstructionError{op: op_cb, mnm: format!("0xCB: {}", icb.opcode)}),
+                    }
                 }
             },
             0xCC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xCC)),
@@ -1650,8 +1664,9 @@ pub mod cpu {
 
     //   rlc  r         CB 0x        8 z00c rotate left
     // ----------------------------------------------------------------------------
-    const fn impl_rlc_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn rlc_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+        
         let result = reg[dst].rotate_left(1);
         let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
 
@@ -1662,21 +1677,50 @@ pub mod cpu {
     }
 
     //   rlc  (HL)      CB 06       16 z00c rotate left
+    // ----------------------------------------------------------------------------
+    fn rlc_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+
+        let result = cur.rotate_left(1);
+        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
+
     //   rl   r         CB 1x        8 z00c rotate left through carry
     // ----------------------------------------------------------------------------
-    const fn impl_rl_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn rl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+        
         reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
         reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
+
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
 
     //   rl   (HL)      CB 16       16 z00c rotate left through carry
+    // ----------------------------------------------------------------------------
+    fn rl_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+        
+        mem[addr] = (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
+        reg[FLAGS] = (cur & 0x80) >> 3 | if mem[addr] == 0 { FL_Z } else { 0 };
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
     
     //   rrc  r         CB 0x        8 z00c rotate right
     // ----------------------------------------------------------------------------
-    const fn impl_rrc_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn rrc_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         let result = reg[dst].rotate_right(1);
         let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
 
@@ -1686,11 +1730,26 @@ pub mod cpu {
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
     //   rrc  (HL)      CB 0E       16 z00c rotate right
+    // ----------------------------------------------------------------------------
+    fn rrc_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+        
+        let result = cur.rotate_right(1);
+        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     //   rr   r         CB 1x        8 z00c rotate right through carry
     // ----------------------------------------------------------------------------
-    const fn impl_rr_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn rr_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
 
         reg[dst] = (cpu.reg[dst].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
@@ -1698,12 +1757,28 @@ pub mod cpu {
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
+
     //   rr   (HL)      CB 1E       16 z00c rotate right through carry
+    // ----------------------------------------------------------------------------
+    fn rr_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+
+        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+        let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_c | fl_z(result);
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     //   sla  r         CB 2x        8 z00c shift left arithmetic (b0=0)
     // ----------------------------------------------------------------------------
-    const fn impl_sla_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn sla_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         let fl_c: Byte = if cpu.reg[dst] & 0x80 > 0 {FL_C} else {0};
 
         reg[dst] = reg[dst] << 1;
@@ -1711,11 +1786,26 @@ pub mod cpu {
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
+
     //   sla  (HL)      CB 26       16 z00c shift left arithmetic (b0=0)
+    // ----------------------------------------------------------------------------
+    fn sla_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+        
+        let fl_c: Byte = if cur & 0x80 > 0 {FL_C} else {0};
+        let result = cur << 1;  
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     //   swap r         CB 3x        8 z000 exchange low/hi-nibble
     // ----------------------------------------------------------------------------
-    const fn impl_swap_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn swap_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
         reg[dst] = (reg[dst] >> 4) | (reg[dst] << 4);
@@ -1723,12 +1813,27 @@ pub mod cpu {
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
+
     //   swap (HL)      CB 36       16 z000 exchange low/hi-nibble
+    // ----------------------------------------------------------------------------
+    fn swap_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+
+        let result = (cur >> 4) | (cur << 4);
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result);
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
     
     //   sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
     // ----------------------------------------------------------------------------
-    const fn impl_sra_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn sra_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
 
         reg[dst] = (cpu.reg[dst] & 0x80) | reg[dst] >> 1;
@@ -1738,11 +1843,26 @@ pub mod cpu {
     }
 
     //   sra  (HL)      CB 2E       16 z00c shift right arithmetic (b7=b7)
+    // ----------------------------------------------------------------------------
+    fn sra_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+        
+        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+        let result = (cur & 0x80) | cur >> 1;
+
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     //   srl  r         CB 3x        8 z00c shift right logical (b7=0)
     // ----------------------------------------------------------------------------
-    const fn impl_srl_r(cpu: CPUState, dst: usize) -> CPUState {
+    const fn srl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
+
         let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
 
         reg[dst] = reg[dst] >> 1;
@@ -1752,62 +1872,110 @@ pub mod cpu {
     }
 
     //   srl  (HL)      CB 3E       16 z00c shift right logical (b7=0)
+    // ----------------------------------------------------------------------------
+    fn srl_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+        
+        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+        let result = cur >> 1;
+        
+        mem[addr] = result;
+        reg[FLAGS] = fl_z(result) | fl_c;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     // GMB Singlebit Operation Commands
     // ============================================================================
     //   bit  n,r       CB xx        8 z01- test bit n
     // ----------------------------------------------------------------------------
-    const fn impl_bit(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
+    const fn bit_r(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
-        let mask = 1 << bit;
 
+        let mask = 1 << bit;
         reg[FLAGS] =
             if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
 
     //   bit  n,(HL)    CB xx       12 z01- test bit n
+    // ----------------------------------------------------------------------------
+    fn bit_hl(cpu: CPUState, mem: &mut Memory, bit: Byte) -> CPUState {
+        let mut reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        let cur = mem[addr];
+
+        let mask = 1 << bit;
+        reg[FLAGS] =
+            if (cur & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+            
+        CPUState { reg, ..cpu }.adv_pc(2).tick(12)
+    }
+
     //   set  n,r       CB xx        8 ---- set bit n
     // ----------------------------------------------------------------------------
-    const fn impl_set(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
+    const fn set_r(cpu: CPUState, bit: Byte, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
-        let mask = 1 << bit;
 
+        let mask = 1 << bit;
         reg[dst] |= mask;
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
 
     //   set  n,(HL)    CB xx       16 ---- set bit n
+    // ----------------------------------------------------------------------------
+    fn set_hl(cpu: CPUState, mem: &mut Memory, bit: Byte) -> CPUState {
+        let reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+        
+        let mask = 1 << bit;
+        mem[addr] |= mask;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
 
     //   res  n,r       CB xx        8 ---- reset bit n
     // ----------------------------------------------------------------------------
-    const fn impl_res_n_r(cpu: CPUState, n: Byte, r: usize) -> CPUState {
+    const fn res_n_r(cpu: CPUState, n: Byte, r: usize) -> CPUState {
         let mut reg = cpu.reg;
-        let mask = 1 << n;
 
+        let mask = 1 << n;
         reg[r] &= !mask;
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
 
+    //   res  n,(HL)    CB xx       16 ---- reset bit n
+    // ----------------------------------------------------------------------------
+    fn res_n_hl(cpu: CPUState, mem: &mut Memory, n: Byte) -> CPUState {
+        let reg = cpu.reg;
+        let addr = combine(reg[REG_H], reg[REG_L]);
+
+        let mask = 1 << n;
+        mem[addr] &= !mask;
+
+        CPUState { reg, ..cpu }.adv_pc(2).tick(16)
+    }
+
     #[test]
-    fn test_impl_res_n_r() {
+    fn test_res_n_r() {
         let cpu = CPUState {
             reg: [0xFE, 0, 0, 0, 0, 0, 0, 0],
             ..CPUState::new()
         };
-        assert_eq!(impl_res_n_r(cpu, 0, REG_B).reg[REG_B], 0b11111110);
-        assert_eq!(impl_res_n_r(cpu, 1, REG_B).reg[REG_B], 0b11111100);
-        assert_eq!(impl_res_n_r(cpu, 2, REG_B).reg[REG_B], 0b11111010);
-        assert_eq!(impl_res_n_r(cpu, 3, REG_B).reg[REG_B], 0b11110110);
-        assert_eq!(impl_res_n_r(cpu, 4, REG_B).reg[REG_B], 0b11101110);
-        assert_eq!(impl_res_n_r(cpu, 5, REG_B).reg[REG_B], 0b11011110);
-        assert_eq!(impl_res_n_r(cpu, 6, REG_B).reg[REG_B], 0b10111110);
-        assert_eq!(impl_res_n_r(cpu, 7, REG_B).reg[REG_B], 0b01111110);
+        assert_eq!(res_n_r(cpu, 0, REG_B).reg[REG_B], 0b11111110);
+        assert_eq!(res_n_r(cpu, 1, REG_B).reg[REG_B], 0b11111100);
+        assert_eq!(res_n_r(cpu, 2, REG_B).reg[REG_B], 0b11111010);
+        assert_eq!(res_n_r(cpu, 3, REG_B).reg[REG_B], 0b11110110);
+        assert_eq!(res_n_r(cpu, 4, REG_B).reg[REG_B], 0b11101110);
+        assert_eq!(res_n_r(cpu, 5, REG_B).reg[REG_B], 0b11011110);
+        assert_eq!(res_n_r(cpu, 6, REG_B).reg[REG_B], 0b10111110);
+        assert_eq!(res_n_r(cpu, 7, REG_B).reg[REG_B], 0b01111110);
     }
-
-    //   res  n,(HL)    CB xx       16 ---- reset bit n
 
     // GMB CPU-Controlcommands
     // ============================================================================

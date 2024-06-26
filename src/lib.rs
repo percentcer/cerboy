@@ -1507,8 +1507,9 @@ pub mod cpu {
         );
 
         let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
-    | if res == 0x00 {FL_Z} else {0}
-    | if h {FL_H} else {0};
+            | if res == 0x00 {FL_Z} else {0}
+            | FL_N
+            | if h {FL_H} else {0};
         reg[FLAGS] = flags;
 
         mem[cpu.HL()] = res;

@@ -309,73 +309,27 @@ pub mod cpu {
                     op: mem[pc],
                     mnm: inst.mnm,
                 }),
-                0x40 => Ok(ld_b_b(cpu)),
-                0x41 => Ok(ld_b_c(cpu)),
-                0x42 => Ok(ld_b_d(cpu)),
-                0x43 => Ok(ld_b_e(cpu)),
-                0x44 => Ok(ld_b_h(cpu)),
-                0x45 => Ok(ld_b_l(cpu)),
-                0x46 => Ok(ld_b_HL(cpu, &mem)),
-                0x47 => Ok(ld_b_a(cpu)),
-                0x48 => Ok(ld_c_b(cpu)),
-                0x49 => Ok(ld_c_c(cpu)),
-                0x4A => Ok(ld_c_d(cpu)),
-                0x4B => Ok(ld_c_e(cpu)),
-                0x4C => Ok(ld_c_h(cpu)),
-                0x4D => Ok(ld_c_l(cpu)),
-                0x4E => Ok(ld_c_HL(cpu, &mem)),
-                0x4F => Ok(ld_c_a(cpu)),
-                0x50 => Ok(ld_d_b(cpu)),
-                0x51 => Ok(ld_d_c(cpu)),
-                0x52 => Ok(ld_d_d(cpu)),
-                0x53 => Ok(ld_d_e(cpu)),
-                0x54 => Ok(ld_d_h(cpu)),
-                0x55 => Ok(ld_d_l(cpu)),
-                0x56 => Ok(ld_d_HL(cpu, &mem)),
-                0x57 => Ok(ld_d_a(cpu)),
-                0x58 => Ok(ld_e_b(cpu)),
-                0x59 => Ok(ld_e_c(cpu)),
-                0x5A => Ok(ld_e_d(cpu)),
-                0x5B => Ok(ld_e_e(cpu)),
-                0x5C => Ok(ld_e_h(cpu)),
-                0x5D => Ok(ld_e_l(cpu)),
-                0x5E => Ok(ld_e_HL(cpu, &mem)),
-                0x5F => Ok(ld_e_a(cpu)),
-                0x60 => Ok(ld_h_b(cpu)),
-                0x61 => Ok(ld_h_c(cpu)),
-                0x62 => Ok(ld_h_d(cpu)),
-                0x63 => Ok(ld_h_e(cpu)),
-                0x64 => Ok(ld_h_h(cpu)),
-                0x65 => Ok(ld_h_l(cpu)),
-                0x66 => Ok(ld_h_HL(cpu, &mem)),
-                0x67 => Ok(ld_h_a(cpu)),
-                0x68 => Ok(ld_l_b(cpu)),
-                0x69 => Ok(ld_l_c(cpu)),
-                0x6A => Ok(ld_l_d(cpu)),
-                0x6B => Ok(ld_l_e(cpu)),
-                0x6C => Ok(ld_l_h(cpu)),
-                0x6D => Ok(ld_l_l(cpu)),
-                0x6E => Ok(ld_l_HL(cpu, &mem)),
-                0x6F => Ok(ld_l_a(cpu)),
-                0x70 => Ok(ld_HL_b(cpu, mem)),
-                0x71 => Ok(ld_HL_c(cpu, mem)),
-                0x72 => Ok(ld_HL_d(cpu, mem)),
-                0x73 => Ok(ld_HL_e(cpu, mem)),
-                0x74 => Ok(ld_HL_h(cpu, mem)),
-                0x75 => Ok(ld_HL_l(cpu, mem)),
-                0x76 => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x77 => Ok(ld_HL_a(cpu, mem)),
-                0x78 => Ok(ld_a_b(cpu)),
-                0x79 => Ok(ld_a_c(cpu)),
-                0x7A => Ok(ld_a_d(cpu)),
-                0x7B => Ok(ld_a_e(cpu)),
-                0x7C => Ok(ld_a_h(cpu)),
-                0x7D => Ok(ld_a_l(cpu)),
-                0x7E => Ok(ld_a_HL(cpu, &mem)),
-                0x7F => Ok(ld_a_a(cpu)),
+                0x40..=0x7F => match mem[pc] {
+                    0x46 => Ok(ld_b_HL(cpu, &mem)),
+                    0x4E => Ok(ld_c_HL(cpu, &mem)),
+                    0x56 => Ok(ld_d_HL(cpu, &mem)),
+                    0x5E => Ok(ld_e_HL(cpu, &mem)),
+                    0x66 => Ok(ld_h_HL(cpu, &mem)),
+                    0x6E => Ok(ld_l_HL(cpu, &mem)),
+                    0x76 => Err(UnknownInstructionError { // HALT
+                        op: mem[pc],
+                        mnm: inst.mnm,
+                    }),
+                    0x7E => Ok(ld_a_HL(cpu, &mem)),
+                    0x70 => Ok(ld_HL_b(cpu, mem)),
+                    0x71 => Ok(ld_HL_c(cpu, mem)),
+                    0x72 => Ok(ld_HL_d(cpu, mem)),
+                    0x73 => Ok(ld_HL_e(cpu, mem)),
+                    0x74 => Ok(ld_HL_h(cpu, mem)),
+                    0x75 => Ok(ld_HL_l(cpu, mem)),
+                    0x77 => Ok(ld_HL_a(cpu, mem)),
+                    _ => Ok(ld_r_r(cpu, mem[pc])),
+                },
                 0x80 => Ok(add_b(cpu)),
                 0x81 => Ok(add_c(cpu)),
                 0x82 => Ok(add_d(cpu)),
@@ -625,159 +579,10 @@ pub mod cpu {
 
     //   ld   r,r         xx         4 ---- r=r
     // ----------------------------------------------------------------------------
-    // todo: the index arguments could be extracted from the opcode
-    const fn ld_b_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_b_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_c_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_c_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_d_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_d_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_e_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_e_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_h_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_h_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_l_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_l_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, cpu.reg[REG_A]).adv_pc(1).tick(4)
-    }
-
-    const fn ld_a_b(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_c(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_d(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_e(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_h(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_l(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn ld_a_a(cpu: CPUState) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn ld_r_r(cpu: CPUState, opcode: Byte) -> CPUState {
+        let dst_idx = (opcode - 0x40) / 0x08;
+        let src_idx = opcode % 0x08;
+        impl_ld_r_d8(cpu, R_ID[dst_idx as usize], cpu.reg[R_ID[src_idx as usize]]).adv_pc(1).tick(4)
     }
 
     //   ld   r,n         xx nn      8 ---- r=n
@@ -2812,7 +2617,7 @@ pub mod decode {
 
     // used for CB decoding, some bit functions reference (HL) instead of a register
     pub const ADR_HL: usize = 6;
-    const R_ID: [usize; 8] = [REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, ADR_HL, REG_A];
+    pub const R_ID: [usize; 8] = [REG_B, REG_C, REG_D, REG_E, REG_H, REG_L, ADR_HL, REG_A];
 
     // arg tables for printing mnemonics
     pub const R: [&'static str; 8] = ["B", "C", "D", "E", "H", "L", "(HL)", "A"];

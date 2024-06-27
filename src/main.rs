@@ -49,14 +49,14 @@ fn main() {
     let mut cpu = CPUState::new();
     let mut mem: Memory = Memory::new();
     mem.load_rom(&cart); // load cartridge
-    
+
     // todo: boot doesn't work anymore with the new cartridge setup
     // let boot = init_rom("./rom/boot/DMG_ROM.bin");
     // load_rom(&mut mem, &boot);
-    
+
     let mut timers = HardwareTimers::new();
     let mut lcd_timing: u64 = 0;
-    
+
     // init logging
     // ------------
     let mut cpu_log_lines: Vec<String> = Vec::new();
@@ -66,7 +66,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
-        log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+        // log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
         let cpu_prev = cpu;
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
@@ -123,9 +123,6 @@ fn main() {
                     };
                     let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
                     let bg_tile_line = bg_y as Word % 8;
-
-                    // todo: removeme: for fun
-                    // mem[SCX] = (f32::sin((mem[LY] as f32) * 0.1f32 + (cpu.tsc as f32)*0.000001f32)*5f32).trunc() as Byte;
 
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
                         let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);

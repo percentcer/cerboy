@@ -49,7 +49,8 @@ pub mod cpu {
     pub const TICKS_PER_HBLANK: u64 = 208; // roughly
     pub const TICKS_PER_SCANLINE: u64 = TICKS_PER_OAM_SEARCH + TICKS_PER_VRAM_IO + TICKS_PER_HBLANK;
     pub const TICKS_PER_VBLANK: u64 = TICKS_PER_SCANLINE * 10; // 144 on screen + 10 additional lines
-    pub const TICKS_PER_FRAME: u64 = (TICKS_PER_SCANLINE * GB_SCREEN_HEIGHT as u64) + TICKS_PER_VBLANK; // 70224 cycles
+    pub const TICKS_PER_FRAME: u64 =
+        (TICKS_PER_SCANLINE * GB_SCREEN_HEIGHT as u64) + TICKS_PER_VBLANK; // 70224 cycles
 
     pub const TICKS_PER_DIV_INC: u64 = 256;
 
@@ -62,10 +63,9 @@ pub mod cpu {
     pub const FL_INT_TIMER: Byte = 1 << 2;
     pub const FL_INT_SERIAL: Byte = 1 << 3;
     pub const FL_INT_JOYPAD: Byte = 1 << 4;
-    
+
     #[derive(Debug, Clone)]
-    pub struct UnknownInstructionError
-    {
+    pub struct UnknownInstructionError {
         mnm: String,
         op: Byte,
     }
@@ -79,7 +79,7 @@ pub mod cpu {
     #[derive(Copy, Clone, Debug)]
     pub struct CPUState {
         // ------------ meta, not part of actual gb hardware but useful
-        pub tsc: u64, // counting cycles since reset
+        pub tsc: u64,    // counting cycles since reset
         inst_count: u64, // counting instructions since reset
         inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
         // ------------ hardware
@@ -203,9 +203,12 @@ pub mod cpu {
         // fetch and execute
         // -----------------
         let pc = cpu.pc;
-        let cpu = CPUState{ inst_count: cpu.inst_count + 1, ..cpu }; // referenced by interrupt enabling instructions
-        // cerboy::decode::print_op(mem[pc]);
-        
+        let cpu = CPUState {
+            inst_count: cpu.inst_count + 1,
+            ..cpu
+        }; // referenced by interrupt enabling instructions
+           // cerboy::decode::print_op(mem[pc]);
+
         // check interrupts
         // -----------------
         // https://gbdev.io/pandocs/single.html#ime-interrupt-master-enable-flag-write-only
@@ -233,297 +236,378 @@ pub mod cpu {
             // and then go right into the next instruction, it's one or the other
             let inst = crate::decode::decode(mem[pc]);
             match mem[pc] {
-            0x00 => Ok(nop(cpu)),
-            0x01 => Ok(ld_bc_d16(cpu, mem[pc + 1], mem[pc + 2])),
-            0x02 => Ok(ld_BC_a(cpu, mem)),
-            0x03 => Ok(inc_bc(cpu)),
-            0x04 => Ok(inc_b(cpu)),
-            0x05 => Ok(dec_b(cpu)),
-            0x06 => Ok(ld_b_d8(cpu, mem[pc + 1])),
-            0x07 => Ok(rlca(cpu)),
-            0x08 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x09 => Ok(add_hl_bc(cpu)),
-            0x0A => Ok(ld_a_BC(cpu, &mem)),
-            0x0B => Ok(dec_bc(cpu)),
-            0x0C => Ok(inc_c(cpu)),
-            0x0D => Ok(dec_c(cpu)),
-            0x0E => Ok(ld_c_d8(cpu, mem[pc + 1])),
-            0x0F => Ok(rrca(cpu)),
-            0x10 => Ok(stop(cpu)),
-            0x11 => Ok(ld_de_d16(cpu, mem[pc + 1], mem[pc + 2])),
-            0x12 => Ok(ld_DE_a(cpu, mem)),
-            0x13 => Ok(inc_de(cpu)),
-            0x14 => Ok(inc_d(cpu)),
-            0x15 => Ok(dec_d(cpu)),
-            0x16 => Ok(ld_d_d8(cpu, mem[pc + 1])),
-            0x17 => Ok(rla(cpu)),
-            0x18 => Ok(jr_r8(cpu, signed(mem[pc + 1]))),
-            0x19 => Ok(add_hl_de(cpu)),
-            0x1A => Ok(ld_a_DE(cpu, &mem)),
-            0x1B => Ok(dec_de(cpu)),
-            0x1C => Ok(inc_e(cpu)),
-            0x1D => Ok(dec_e(cpu)),
-            0x1E => Ok(ld_e_d8(cpu, mem[pc + 1])),
-            0x1F => Ok(rra(cpu)),
-            0x20 => Ok(jr_nz_r8(cpu, signed(mem[pc + 1]))),
-            0x21 => Ok(ld_hl_d16(cpu, mem[pc + 1], mem[pc + 2])),
-            0x22 => Ok(ldi_HL_a(cpu, mem)),
-            0x23 => Ok(inc_hl(cpu)),
-            0x24 => Ok(inc_h(cpu)),
-            0x25 => Ok(dec_h(cpu)),
-            0x26 => Ok(ld_h_d8(cpu, mem[pc + 1])),
-            0x27 => Ok(daa(cpu)),
-            0x28 => Ok(jr_z_r8(cpu, signed(mem[pc + 1]))),
-            0x29 => Ok(add_hl_hl(cpu)),
-            0x2A => Ok(ldi_a_HL(cpu, mem)),
-            0x2B => Ok(dec_hl(cpu)),
-            0x2C => Ok(inc_l(cpu)),
-            0x2D => Ok(dec_l(cpu)),
-            0x2E => Ok(ld_l_d8(cpu, mem[pc + 1])),
-            0x2F => Ok(cpl(cpu)),
-            0x30 => Ok(jr_nc_r8(cpu, signed(mem[pc + 1]))),
-            0x31 => Ok(ld_sp_d16(cpu, mem[pc + 1], mem[pc + 2])),
-            0x32 => Ok(ldd_HL_a(cpu, mem)),
-            0x33 => Ok(inc_sp(cpu)),
-            0x34 => Ok(inc_HL(cpu, mem)),
-            0x35 => Ok(dec_HL(cpu, mem)),
-            0x36 => Ok(ld_HL_d8(cpu, mem[pc + 1], mem)),
-            0x37 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x38 => Ok(jr_c_r8(cpu, signed(mem[pc + 1]))),
-            0x39 => Ok(add_hl_sp(cpu)),
-            0x3A => Ok(ldd_a_HL(cpu, mem)),
-            0x3B => Ok(dec_sp(cpu)),
-            0x3C => Ok(inc_a(cpu)),
-            0x3D => Ok(dec_a(cpu)),
-            0x3E => Ok(ld_a_d8(cpu, mem[pc + 1])),
-            0x3F => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x40 => Ok(ld_b_b(cpu)),
-            0x41 => Ok(ld_b_c(cpu)),
-            0x42 => Ok(ld_b_d(cpu)),
-            0x43 => Ok(ld_b_e(cpu)),
-            0x44 => Ok(ld_b_h(cpu)),
-            0x45 => Ok(ld_b_l(cpu)),
-            0x46 => Ok(ld_b_HL(cpu, &mem)),
-            0x47 => Ok(ld_b_a(cpu)),
-            0x48 => Ok(ld_c_b(cpu)),
-            0x49 => Ok(ld_c_c(cpu)),
-            0x4A => Ok(ld_c_d(cpu)),
-            0x4B => Ok(ld_c_e(cpu)),
-            0x4C => Ok(ld_c_h(cpu)),
-            0x4D => Ok(ld_c_l(cpu)),
-            0x4E => Ok(ld_c_HL(cpu, &mem)),
-            0x4F => Ok(ld_c_a(cpu)),
-            0x50 => Ok(ld_d_b(cpu)),
-            0x51 => Ok(ld_d_c(cpu)),
-            0x52 => Ok(ld_d_d(cpu)),
-            0x53 => Ok(ld_d_e(cpu)),
-            0x54 => Ok(ld_d_h(cpu)),
-            0x55 => Ok(ld_d_l(cpu)),
-            0x56 => Ok(ld_d_HL(cpu, &mem)),
-            0x57 => Ok(ld_d_a(cpu)),
-            0x58 => Ok(ld_e_b(cpu)),
-            0x59 => Ok(ld_e_c(cpu)),
-            0x5A => Ok(ld_e_d(cpu)),
-            0x5B => Ok(ld_e_e(cpu)),
-            0x5C => Ok(ld_e_h(cpu)),
-            0x5D => Ok(ld_e_l(cpu)),
-            0x5E => Ok(ld_e_HL(cpu, &mem)),
-            0x5F => Ok(ld_e_a(cpu)),
-            0x60 => Ok(ld_h_b(cpu)),
-            0x61 => Ok(ld_h_c(cpu)),
-            0x62 => Ok(ld_h_d(cpu)),
-            0x63 => Ok(ld_h_e(cpu)),
-            0x64 => Ok(ld_h_h(cpu)),
-            0x65 => Ok(ld_h_l(cpu)),
-            0x66 => Ok(ld_h_HL(cpu, &mem)),
-            0x67 => Ok(ld_h_a(cpu)),
-            0x68 => Ok(ld_l_b(cpu)),
-            0x69 => Ok(ld_l_c(cpu)),
-            0x6A => Ok(ld_l_d(cpu)),
-            0x6B => Ok(ld_l_e(cpu)),
-            0x6C => Ok(ld_l_h(cpu)),
-            0x6D => Ok(ld_l_l(cpu)),
-            0x6E => Ok(ld_l_HL(cpu, &mem)),
-            0x6F => Ok(ld_l_a(cpu)),
-            0x70 => Ok(ld_HL_b(cpu, mem)),
-            0x71 => Ok(ld_HL_c(cpu, mem)),
-            0x72 => Ok(ld_HL_d(cpu, mem)),
-            0x73 => Ok(ld_HL_e(cpu, mem)),
-            0x74 => Ok(ld_HL_h(cpu, mem)),
-            0x75 => Ok(ld_HL_l(cpu, mem)),
-            0x76 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x77 => Ok(ld_HL_a(cpu, mem)),
-            0x78 => Ok(ld_a_b(cpu)),
-            0x79 => Ok(ld_a_c(cpu)),
-            0x7A => Ok(ld_a_d(cpu)),
-            0x7B => Ok(ld_a_e(cpu)),
-            0x7C => Ok(ld_a_h(cpu)),
-            0x7D => Ok(ld_a_l(cpu)),
-            0x7E => Ok(ld_a_HL(cpu, &mem)),
-            0x7F => Ok(ld_a_a(cpu)),
-            0x80 => Ok(add_b(cpu)),
-            0x81 => Ok(add_c(cpu)),
-            0x82 => Ok(add_d(cpu)),
-            0x83 => Ok(add_e(cpu)),
-            0x84 => Ok(add_h(cpu)),
-            0x85 => Ok(add_l(cpu)),
-            0x86 => Ok(add_HL(cpu, &mem)),
-            0x87 => Ok(add_a(cpu)),
-            0x88 => Ok(adc_b(cpu)),
-            0x89 => Ok(adc_c(cpu)),
-            0x8A => Ok(adc_d(cpu)),
-            0x8B => Ok(adc_e(cpu)),
-            0x8C => Ok(adc_h(cpu)),
-            0x8D => Ok(adc_l(cpu)),
-            0x8E => Ok(adc_HL(cpu, &mem)),
-            0x8F => Ok(adc_a(cpu)),
-            0x90 => Ok(sub_b(cpu)),
-            0x91 => Ok(sub_c(cpu)),
-            0x92 => Ok(sub_d(cpu)),
-            0x93 => Ok(sub_e(cpu)),
-            0x94 => Ok(sub_h(cpu)),
-            0x95 => Ok(sub_l(cpu)),
-            0x96 => Ok(sub_HL(cpu, &mem)),
-            0x97 => Ok(sub_a(cpu)),
-            0x98 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x99 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9A => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9B => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9C => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9D => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9E => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0x9F => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xA0 => Ok(and_b(cpu)),
-            0xA1 => Ok(and_c(cpu)),
-            0xA2 => Ok(and_d(cpu)),
-            0xA3 => Ok(and_e(cpu)),
-            0xA4 => Ok(and_h(cpu)),
-            0xA5 => Ok(and_l(cpu)),
-            0xA6 => Ok(and_HL(cpu, &mem)),
-            0xA7 => Ok(and_a(cpu)),
-            0xA8 => Ok(xor_b(cpu)),
-            0xA9 => Ok(xor_c(cpu)),
-            0xAA => Ok(xor_d(cpu)),
-            0xAB => Ok(xor_e(cpu)),
-            0xAC => Ok(xor_h(cpu)),
-            0xAD => Ok(xor_l(cpu)),
-            0xAE => Ok(xor_HL(cpu, &mem)),
-            0xAF => Ok(xor_a(cpu)),
-            0xB0 => Ok(or_b(cpu)),
-            0xB1 => Ok(or_c(cpu)),
-            0xB2 => Ok(or_d(cpu)),
-            0xB3 => Ok(or_e(cpu)),
-            0xB4 => Ok(or_h(cpu)),
-            0xB5 => Ok(or_l(cpu)),
-            0xB6 => Ok(or_HL(cpu, &mem)),
-            0xB7 => Ok(or_a(cpu)),
-            0xB8 => Ok(cp_b(cpu)),
-            0xB9 => Ok(cp_c(cpu)),
-            0xBA => Ok(cp_d(cpu)),
-            0xBB => Ok(cp_e(cpu)),
-            0xBC => Ok(cp_h(cpu)),
-            0xBD => Ok(cp_l(cpu)),
-            0xBE => Ok(cp_HL(cpu, &mem)),
-            0xBF => Ok(cp_a(cpu)),
-            0xC0 => Ok(ret_nz(cpu, &mem)),
-            0xC1 => Ok(pop_bc(cpu, &mem)),
-            0xC2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2)),
-            0xC3 => Ok(jp_d16(cpu, mem[pc + 1], mem[pc + 2])),
-            0xC4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xC4)),
-            0xC5 => Ok(push_bc(cpu, mem)),
-            0xC6 => Ok(add_d8(cpu, mem[pc + 1])),
-            0xC7 => Ok(rst_n(cpu, mem, 0xC7)),
-            0xC8 => Ok(ret_z(cpu, &mem)),
-            0xC9 => Ok(ret(cpu, &mem)),
-            0xCA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xCA)),
-            0xCB => {
-                let op_cb = mem[pc + 1];
-                let icb = decodeCB(op_cb);
-                if icb.reg == ADR_HL {
-                    match icb.opcode {
-                        "RLC" => Ok(rlc_hl(cpu, mem)),
-                        "RRC" => Ok(rrc_hl(cpu, mem)),
-                        "RL" => Ok(rl_hl(cpu, mem)),
-                        "RR" => Ok(rr_hl(cpu, mem)),
-                        "SLA" => Ok(sla_hl(cpu, mem)),
-                        "SRA" => Ok(sra_hl(cpu, mem)),
-                        "SWAP" => Ok(swap_hl(cpu, mem)),
-                        "SRL" => Ok(srl_hl(cpu, mem)),
-                        "BIT" => Ok(bit_hl(cpu, mem, icb.bit)),
-                        "RES" => Ok(res_n_hl(cpu, mem, icb.bit)),
-                        "SET" => Ok(set_hl(cpu, mem, icb.bit)),
-                        _ => panic!("0xCB (HL) unknown instruction, should be unreachable!"),
-                    }
-                } else {
-                    match icb.opcode {
-                        "RLC" => Ok(rlc_r(cpu, icb.reg)),
-                        "RRC" => Ok(rrc_r(cpu, icb.reg)),
-                        "RL" => Ok(rl_r(cpu, icb.reg)),
-                        "RR" => Ok(rr_r(cpu, icb.reg)),
-                        "SLA" => Ok(sla_r(cpu, icb.reg)),
-                        "SRA" => Ok(sra_r(cpu, icb.reg)),
-                        "SWAP" => Ok(swap_r(cpu, icb.reg)),
-                        "SRL" => Ok(srl_r(cpu, icb.reg)),
-                        "BIT" => Ok(bit_r(cpu, icb.bit, icb.reg)),
-                        "RES" => Ok(res_n_r(cpu, icb.bit, icb.reg)),
-                        "SET" => Ok(set_r(cpu, icb.bit, icb.reg)),
-                        _ => panic!("0xCB (reg) unknown instruction, should be unreachable!"),
+                0x00 => Ok(nop(cpu)),
+                0x01 => Ok(ld_bc_d16(cpu, mem[pc + 1], mem[pc + 2])),
+                0x02 => Ok(ld_BC_a(cpu, mem)),
+                0x03 => Ok(inc_bc(cpu)),
+                0x04 => Ok(inc_b(cpu)),
+                0x05 => Ok(dec_b(cpu)),
+                0x06 => Ok(ld_b_d8(cpu, mem[pc + 1])),
+                0x07 => Ok(rlca(cpu)),
+                0x08 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x09 => Ok(add_hl_bc(cpu)),
+                0x0A => Ok(ld_a_BC(cpu, &mem)),
+                0x0B => Ok(dec_bc(cpu)),
+                0x0C => Ok(inc_c(cpu)),
+                0x0D => Ok(dec_c(cpu)),
+                0x0E => Ok(ld_c_d8(cpu, mem[pc + 1])),
+                0x0F => Ok(rrca(cpu)),
+                0x10 => Ok(stop(cpu)),
+                0x11 => Ok(ld_de_d16(cpu, mem[pc + 1], mem[pc + 2])),
+                0x12 => Ok(ld_DE_a(cpu, mem)),
+                0x13 => Ok(inc_de(cpu)),
+                0x14 => Ok(inc_d(cpu)),
+                0x15 => Ok(dec_d(cpu)),
+                0x16 => Ok(ld_d_d8(cpu, mem[pc + 1])),
+                0x17 => Ok(rla(cpu)),
+                0x18 => Ok(jr_r8(cpu, signed(mem[pc + 1]))),
+                0x19 => Ok(add_hl_de(cpu)),
+                0x1A => Ok(ld_a_DE(cpu, &mem)),
+                0x1B => Ok(dec_de(cpu)),
+                0x1C => Ok(inc_e(cpu)),
+                0x1D => Ok(dec_e(cpu)),
+                0x1E => Ok(ld_e_d8(cpu, mem[pc + 1])),
+                0x1F => Ok(rra(cpu)),
+                0x20 => Ok(jr_nz_r8(cpu, signed(mem[pc + 1]))),
+                0x21 => Ok(ld_hl_d16(cpu, mem[pc + 1], mem[pc + 2])),
+                0x22 => Ok(ldi_HL_a(cpu, mem)),
+                0x23 => Ok(inc_hl(cpu)),
+                0x24 => Ok(inc_h(cpu)),
+                0x25 => Ok(dec_h(cpu)),
+                0x26 => Ok(ld_h_d8(cpu, mem[pc + 1])),
+                0x27 => Ok(daa(cpu)),
+                0x28 => Ok(jr_z_r8(cpu, signed(mem[pc + 1]))),
+                0x29 => Ok(add_hl_hl(cpu)),
+                0x2A => Ok(ldi_a_HL(cpu, mem)),
+                0x2B => Ok(dec_hl(cpu)),
+                0x2C => Ok(inc_l(cpu)),
+                0x2D => Ok(dec_l(cpu)),
+                0x2E => Ok(ld_l_d8(cpu, mem[pc + 1])),
+                0x2F => Ok(cpl(cpu)),
+                0x30 => Ok(jr_nc_r8(cpu, signed(mem[pc + 1]))),
+                0x31 => Ok(ld_sp_d16(cpu, mem[pc + 1], mem[pc + 2])),
+                0x32 => Ok(ldd_HL_a(cpu, mem)),
+                0x33 => Ok(inc_sp(cpu)),
+                0x34 => Ok(inc_HL(cpu, mem)),
+                0x35 => Ok(dec_HL(cpu, mem)),
+                0x36 => Ok(ld_HL_d8(cpu, mem[pc + 1], mem)),
+                0x37 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x38 => Ok(jr_c_r8(cpu, signed(mem[pc + 1]))),
+                0x39 => Ok(add_hl_sp(cpu)),
+                0x3A => Ok(ldd_a_HL(cpu, mem)),
+                0x3B => Ok(dec_sp(cpu)),
+                0x3C => Ok(inc_a(cpu)),
+                0x3D => Ok(dec_a(cpu)),
+                0x3E => Ok(ld_a_d8(cpu, mem[pc + 1])),
+                0x3F => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x40 => Ok(ld_b_b(cpu)),
+                0x41 => Ok(ld_b_c(cpu)),
+                0x42 => Ok(ld_b_d(cpu)),
+                0x43 => Ok(ld_b_e(cpu)),
+                0x44 => Ok(ld_b_h(cpu)),
+                0x45 => Ok(ld_b_l(cpu)),
+                0x46 => Ok(ld_b_HL(cpu, &mem)),
+                0x47 => Ok(ld_b_a(cpu)),
+                0x48 => Ok(ld_c_b(cpu)),
+                0x49 => Ok(ld_c_c(cpu)),
+                0x4A => Ok(ld_c_d(cpu)),
+                0x4B => Ok(ld_c_e(cpu)),
+                0x4C => Ok(ld_c_h(cpu)),
+                0x4D => Ok(ld_c_l(cpu)),
+                0x4E => Ok(ld_c_HL(cpu, &mem)),
+                0x4F => Ok(ld_c_a(cpu)),
+                0x50 => Ok(ld_d_b(cpu)),
+                0x51 => Ok(ld_d_c(cpu)),
+                0x52 => Ok(ld_d_d(cpu)),
+                0x53 => Ok(ld_d_e(cpu)),
+                0x54 => Ok(ld_d_h(cpu)),
+                0x55 => Ok(ld_d_l(cpu)),
+                0x56 => Ok(ld_d_HL(cpu, &mem)),
+                0x57 => Ok(ld_d_a(cpu)),
+                0x58 => Ok(ld_e_b(cpu)),
+                0x59 => Ok(ld_e_c(cpu)),
+                0x5A => Ok(ld_e_d(cpu)),
+                0x5B => Ok(ld_e_e(cpu)),
+                0x5C => Ok(ld_e_h(cpu)),
+                0x5D => Ok(ld_e_l(cpu)),
+                0x5E => Ok(ld_e_HL(cpu, &mem)),
+                0x5F => Ok(ld_e_a(cpu)),
+                0x60 => Ok(ld_h_b(cpu)),
+                0x61 => Ok(ld_h_c(cpu)),
+                0x62 => Ok(ld_h_d(cpu)),
+                0x63 => Ok(ld_h_e(cpu)),
+                0x64 => Ok(ld_h_h(cpu)),
+                0x65 => Ok(ld_h_l(cpu)),
+                0x66 => Ok(ld_h_HL(cpu, &mem)),
+                0x67 => Ok(ld_h_a(cpu)),
+                0x68 => Ok(ld_l_b(cpu)),
+                0x69 => Ok(ld_l_c(cpu)),
+                0x6A => Ok(ld_l_d(cpu)),
+                0x6B => Ok(ld_l_e(cpu)),
+                0x6C => Ok(ld_l_h(cpu)),
+                0x6D => Ok(ld_l_l(cpu)),
+                0x6E => Ok(ld_l_HL(cpu, &mem)),
+                0x6F => Ok(ld_l_a(cpu)),
+                0x70 => Ok(ld_HL_b(cpu, mem)),
+                0x71 => Ok(ld_HL_c(cpu, mem)),
+                0x72 => Ok(ld_HL_d(cpu, mem)),
+                0x73 => Ok(ld_HL_e(cpu, mem)),
+                0x74 => Ok(ld_HL_h(cpu, mem)),
+                0x75 => Ok(ld_HL_l(cpu, mem)),
+                0x76 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x77 => Ok(ld_HL_a(cpu, mem)),
+                0x78 => Ok(ld_a_b(cpu)),
+                0x79 => Ok(ld_a_c(cpu)),
+                0x7A => Ok(ld_a_d(cpu)),
+                0x7B => Ok(ld_a_e(cpu)),
+                0x7C => Ok(ld_a_h(cpu)),
+                0x7D => Ok(ld_a_l(cpu)),
+                0x7E => Ok(ld_a_HL(cpu, &mem)),
+                0x7F => Ok(ld_a_a(cpu)),
+                0x80 => Ok(add_b(cpu)),
+                0x81 => Ok(add_c(cpu)),
+                0x82 => Ok(add_d(cpu)),
+                0x83 => Ok(add_e(cpu)),
+                0x84 => Ok(add_h(cpu)),
+                0x85 => Ok(add_l(cpu)),
+                0x86 => Ok(add_HL(cpu, &mem)),
+                0x87 => Ok(add_a(cpu)),
+                0x88 => Ok(adc_b(cpu)),
+                0x89 => Ok(adc_c(cpu)),
+                0x8A => Ok(adc_d(cpu)),
+                0x8B => Ok(adc_e(cpu)),
+                0x8C => Ok(adc_h(cpu)),
+                0x8D => Ok(adc_l(cpu)),
+                0x8E => Ok(adc_HL(cpu, &mem)),
+                0x8F => Ok(adc_a(cpu)),
+                0x90 => Ok(sub_b(cpu)),
+                0x91 => Ok(sub_c(cpu)),
+                0x92 => Ok(sub_d(cpu)),
+                0x93 => Ok(sub_e(cpu)),
+                0x94 => Ok(sub_h(cpu)),
+                0x95 => Ok(sub_l(cpu)),
+                0x96 => Ok(sub_HL(cpu, &mem)),
+                0x97 => Ok(sub_a(cpu)),
+                0x98 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x99 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9A => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9B => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9C => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9D => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9E => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0x9F => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xA0 => Ok(and_b(cpu)),
+                0xA1 => Ok(and_c(cpu)),
+                0xA2 => Ok(and_d(cpu)),
+                0xA3 => Ok(and_e(cpu)),
+                0xA4 => Ok(and_h(cpu)),
+                0xA5 => Ok(and_l(cpu)),
+                0xA6 => Ok(and_HL(cpu, &mem)),
+                0xA7 => Ok(and_a(cpu)),
+                0xA8 => Ok(xor_b(cpu)),
+                0xA9 => Ok(xor_c(cpu)),
+                0xAA => Ok(xor_d(cpu)),
+                0xAB => Ok(xor_e(cpu)),
+                0xAC => Ok(xor_h(cpu)),
+                0xAD => Ok(xor_l(cpu)),
+                0xAE => Ok(xor_HL(cpu, &mem)),
+                0xAF => Ok(xor_a(cpu)),
+                0xB0 => Ok(or_b(cpu)),
+                0xB1 => Ok(or_c(cpu)),
+                0xB2 => Ok(or_d(cpu)),
+                0xB3 => Ok(or_e(cpu)),
+                0xB4 => Ok(or_h(cpu)),
+                0xB5 => Ok(or_l(cpu)),
+                0xB6 => Ok(or_HL(cpu, &mem)),
+                0xB7 => Ok(or_a(cpu)),
+                0xB8 => Ok(cp_b(cpu)),
+                0xB9 => Ok(cp_c(cpu)),
+                0xBA => Ok(cp_d(cpu)),
+                0xBB => Ok(cp_e(cpu)),
+                0xBC => Ok(cp_h(cpu)),
+                0xBD => Ok(cp_l(cpu)),
+                0xBE => Ok(cp_HL(cpu, &mem)),
+                0xBF => Ok(cp_a(cpu)),
+                0xC0 => Ok(ret_nz(cpu, &mem)),
+                0xC1 => Ok(pop_bc(cpu, &mem)),
+                0xC2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2)),
+                0xC3 => Ok(jp_d16(cpu, mem[pc + 1], mem[pc + 2])),
+                0xC4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xC4)),
+                0xC5 => Ok(push_bc(cpu, mem)),
+                0xC6 => Ok(add_d8(cpu, mem[pc + 1])),
+                0xC7 => Ok(rst_n(cpu, mem, 0xC7)),
+                0xC8 => Ok(ret_z(cpu, &mem)),
+                0xC9 => Ok(ret(cpu, &mem)),
+                0xCA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xCA)),
+                0xCB => {
+                    let op_cb = mem[pc + 1];
+                    let icb = decodeCB(op_cb);
+                    if icb.reg == ADR_HL {
+                        match icb.opcode {
+                            "RLC" => Ok(rlc_hl(cpu, mem)),
+                            "RRC" => Ok(rrc_hl(cpu, mem)),
+                            "RL" => Ok(rl_hl(cpu, mem)),
+                            "RR" => Ok(rr_hl(cpu, mem)),
+                            "SLA" => Ok(sla_hl(cpu, mem)),
+                            "SRA" => Ok(sra_hl(cpu, mem)),
+                            "SWAP" => Ok(swap_hl(cpu, mem)),
+                            "SRL" => Ok(srl_hl(cpu, mem)),
+                            "BIT" => Ok(bit_hl(cpu, mem, icb.bit)),
+                            "RES" => Ok(res_n_hl(cpu, mem, icb.bit)),
+                            "SET" => Ok(set_hl(cpu, mem, icb.bit)),
+                            _ => panic!("0xCB (HL) unknown instruction, should be unreachable!"),
+                        }
+                    } else {
+                        match icb.opcode {
+                            "RLC" => Ok(rlc_r(cpu, icb.reg)),
+                            "RRC" => Ok(rrc_r(cpu, icb.reg)),
+                            "RL" => Ok(rl_r(cpu, icb.reg)),
+                            "RR" => Ok(rr_r(cpu, icb.reg)),
+                            "SLA" => Ok(sla_r(cpu, icb.reg)),
+                            "SRA" => Ok(sra_r(cpu, icb.reg)),
+                            "SWAP" => Ok(swap_r(cpu, icb.reg)),
+                            "SRL" => Ok(srl_r(cpu, icb.reg)),
+                            "BIT" => Ok(bit_r(cpu, icb.bit, icb.reg)),
+                            "RES" => Ok(res_n_r(cpu, icb.bit, icb.reg)),
+                            "SET" => Ok(set_r(cpu, icb.bit, icb.reg)),
+                            _ => panic!("0xCB (reg) unknown instruction, should be unreachable!"),
+                        }
                     }
                 }
-            },
-            0xCC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xCC)),
-            0xCD => Ok(call_d16(mem[pc + 1], mem[pc + 2], cpu, mem)),
-            0xCE => Ok(adc_d8(cpu, mem[pc + 1])),
-            0xCF => Ok(rst_n(cpu, mem, 0xCF)),
-            0xD0 => Ok(ret_nc(cpu, &mem)),
-            0xD1 => Ok(pop_de(cpu, &mem)),
-            0xD2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2)),
-            0xD3 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xD4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xD4)),
-            0xD5 => Ok(push_de(cpu, mem)),
-            0xD6 => Ok(sub_d8(cpu, mem[pc + 1])),
-            0xD7 => Ok(rst_n(cpu, mem, 0xD7)),
-            0xD8 => Ok(ret_c(cpu, &mem)),
-            0xD9 => Ok(reti(cpu, &mem)),
-            0xDA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA)),
-            0xDB => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xDC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xDC)),
-            0xDD => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xDE => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xDF => Ok(rst_n(cpu, mem, 0xDF)),
-            0xE0 => Ok(ld_FF00_A8_a(mem[pc + 1], cpu, mem)),
-            0xE1 => Ok(pop_hl(cpu, &mem)),
-            0xE2 => Ok(ld_FF00_C_a(cpu, mem)),
-            0xE3 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xE4 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xE5 => Ok(push_hl(cpu, mem)),
-            0xE6 => Ok(and_d8(cpu, mem[pc + 1])),
-            0xE7 => Ok(rst_n(cpu, mem, 0xE7)),
-            0xE8 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xE9 => Ok(jp_hl(cpu)),
-            0xEA => Ok(ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, mem)),
-            0xEB => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xEC => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xED => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xEE => Ok(xor_d8(cpu, mem[pc + 1])),
-            0xEF => Ok(rst_n(cpu, mem, 0xEF)),
-            0xF0 => Ok(ld_a_FF00_A8(cpu, &mem, mem[pc + 1])),
-            0xF1 => Ok(pop_af(cpu, &mem)),
-            0xF2 => Ok(ld_a_FF00_C(cpu, &mem)),
-            0xF3 => Ok(di(cpu)),
-            0xF4 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xF5 => Ok(push_af(cpu, mem)),
-            0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
-            0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
-            0xF8 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xF9 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
-            0xFB => Ok(ei(cpu)),
-            0xFC => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xFD => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
-            0xFE => Ok(cp_d8(cpu, mem[pc + 1])),
-            0xFF => Ok(rst_n(cpu, mem, 0xFF)),
-        }
+                0xCC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xCC)),
+                0xCD => Ok(call_d16(mem[pc + 1], mem[pc + 2], cpu, mem)),
+                0xCE => Ok(adc_d8(cpu, mem[pc + 1])),
+                0xCF => Ok(rst_n(cpu, mem, 0xCF)),
+                0xD0 => Ok(ret_nc(cpu, &mem)),
+                0xD1 => Ok(pop_de(cpu, &mem)),
+                0xD2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2)),
+                0xD3 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xD4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xD4)),
+                0xD5 => Ok(push_de(cpu, mem)),
+                0xD6 => Ok(sub_d8(cpu, mem[pc + 1])),
+                0xD7 => Ok(rst_n(cpu, mem, 0xD7)),
+                0xD8 => Ok(ret_c(cpu, &mem)),
+                0xD9 => Ok(reti(cpu, &mem)),
+                0xDA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA)),
+                0xDB => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xDC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xDC)),
+                0xDD => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xDE => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xDF => Ok(rst_n(cpu, mem, 0xDF)),
+                0xE0 => Ok(ld_FF00_A8_a(mem[pc + 1], cpu, mem)),
+                0xE1 => Ok(pop_hl(cpu, &mem)),
+                0xE2 => Ok(ld_FF00_C_a(cpu, mem)),
+                0xE3 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xE4 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xE5 => Ok(push_hl(cpu, mem)),
+                0xE6 => Ok(and_d8(cpu, mem[pc + 1])),
+                0xE7 => Ok(rst_n(cpu, mem, 0xE7)),
+                0xE8 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xE9 => Ok(jp_hl(cpu)),
+                0xEA => Ok(ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, mem)),
+                0xEB => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xEC => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xED => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xEE => Ok(xor_d8(cpu, mem[pc + 1])),
+                0xEF => Ok(rst_n(cpu, mem, 0xEF)),
+                0xF0 => Ok(ld_a_FF00_A8(cpu, &mem, mem[pc + 1])),
+                0xF1 => Ok(pop_af(cpu, &mem)),
+                0xF2 => Ok(ld_a_FF00_C(cpu, &mem)),
+                0xF3 => Ok(di(cpu)),
+                0xF4 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xF5 => Ok(push_af(cpu, mem)),
+                0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
+                0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
+                0xF8 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xF9 => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
+                0xFB => Ok(ei(cpu)),
+                0xFC => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xFD => Err(UnknownInstructionError {
+                    op: mem[pc],
+                    mnm: inst.mnm,
+                }),
+                0xFE => Ok(cp_d8(cpu, mem[pc + 1])),
+                0xFF => Ok(rst_n(cpu, mem, 0xFF)),
+            }
         }
     }
 
@@ -991,7 +1075,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         reg[reg_high] = mem[cpu.sp + 2];
-        reg[reg_low] = mem[cpu.sp + 1] & (if reg_low == FLAGS {0xF0} else {0xFF}); // special case: FLAGS low nibble is always 0
+        reg[reg_low] = mem[cpu.sp + 1] & (if reg_low == FLAGS { 0xF0 } else { 0xFF }); // special case: FLAGS low nibble is always 0
 
         CPUState {
             pc: cpu.pc + 1,
@@ -1524,12 +1608,12 @@ pub mod cpu {
     const fn daa(cpu: CPUState) -> CPUState {
         let mut reg = cpu.reg;
         let acc = cpu.reg[REG_A];
-        
+
         reg[FLAGS] = cpu.reg[FLAGS] & FL_N; // preserve FL_N
 
         // (previous instruction was a subtraction)
         let prev_sub = cpu.reg[FLAGS] & FL_N != 0;
-        
+
         // https://ehaskins.com/2018-01-30%20Z80%20DAA/
         let mut offset: Byte = 0x00;
         if cpu.reg[FLAGS] & FL_H != 0 || ((acc & 0x0f) > 0x09 && !prev_sub) {
@@ -1540,7 +1624,7 @@ pub mod cpu {
             reg[FLAGS] |= FL_C;
         }
 
-        reg[REG_A] = if prev_sub { 
+        reg[REG_A] = if prev_sub {
             let (result, _c) = acc.overflowing_sub(offset);
             result
         } else {
@@ -1704,7 +1788,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     const fn rlc_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
-        
+
         let result = reg[dst].rotate_left(1);
         let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
 
@@ -1734,7 +1818,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     const fn rl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
-        
+
         reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
         reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
 
@@ -1747,13 +1831,13 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-        
+
         mem[addr] = (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
         reg[FLAGS] = (cur & 0x80) >> 3 | if mem[addr] == 0 { FL_Z } else { 0 };
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
-    
+
     //   rrc  r         CB 0x        8 z00c rotate right
     // ----------------------------------------------------------------------------
     const fn rrc_r(cpu: CPUState, dst: usize) -> CPUState {
@@ -1773,7 +1857,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-        
+
         let result = cur.rotate_right(1);
         let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
 
@@ -1788,7 +1872,7 @@ pub mod cpu {
     const fn rr_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
 
         reg[dst] = (cpu.reg[dst].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
         reg[FLAGS] = fl_c | fl_z(reg[dst]);
@@ -1803,7 +1887,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
         let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
 
         mem[addr] = result;
@@ -1817,7 +1901,7 @@ pub mod cpu {
     const fn sla_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 0x80 > 0 {FL_C} else {0};
+        let fl_c: Byte = if cpu.reg[dst] & 0x80 > 0 { FL_C } else { 0 };
 
         reg[dst] = reg[dst] << 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1831,9 +1915,9 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-        
-        let fl_c: Byte = if cur & 0x80 > 0 {FL_C} else {0};
-        let result = cur << 1;  
+
+        let fl_c: Byte = if cur & 0x80 > 0 { FL_C } else { 0 };
+        let result = cur << 1;
 
         mem[addr] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1866,13 +1950,13 @@ pub mod cpu {
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
-    
+
     //   sra  r         CB 2x        8 z00c shift right arithmetic (b7=b7)
     // ----------------------------------------------------------------------------
     const fn sra_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
 
         reg[dst] = (cpu.reg[dst] & 0x80) | reg[dst] >> 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1886,8 +1970,8 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-        
-        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+
+        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
         let result = (cur & 0x80) | cur >> 1;
 
         mem[addr] = result;
@@ -1901,7 +1985,7 @@ pub mod cpu {
     const fn srl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 {FL_C} else {0};
+        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
 
         reg[dst] = reg[dst] >> 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1915,10 +1999,10 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-        
-        let fl_c: Byte = if cur & 1 > 0 {FL_C} else {0};
+
+        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
         let result = cur >> 1;
-        
+
         mem[addr] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
 
@@ -1947,9 +2031,8 @@ pub mod cpu {
         let cur = mem[addr];
 
         let mask = 1 << bit;
-        reg[FLAGS] =
-            if (cur & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
-            
+        reg[FLAGS] = if (cur & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+
         CPUState { reg, ..cpu }.adv_pc(2).tick(12)
     }
 
@@ -1969,7 +2052,7 @@ pub mod cpu {
     fn set_hl(cpu: CPUState, mem: &mut Memory, bit: Byte) -> CPUState {
         let reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
-        
+
         let mask = 1 << bit;
         mem[addr] |= mask;
 
@@ -2610,21 +2693,21 @@ pub mod memory {
     impl Index<Word> for Memory {
         type Output = Byte;
         fn index(&self, index: Word) -> &Self::Output {
-            &self.data[index as usize]
-            // match index {
-            //     LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
-            //     _ => &self.data[index as usize],
-            // }
+            // &self.data[index as usize]
+            match index {
+                // LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
+                _ => &self.data[index as usize],
+            }
         }
     }
     impl IndexMut<Word> for Memory {
         fn index_mut(&mut self, index: Word) -> &mut Self::Output {
             match index {
                 DMA => {
-                    println!("[write] DMA 0x{:X}", self[index]);
+                    // println!("[write] DMA 0x{:X}", self[index]);
                     self.dma_req = true;
                 }
-                LCDC => println!("[write] LCDC"),
+                // LCDC => println!("[write] LCDC"),
                 _ => (),
             }
             &mut self.data[index as usize]
@@ -3129,10 +3212,10 @@ pub mod bits {
 pub mod dbg {
     use std::fs;
 
+    use crate::bits::bit_test;
     use crate::cpu::*;
     use crate::memory::*;
     use crate::types::*;
-    use crate::bits::bit_test;
 
     pub fn mock_mem_read(addr: Word, mem: &Memory) -> Byte {
         if addr == LY {

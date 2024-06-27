@@ -272,7 +272,7 @@ pub mod cpu {
             0x24 => Ok(inc_h(cpu)),
             0x25 => Ok(dec_h(cpu)),
             0x26 => Ok(ld_h_d8(cpu, mem[pc + 1])),
-            0x27 => Err(UnknownInstructionError{op: mem[pc], mnm: inst.mnm}),
+            0x27 => Ok(daa(cpu)),
             0x28 => Ok(jr_z_r8(cpu, signed(mem[pc + 1]))),
             0x29 => Ok(add_hl_hl(cpu)),
             0x2A => Ok(ldi_a_HL(cpu, mem)),
@@ -452,7 +452,7 @@ pub mod cpu {
                         "BIT" => Ok(bit_hl(cpu, mem, icb.bit)),
                         "RES" => Ok(res_n_hl(cpu, mem, icb.bit)),
                         "SET" => Ok(set_hl(cpu, mem, icb.bit)),
-                        _ => panic!("[HL] instruction not yet implemented"),
+                        _ => panic!("0xCB (HL) unknown instruction, should be unreachable!"),
                     }
                 } else {
                     match icb.opcode {
@@ -467,7 +467,7 @@ pub mod cpu {
                         "BIT" => Ok(bit_r(cpu, icb.bit, icb.reg)),
                         "RES" => Ok(res_n_r(cpu, icb.bit, icb.reg)),
                         "SET" => Ok(set_r(cpu, icb.bit, icb.reg)),
-                        _ => Err(UnknownInstructionError{op: op_cb, mnm: format!("0xCB: {}", icb.opcode)}),
+                        _ => panic!("0xCB (reg) unknown instruction, should be unreachable!"),
                     }
                 }
             },
@@ -1520,6 +1520,37 @@ pub mod cpu {
     }
 
     //   daa              27         4 z-0x decimal adjust akku
+    // ----------------------------------------------------------------------------
+    const fn daa(cpu: CPUState) -> CPUState {
+        let mut reg = cpu.reg;
+        let acc = cpu.reg[REG_A];
+        
+        reg[FLAGS] = cpu.reg[FLAGS] & FL_N; // preserve FL_N
+
+        // (previous instruction was a subtraction)
+        let prev_sub = cpu.reg[FLAGS] & FL_N != 0;
+        
+        // https://ehaskins.com/2018-01-30%20Z80%20DAA/
+        let mut offset: Byte = 0x00;
+        if cpu.reg[FLAGS] & FL_H != 0 || ((acc & 0x0f) > 0x09 && !prev_sub) {
+            offset |= 0x06;
+        }
+        if cpu.reg[FLAGS] & FL_C != 0 || (acc > 0x99 && !prev_sub) {
+            offset |= 0x60;
+            reg[FLAGS] |= FL_C;
+        }
+
+        reg[REG_A] = if prev_sub { 
+            let (result, _c) = acc.overflowing_sub(offset);
+            result
+        } else {
+            let (result, _c) = acc.overflowing_add(offset);
+            result
+        };
+        reg[FLAGS] |= fl_z(reg[REG_A]);
+
+        CPUState { reg, ..cpu }.adv_pc(1).tick(4)
+    }
 
     //   cpl              2F         4 -11- A = A xor FF
     // ----------------------------------------------------------------------------

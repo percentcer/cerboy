@@ -59,7 +59,7 @@ fn main() {
     
     // init logging
     // ------------
-    let mut cpu_log_lines = Vec::new();
+    let mut cpu_log_lines: Vec<String> = Vec::new();
 
     // loop
     // ------------

@@ -66,7 +66,7 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
-        // log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+        log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
         let cpu_prev = cpu;
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
@@ -99,7 +99,11 @@ fn main() {
             }
             // vram io
             3 => {
-                if lcd_timing >= TICKS_PER_VRAM_IO {
+                if mem[LY] == 0x90 {
+                    // for gameboy doctor so we don't have to comment out this section all the time
+                    set_lcd_mode(0, &mut mem);
+                } else if lcd_timing >= TICKS_PER_VRAM_IO {
+                    
                     // draw the scanline
                     // ===========================================
                     let ln_start: usize = GB_SCREEN_WIDTH * mem[LY] as usize;

@@ -2695,7 +2695,7 @@ pub mod memory {
         fn index(&self, index: Word) -> &Self::Output {
             // &self.data[index as usize]
             match index {
-                // LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
+                LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
                 _ => &self.data[index as usize],
             }
         }

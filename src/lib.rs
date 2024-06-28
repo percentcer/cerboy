@@ -332,21 +332,17 @@ pub mod cpu {
                     _ => Ok(ld_r_r(cpu, op)),
                 },
                 0x80..=0xBF => {
+                    let fn_r = [add_r, adc_r, sub_r, sbc_r, and_r, xor_r, or_r, cp_r];
+                    let fn_HL = [add_HL, adc_HL, sub_HL, sbc_HL, and_HL, xor_HL, or_HL, cp_HL];
+
                     let src_idx = op % 8;
+                    let fn_idx = (op - 0x80) / 8;
+
                     let src = R_ID[src_idx as usize];
-                    match op {
-                        0x80..=0x87 => Ok(if src != ADR_HL { add_r(cpu, src) } else { add_HL(cpu, mem) }),
-                        0x88..=0x8F => Ok(if src != ADR_HL { adc_r(cpu, src) } else { adc_HL(cpu, mem) }),
-                        0x90..=0x97 => Ok(if src != ADR_HL { sub_r(cpu, src) } else { sub_HL(cpu, mem) }),
-                        // 0x98..=0x9F => Ok(if src != ADR_HL { sbc_r(cpu, src) } else { sbc_HL(cpu, mem) }),
-                        0xA0..=0xA7 => Ok(if src != ADR_HL { and_r(cpu, src) } else { and_HL(cpu, mem) }),
-                        0xA8..=0xAF => Ok(if src != ADR_HL { xor_r(cpu, src) } else { xor_HL(cpu, mem) }),
-                        0xB0..=0xB7 => Ok(if src != ADR_HL { or_r(cpu, src) } else { or_HL(cpu, mem) }),
-                        0xB8..=0xBF => Ok(if src != ADR_HL { cp_r(cpu, src) } else { cp_HL(cpu, mem) }),
-                        _ => Err(UnknownInstructionError {
-                            op,
-                            mnm: inst.mnm,
-                        }),
+                    if src != ADR_HL {
+                        Ok(fn_r[fn_idx as usize](cpu, src))
+                    } else {
+                        Ok(fn_HL[fn_idx as usize](cpu, mem))
                     }
                 },
                 0xC0 => Ok(ret_nz(cpu, &mem)),
@@ -1049,8 +1045,20 @@ pub mod cpu {
     }
 
     //   sbc  A,r         9x         4 z1hc A=A-r-cy
+    // ----------------------------------------------------------------------------
+    const fn sbc_r(cpu: CPUState, src: usize) -> CPUState {
+        panic!("sbc_r not implemented");
+    }
     //   sbc  A,n         DE nn      8 z1hc A=A-n-cy
+    // ----------------------------------------------------------------------------
+    const fn sbc_d8(cpu: CPUState, d8: Byte) -> CPUState {
+        panic!("sbc_d8 not implemented");
+    }
     //   sbc  A,(HL)      9E         8 z1hc A=A-(HL)-cy
+    // ----------------------------------------------------------------------------
+    fn sbc_HL(cpu: CPUState, mem: &Memory) -> CPUState {
+        panic!("sbc_HL not implemented");
+    }
 
     //   and  r           Ax         4 z010 A=A & r
     // ----------------------------------------------------------------------------

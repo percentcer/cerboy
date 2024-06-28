@@ -327,16 +327,16 @@ pub mod cpu {
                     let fn_r = [add_r, adc_r, sub_r, sbc_r, and_r, xor_r, or_r, cp_r];
                     let fn_HL = [add_HL, adc_HL, sub_HL, sbc_HL, and_HL, xor_HL, or_HL, cp_HL];
 
-                    let src_idx = op % 8;
-                    let fn_idx = (op - 0x80) / 8;
+                    let src_idx = (op % 8) as usize;
+                    let fn_idx = ((op - 0x80) / 8) as usize;
 
-                    let src = R_ID[src_idx as usize];
+                    let src = R_ID[src_idx];
                     if src != ADR_HL {
-                        Ok(fn_r[fn_idx as usize](cpu, src))
+                        Ok(fn_r[fn_idx](cpu, src))
                     } else {
-                        Ok(fn_HL[fn_idx as usize](cpu, mem))
+                        Ok(fn_HL[fn_idx](cpu, mem))
                     }
-                },
+                }
                 0xC0 => Ok(ret_nz(cpu, &mem)),
                 0xC1 => Ok(pop_bc(cpu, &mem)),
                 0xC2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2)),

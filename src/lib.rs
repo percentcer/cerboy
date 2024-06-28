@@ -207,7 +207,8 @@ pub mod cpu {
             inst_count: cpu.inst_count + 1,
             ..cpu
         }; // referenced by interrupt enabling instructions
-           // cerboy::decode::print_op(mem[pc]);
+        let op = mem[pc];
+        // cerboy::decode::print_op(op);
 
         // check interrupts
         // -----------------
@@ -234,8 +235,8 @@ pub mod cpu {
         } else {
             // todo: is this correct? I'm assuming it can't handle an interrupt
             // and then go right into the next instruction, it's one or the other
-            let inst = crate::decode::decode(mem[pc]);
-            match mem[pc] {
+            let inst = crate::decode::decode(op);
+            match op {
                 0x00 => Ok(nop(cpu)),
                 0x01 => Ok(ld_bc_d16(cpu, mem[pc + 1], mem[pc + 2])),
                 0x02 => Ok(ld_BC_a(cpu, mem)),
@@ -245,7 +246,7 @@ pub mod cpu {
                 0x06 => Ok(ld_b_d8(cpu, mem[pc + 1])),
                 0x07 => Ok(rlca(cpu)),
                 0x08 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0x09 => Ok(add_hl_bc(cpu)),
@@ -295,7 +296,7 @@ pub mod cpu {
                 0x35 => Ok(dec_HL(cpu, mem)),
                 0x36 => Ok(ld_HL_d8(cpu, mem[pc + 1], mem)),
                 0x37 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0x38 => Ok(jr_c_r8(cpu, signed(mem[pc + 1]))),
@@ -306,10 +307,10 @@ pub mod cpu {
                 0x3D => Ok(dec_a(cpu)),
                 0x3E => Ok(ld_a_d8(cpu, mem[pc + 1])),
                 0x3F => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
-                0x40..=0x7F => match mem[pc] {
+                0x40..=0x7F => match op {
                     0x46 => Ok(ld_b_HL(cpu, &mem)),
                     0x4E => Ok(ld_c_HL(cpu, &mem)),
                     0x56 => Ok(ld_d_HL(cpu, &mem)),
@@ -317,7 +318,7 @@ pub mod cpu {
                     0x66 => Ok(ld_h_HL(cpu, &mem)),
                     0x6E => Ok(ld_l_HL(cpu, &mem)),
                     0x76 => Err(UnknownInstructionError { // HALT
-                        op: mem[pc],
+                        op,
                         mnm: inst.mnm,
                     }),
                     0x7E => Ok(ld_a_HL(cpu, &mem)),
@@ -328,96 +329,26 @@ pub mod cpu {
                     0x74 => Ok(ld_HL_h(cpu, mem)),
                     0x75 => Ok(ld_HL_l(cpu, mem)),
                     0x77 => Ok(ld_HL_a(cpu, mem)),
-                    _ => Ok(ld_r_r(cpu, mem[pc])),
+                    _ => Ok(ld_r_r(cpu, op)),
                 },
-                0x80 => Ok(add_b(cpu)),
-                0x81 => Ok(add_c(cpu)),
-                0x82 => Ok(add_d(cpu)),
-                0x83 => Ok(add_e(cpu)),
-                0x84 => Ok(add_h(cpu)),
-                0x85 => Ok(add_l(cpu)),
-                0x86 => Ok(add_HL(cpu, &mem)),
-                0x87 => Ok(add_a(cpu)),
-                0x88 => Ok(adc_b(cpu)),
-                0x89 => Ok(adc_c(cpu)),
-                0x8A => Ok(adc_d(cpu)),
-                0x8B => Ok(adc_e(cpu)),
-                0x8C => Ok(adc_h(cpu)),
-                0x8D => Ok(adc_l(cpu)),
-                0x8E => Ok(adc_HL(cpu, &mem)),
-                0x8F => Ok(adc_a(cpu)),
-                0x90 => Ok(sub_b(cpu)),
-                0x91 => Ok(sub_c(cpu)),
-                0x92 => Ok(sub_d(cpu)),
-                0x93 => Ok(sub_e(cpu)),
-                0x94 => Ok(sub_h(cpu)),
-                0x95 => Ok(sub_l(cpu)),
-                0x96 => Ok(sub_HL(cpu, &mem)),
-                0x97 => Ok(sub_a(cpu)),
-                0x98 => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x99 => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9A => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9B => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9C => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9D => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9E => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0x9F => Err(UnknownInstructionError {
-                    op: mem[pc],
-                    mnm: inst.mnm,
-                }),
-                0xA0 => Ok(and_b(cpu)),
-                0xA1 => Ok(and_c(cpu)),
-                0xA2 => Ok(and_d(cpu)),
-                0xA3 => Ok(and_e(cpu)),
-                0xA4 => Ok(and_h(cpu)),
-                0xA5 => Ok(and_l(cpu)),
-                0xA6 => Ok(and_HL(cpu, &mem)),
-                0xA7 => Ok(and_a(cpu)),
-                0xA8 => Ok(xor_b(cpu)),
-                0xA9 => Ok(xor_c(cpu)),
-                0xAA => Ok(xor_d(cpu)),
-                0xAB => Ok(xor_e(cpu)),
-                0xAC => Ok(xor_h(cpu)),
-                0xAD => Ok(xor_l(cpu)),
-                0xAE => Ok(xor_HL(cpu, &mem)),
-                0xAF => Ok(xor_a(cpu)),
-                0xB0 => Ok(or_b(cpu)),
-                0xB1 => Ok(or_c(cpu)),
-                0xB2 => Ok(or_d(cpu)),
-                0xB3 => Ok(or_e(cpu)),
-                0xB4 => Ok(or_h(cpu)),
-                0xB5 => Ok(or_l(cpu)),
-                0xB6 => Ok(or_HL(cpu, &mem)),
-                0xB7 => Ok(or_a(cpu)),
-                0xB8 => Ok(cp_b(cpu)),
-                0xB9 => Ok(cp_c(cpu)),
-                0xBA => Ok(cp_d(cpu)),
-                0xBB => Ok(cp_e(cpu)),
-                0xBC => Ok(cp_h(cpu)),
-                0xBD => Ok(cp_l(cpu)),
-                0xBE => Ok(cp_HL(cpu, &mem)),
-                0xBF => Ok(cp_a(cpu)),
+                0x80..=0xBF => {
+                    let src_idx = op % 8;
+                    let src = R_ID[src_idx as usize];
+                    match op {
+                        0x80..=0x87 => Ok(if src != ADR_HL { add_r(cpu, src) } else { add_HL(cpu, mem) }),
+                        0x88..=0x8F => Ok(if src != ADR_HL { adc_r(cpu, src) } else { adc_HL(cpu, mem) }),
+                        0x90..=0x97 => Ok(if src != ADR_HL { sub_r(cpu, src) } else { sub_HL(cpu, mem) }),
+                        // 0x98..=0x9F => Ok(if src != ADR_HL { sbc_r(cpu, src) } else { sbc_HL(cpu, mem) }),
+                        0xA0..=0xA7 => Ok(if src != ADR_HL { and_r(cpu, src) } else { and_HL(cpu, mem) }),
+                        0xA8..=0xAF => Ok(if src != ADR_HL { xor_r(cpu, src) } else { xor_HL(cpu, mem) }),
+                        0xB0..=0xB7 => Ok(if src != ADR_HL { or_r(cpu, src) } else { or_HL(cpu, mem) }),
+                        0xB8..=0xBF => Ok(if src != ADR_HL { cp_r(cpu, src) } else { cp_HL(cpu, mem) }),
+                        _ => Err(UnknownInstructionError {
+                            op,
+                            mnm: inst.mnm,
+                        }),
+                    }
+                },
                 0xC0 => Ok(ret_nz(cpu, &mem)),
                 0xC1 => Ok(pop_bc(cpu, &mem)),
                 0xC2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xC2)),
@@ -472,7 +403,7 @@ pub mod cpu {
                 0xD1 => Ok(pop_de(cpu, &mem)),
                 0xD2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2)),
                 0xD3 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xD4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xD4)),
@@ -483,16 +414,16 @@ pub mod cpu {
                 0xD9 => Ok(reti(cpu, &mem)),
                 0xDA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA)),
                 0xDB => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xDC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xDC)),
                 0xDD => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xDE => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xDF => Ok(rst_n(cpu, mem, 0xDF)),
@@ -500,32 +431,32 @@ pub mod cpu {
                 0xE1 => Ok(pop_hl(cpu, &mem)),
                 0xE2 => Ok(ld_FF00_C_a(cpu, mem)),
                 0xE3 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xE4 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xE5 => Ok(push_hl(cpu, mem)),
                 0xE6 => Ok(and_d8(cpu, mem[pc + 1])),
                 0xE7 => Ok(rst_n(cpu, mem, 0xE7)),
                 0xE8 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xE9 => Ok(jp_hl(cpu)),
                 0xEA => Ok(ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, mem)),
                 0xEB => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xEC => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xED => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xEE => Ok(xor_d8(cpu, mem[pc + 1])),
@@ -535,28 +466,28 @@ pub mod cpu {
                 0xF2 => Ok(ld_a_FF00_C(cpu, &mem)),
                 0xF3 => Ok(di(cpu)),
                 0xF4 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xF5 => Ok(push_af(cpu, mem)),
                 0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
                 0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
                 0xF8 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xF9 => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
                 0xFB => Ok(ei(cpu)),
                 0xFC => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xFD => Err(UnknownInstructionError {
-                    op: mem[pc],
+                    op,
                     mnm: inst.mnm,
                 }),
                 0xFE => Ok(cp_d8(cpu, mem[pc + 1])),
@@ -1065,26 +996,8 @@ pub mod cpu {
 
     //   add  A,r         8x         4 z0hc A=A+r
     // ----------------------------------------------------------------------------
-    const fn add_b(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn add_c(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn add_d(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn add_e(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn add_h(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn add_l(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn add_a(cpu: CPUState) -> CPUState {
-        impl_add(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn add_r(cpu: CPUState, src: usize)  -> CPUState {
+        impl_add(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   add  A,n         C6 nn      8 z0hc A=A+n
@@ -1101,26 +1014,8 @@ pub mod cpu {
 
     //   adc  A,r         8x         4 z0hc A=A+r+cy
     // ----------------------------------------------------------------------------
-    const fn adc_b(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn adc_c(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn adc_d(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn adc_e(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn adc_h(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn adc_l(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn adc_a(cpu: CPUState) -> CPUState {
-        impl_adc(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn adc_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_adc(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   adc  A,n         CE nn      8 z0hc A=A+n+cy
@@ -1137,26 +1032,8 @@ pub mod cpu {
 
     //   sub  r           9x         4 z1hc A=A-r
     // ----------------------------------------------------------------------------
-    const fn sub_b(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn sub_c(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn sub_d(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn sub_e(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn sub_h(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn sub_l(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn sub_a(cpu: CPUState) -> CPUState {
-        impl_sub(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn sub_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_sub(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   sub  n           D6 nn      8 z1hc A=A-n
@@ -1177,26 +1054,8 @@ pub mod cpu {
 
     //   and  r           Ax         4 z010 A=A & r
     // ----------------------------------------------------------------------------
-    const fn and_b(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn and_c(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn and_d(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn and_e(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn and_h(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn and_l(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn and_a(cpu: CPUState) -> CPUState {
-        impl_and(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn and_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_and(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   and  n           E6 nn      8 z010 A=A & n
@@ -1213,26 +1072,8 @@ pub mod cpu {
 
     //   xor  r           Ax         4 z000
     // ----------------------------------------------------------------------------
-    const fn xor_b(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn xor_c(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn xor_d(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn xor_e(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn xor_h(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn xor_l(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn xor_a(cpu: CPUState) -> CPUState {
-        impl_xor(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn xor_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_xor(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   xor  n           EE nn      8 z000
@@ -1249,26 +1090,8 @@ pub mod cpu {
 
     //   or   r           Bx         4 z000 A=A | r
     // ----------------------------------------------------------------------------
-    const fn or_b(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn or_c(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn or_d(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn or_e(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn or_h(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn or_l(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn or_a(cpu: CPUState) -> CPUState {
-        impl_or(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn or_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_or(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   or   n           F6 nn      8 z000 A=A | n
@@ -1285,26 +1108,8 @@ pub mod cpu {
 
     //   cp   r           Bx         4 z1hc compare A-r
     // ----------------------------------------------------------------------------
-    const fn cp_b(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_B]).adv_pc(1).tick(4)
-    }
-    const fn cp_c(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_C]).adv_pc(1).tick(4)
-    }
-    const fn cp_d(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_D]).adv_pc(1).tick(4)
-    }
-    const fn cp_e(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_E]).adv_pc(1).tick(4)
-    }
-    const fn cp_h(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_H]).adv_pc(1).tick(4)
-    }
-    const fn cp_l(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_L]).adv_pc(1).tick(4)
-    }
-    const fn cp_a(cpu: CPUState) -> CPUState {
-        impl_cp(cpu, cpu.reg[REG_A]).adv_pc(1).tick(4)
+    const fn cp_r(cpu: CPUState, src: usize) -> CPUState {
+        impl_cp(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 
     //   cp   n           FE nn      8 z1hc compare A-n

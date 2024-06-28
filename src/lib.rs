@@ -8,6 +8,8 @@ pub mod cpu {
     use crate::types::*;
 
     // https://gbdev.gg8.se/files/docs/mirrors/pandocs.html
+    // https://rgbds.gbdev.io/docs/v0.7.0/gbz80.7
+    // https://gbdev.io/pandocs/CPU_Instruction_Set.html
     //
     // CPU          - 8-bit (Similar to the Z80 processor)
     // Clock Speed  - 4.194304MHz (4.295454MHz for SGB, max. 8.4MHz for CGB)

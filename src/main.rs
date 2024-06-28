@@ -103,7 +103,6 @@ fn main() {
                     // for gameboy doctor so we don't have to comment out this section all the time
                     set_lcd_mode(0, &mut mem);
                 } else if lcd_timing >= TICKS_PER_VRAM_IO {
-                    
                     // draw the scanline
                     // ===========================================
                     let ln_start: usize = GB_SCREEN_WIDTH * mem[LY] as usize;

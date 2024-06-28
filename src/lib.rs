@@ -245,10 +245,7 @@ pub mod cpu {
                 0x05 => Ok(dec_b(cpu)),
                 0x06 => Ok(ld_b_d8(cpu, mem[pc + 1])),
                 0x07 => Ok(rlca(cpu)),
-                0x08 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0x08 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0x09 => Ok(add_hl_bc(cpu)),
                 0x0A => Ok(ld_a_BC(cpu, &mem)),
                 0x0B => Ok(dec_bc(cpu)),
@@ -295,10 +292,7 @@ pub mod cpu {
                 0x34 => Ok(inc_HL(cpu, mem)),
                 0x35 => Ok(dec_HL(cpu, mem)),
                 0x36 => Ok(ld_HL_d8(cpu, mem[pc + 1], mem)),
-                0x37 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0x37 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0x38 => Ok(jr_c_r8(cpu, signed(mem[pc + 1]))),
                 0x39 => Ok(add_hl_sp(cpu)),
                 0x3A => Ok(ldd_a_HL(cpu, mem)),
@@ -306,10 +300,7 @@ pub mod cpu {
                 0x3C => Ok(inc_a(cpu)),
                 0x3D => Ok(dec_a(cpu)),
                 0x3E => Ok(ld_a_d8(cpu, mem[pc + 1])),
-                0x3F => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0x3F => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0x40..=0x7F => match op {
                     0x46 => Ok(ld_b_HL(cpu, &mem)),
                     0x4E => Ok(ld_c_HL(cpu, &mem)),
@@ -317,7 +308,8 @@ pub mod cpu {
                     0x5E => Ok(ld_e_HL(cpu, &mem)),
                     0x66 => Ok(ld_h_HL(cpu, &mem)),
                     0x6E => Ok(ld_l_HL(cpu, &mem)),
-                    0x76 => Err(UnknownInstructionError { // HALT
+                    0x76 => Err(UnknownInstructionError {
+                        // HALT
                         op,
                         mnm: inst.mnm,
                     }),
@@ -398,10 +390,7 @@ pub mod cpu {
                 0xD0 => Ok(ret_nc(cpu, &mem)),
                 0xD1 => Ok(pop_de(cpu, &mem)),
                 0xD2 => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xD2)),
-                0xD3 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xD3 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xD4 => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xD4)),
                 0xD5 => Ok(push_de(cpu, mem)),
                 0xD6 => Ok(sub_d8(cpu, mem[pc + 1])),
@@ -409,83 +398,41 @@ pub mod cpu {
                 0xD8 => Ok(ret_c(cpu, &mem)),
                 0xD9 => Ok(reti(cpu, &mem)),
                 0xDA => Ok(jp_f_d16(cpu, mem[pc + 1], mem[pc + 2], 0xDA)),
-                0xDB => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xDB => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xDC => Ok(call_f_d16(mem[pc + 1], mem[pc + 2], cpu, mem, 0xDC)),
-                0xDD => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xDE => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xDD => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xDE => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xDF => Ok(rst_n(cpu, mem, 0xDF)),
                 0xE0 => Ok(ld_FF00_A8_a(mem[pc + 1], cpu, mem)),
                 0xE1 => Ok(pop_hl(cpu, &mem)),
                 0xE2 => Ok(ld_FF00_C_a(cpu, mem)),
-                0xE3 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xE4 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xE3 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xE4 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xE5 => Ok(push_hl(cpu, mem)),
                 0xE6 => Ok(and_d8(cpu, mem[pc + 1])),
                 0xE7 => Ok(rst_n(cpu, mem, 0xE7)),
-                0xE8 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xE8 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xE9 => Ok(jp_hl(cpu)),
                 0xEA => Ok(ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, mem)),
-                0xEB => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xEC => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xED => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xEB => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xEC => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xED => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xEE => Ok(xor_d8(cpu, mem[pc + 1])),
                 0xEF => Ok(rst_n(cpu, mem, 0xEF)),
                 0xF0 => Ok(ld_a_FF00_A8(cpu, &mem, mem[pc + 1])),
                 0xF1 => Ok(pop_af(cpu, &mem)),
                 0xF2 => Ok(ld_a_FF00_C(cpu, &mem)),
                 0xF3 => Ok(di(cpu)),
-                0xF4 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xF4 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xF5 => Ok(push_af(cpu, mem)),
                 0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
                 0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
-                0xF8 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xF9 => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xF8 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xF9 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
                 0xFB => Ok(ei(cpu)),
-                0xFC => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
-                0xFD => Err(UnknownInstructionError {
-                    op,
-                    mnm: inst.mnm,
-                }),
+                0xFC => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xFD => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xFE => Ok(cp_d8(cpu, mem[pc + 1])),
                 0xFF => Ok(rst_n(cpu, mem, 0xFF)),
             }
@@ -509,7 +456,9 @@ pub mod cpu {
     const fn ld_r_r(cpu: CPUState, opcode: Byte) -> CPUState {
         let dst_idx = (opcode - 0x40) / 0x08;
         let src_idx = opcode % 0x08;
-        impl_ld_r_d8(cpu, R_ID[dst_idx as usize], cpu.reg[R_ID[src_idx as usize]]).adv_pc(1).tick(4)
+        impl_ld_r_d8(cpu, R_ID[dst_idx as usize], cpu.reg[R_ID[src_idx as usize]])
+            .adv_pc(1)
+            .tick(4)
     }
 
     //   ld   r,n         xx nn      8 ---- r=n
@@ -992,7 +941,7 @@ pub mod cpu {
 
     //   add  A,r         8x         4 z0hc A=A+r
     // ----------------------------------------------------------------------------
-    const fn add_r(cpu: CPUState, src: usize)  -> CPUState {
+    const fn add_r(cpu: CPUState, src: usize) -> CPUState {
         impl_add(cpu, cpu.reg[src]).adv_pc(1).tick(4)
     }
 

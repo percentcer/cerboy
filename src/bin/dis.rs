@@ -1,6 +1,6 @@
-use cerboy::types::{Instruction, InstructionCB};
-use cerboy::memory::*;
 use cerboy::decode::{decode, decodeCB};
+use cerboy::memory::*;
+use cerboy::types::{Instruction, InstructionCB};
 
 fn main() {
     // arg processing
@@ -21,7 +21,7 @@ fn main() {
     mem.load_rom(&cart);
 
     println!(
-        "{} | size: {} | banks: {} | ram: {} | hw: {} | dst: {}", 
+        "{} | size: {} | banks: {} | ram: {} | hw: {} | dst: {}",
         cart.title(),
         cart.size(),
         cart.num_banks(),
@@ -62,7 +62,7 @@ fn main() {
         } else {
             match argc {
                 1 => println!("{}", inst.mnm),
-                2..=3 => println!("{}", inst.mnm_args(&cart[i+1..i+argc])),
+                2..=3 => println!("{}", inst.mnm_args(&cart[i + 1..i + argc])),
                 _ => panic!("(unreachable) todo: this is getting messy"),
             }
         }

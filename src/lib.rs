@@ -219,15 +219,15 @@ pub mod cpu {
         let ei_valid_delay = (cpu.inst_count - cpu.inst_ei) > 1;
         let enabled_flags = mem[IE] & mem[IF];
         if cpu.ime && enabled_flags != 0 && ei_valid_delay {
-            if (enabled_flags & FL_INT_VBLANK) > 0 {
+            if (enabled_flags & FL_INT_VBLANK) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_VBLANK, VEC_INT_VBLANK))
-            } else if (enabled_flags & FL_INT_STAT) > 0 {
+            } else if (enabled_flags & FL_INT_STAT) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_STAT, VEC_INT_STAT))
-            } else if (enabled_flags & FL_INT_TIMER) > 0 {
+            } else if (enabled_flags & FL_INT_TIMER) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_TIMER, VEC_INT_TIMER))
-            } else if (enabled_flags & FL_INT_SERIAL) > 0 {
+            } else if (enabled_flags & FL_INT_SERIAL) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_SERIAL, VEC_INT_SERIAL))
-            } else if (enabled_flags & FL_INT_JOYPAD) > 0 {
+            } else if (enabled_flags & FL_INT_JOYPAD) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_JOYPAD, VEC_INT_JOYPAD))
             } else {
                 panic!("interrupt enabled but unknown flag?")
@@ -831,7 +831,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let reg_a: Byte = cpu.reg[REG_A];
 
-        let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 > 0;
+        let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 != 0;
         let (result, c) = reg_a.overflowing_add(arg);
         let flags: Byte = if result == 0 { FL_Z } else { 0 }
             | if h { FL_H } else { 0 }
@@ -843,7 +843,7 @@ pub mod cpu {
     }
     const fn impl_adc(cpu: CPUState, arg: Byte) -> CPUState {
         // z0hc
-        if cpu.reg[FLAGS] & FL_C > 0 {
+        if cpu.reg[FLAGS] & FL_C != 0 {
             let cpu_pre = impl_add(cpu, arg);
             let cpu_post = impl_add(cpu_pre, 0x01);
             // ignore Z from pre but keep it in post
@@ -927,7 +927,7 @@ pub mod cpu {
         // z0h- for inc
         // z1h- for dec
         let mut reg = cpu.reg;
-        let (h, (res, _c)) = if flag_n > 0 {
+        let (h, (res, _c)) = if flag_n != 0 {
             (reg[dst] & 0x0F == 0x00, reg[dst].overflowing_sub(1))
         } else {
             (reg[dst] & 0x0F == 0x0F, reg[dst].overflowing_add(1))
@@ -1034,6 +1034,7 @@ pub mod cpu {
     //   sbc  A,r         9x         4 z1hc A=A-r-cy
     // ----------------------------------------------------------------------------
     const fn sbc_r(cpu: CPUState, src: usize) -> CPUState {
+
         panic!("sbc_r not implemented");
     }
     //   sbc  A,n         DE nn      8 z1hc A=A-n-cy
@@ -1261,7 +1262,7 @@ pub mod cpu {
         // https://stackoverflow.com/questions/57958631/game-boy-half-carry-flag-and-16-bit-instructions-especially-opcode-0xe8
         // we only test the high byte because of the order of operations of adding (low byte, then high byte).
         // half-carry MAY be set on the low byte, but it doesn't matter for the final result of the flag
-        let hi_h: bool = ((cpu.reg[REG_H] & 0x0f) + (hi(rr) & 0x0f)) & 0x10 > 0;
+        let hi_h: bool = ((cpu.reg[REG_H] & 0x0f) + (hi(rr) & 0x0f)) & 0x10 != 0;
 
         let (result, c) = cpu.HL().overflowing_add(rr);
 
@@ -1395,7 +1396,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let result = reg[dst].rotate_left(1);
-        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         reg[dst] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1411,7 +1412,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         let result = cur.rotate_left(1);
-        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         mem[addr] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1449,7 +1450,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let result = reg[dst].rotate_right(1);
-        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         reg[dst] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1464,7 +1465,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         let result = cur.rotate_right(1);
-        let fl_c = if (result & 1) > 0 { FL_C } else { 0 };
+        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         mem[addr] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1477,7 +1478,7 @@ pub mod cpu {
     const fn rr_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
 
         reg[dst] = (cpu.reg[dst].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
         reg[FLAGS] = fl_c | fl_z(reg[dst]);
@@ -1492,7 +1493,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
 
         mem[addr] = result;
@@ -1506,7 +1507,7 @@ pub mod cpu {
     const fn sla_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 0x80 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cpu.reg[dst] & 0x80 != 0 { FL_C } else { 0 };
 
         reg[dst] = reg[dst] << 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1521,7 +1522,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 0x80 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cur & 0x80 != 0 { FL_C } else { 0 };
         let result = cur << 1;
 
         mem[addr] = result;
@@ -1561,7 +1562,7 @@ pub mod cpu {
     const fn sra_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
 
         reg[dst] = (cpu.reg[dst] & 0x80) | reg[dst] >> 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1576,7 +1577,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = (cur & 0x80) | cur >> 1;
 
         mem[addr] = result;
@@ -1590,7 +1591,7 @@ pub mod cpu {
     const fn srl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
 
         reg[dst] = reg[dst] >> 1;
         reg[FLAGS] = fl_z(reg[dst]) | fl_c;
@@ -1605,7 +1606,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 > 0 { FL_C } else { 0 };
+        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = cur >> 1;
 
         mem[addr] = result;
@@ -1623,7 +1624,7 @@ pub mod cpu {
 
         let mask = 1 << bit;
         reg[FLAGS] =
-            if (cpu.reg[dst] & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+            if (cpu.reg[dst] & mask) != 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1636,7 +1637,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         let mask = 1 << bit;
-        reg[FLAGS] = if (cur & mask) > 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+        reg[FLAGS] = if (cur & mask) != 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(12)
     }
@@ -1984,7 +1985,7 @@ pub mod cpu {
     }
 
     fn tac_enabled(mem: &Memory) -> bool {
-        mem[TAC] & 0b100 > 0
+        mem[TAC] & 0b100 != 0
     }
 
     fn tac_cycles_per_inc(mem: &Memory) -> Result<u64, &'static str> {

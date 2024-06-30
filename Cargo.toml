@@ -12,6 +12,7 @@ env_logger = "0.8.4"
 minifb = "0.19.3"
 const_format = "0.2.26"
 unroll = "0.1.5"
+clap = { version = "4.5.8", features = ["derive"] }
 
 # [dev-dependencies]
 # https://doc.rust-lang.org/rustc/instrument-coverage.html

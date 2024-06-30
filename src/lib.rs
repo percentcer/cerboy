@@ -857,11 +857,7 @@ pub mod cpu {
 
     const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
         // adc: z0hc sbc: z1hc
-        let arg = if fl_n != 0 {
-            !arg
-        } else {
-            arg
-        };
+        let arg = if fl_n != 0 { !arg } else { arg };
 
         let pre_carry_result = impl_add(cpu, arg);
         let post_carry_result = if cpu.reg[FLAGS] & FL_C != 0 {
@@ -2846,12 +2842,15 @@ pub mod memory {
     pub struct Memory {
         pub(crate) data: [Byte; MEM_SIZE],
         pub dma_req: bool,
+        // --- debug ---
+        pub doctor: bool,
     }
     impl Memory {
         pub fn new() -> Memory {
             let mut mem = Memory {
                 data: [0; MEM_SIZE],
                 dma_req: false,
+                doctor: false,
             };
             mem[TIMA] = 0x00;
             mem[TMA] = 0x00;
@@ -2921,7 +2920,13 @@ pub mod memory {
         fn index(&self, index: Word) -> &Self::Output {
             // &self.data[index as usize]
             match index {
-                LY => &0x90, // for debugger https://robertheaton.com/gameboy-doctor/
+                LY => {
+                    if self.doctor {
+                        &0x90
+                    } else {
+                        &self.data[index as usize]
+                    }
+                } // for debugger https://robertheaton.com/gameboy-doctor/
                 _ => &self.data[index as usize],
             }
         }
@@ -3442,14 +3447,6 @@ pub mod dbg {
     use crate::cpu::*;
     use crate::memory::*;
     use crate::types::*;
-
-    pub fn mock_mem_read(addr: Word, mem: &Memory) -> Byte {
-        if addr == LY {
-            0x90
-        } else {
-            mem[addr]
-        }
-    }
 
     pub fn log_cpu(buffer: &mut Vec<String>, cpu: &CPUState, mem: &Memory) -> std::io::Result<()> {
         buffer.push(

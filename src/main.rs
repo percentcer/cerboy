@@ -14,7 +14,21 @@ use cerboy::dbg::*;
 use cerboy::memory::*;
 use cerboy::types::*;
 
+use clap::Parser;
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Path to ROM
+    #[arg(short, long)]
+    rom: String,
+
+    /// Run in gameboy-doctor mode
+    #[arg(short, long, default_value_t = false)]
+    doctor: bool,
+}
+
 fn main() {
+    let args = Args::parse();
     env_logger::init();
 
     // window management
@@ -32,22 +46,12 @@ fn main() {
     // (frame time should be longer, 16600)
     window.limit_update_rate(Some(std::time::Duration::from_micros(12600)));
 
-    // arg processing
-    // ---------
-    let args: Vec<String> = std::env::args().collect();
-    println!("{:?}", args);
-    assert_eq!(
-        args.len(),
-        2,
-        "unexpected number of args (must pass in path to rom)"
-    );
-    let rom_path: &str = &args[1];
-
     // init system
     // ------------
-    let cart = Cartridge::new(rom_path);
+    let cart = Cartridge::new(args.rom.as_str());
     let mut cpu = CPUState::new();
     let mut mem: Memory = Memory::new();
+    mem.doctor = args.doctor;
     mem.load_rom(&cart); // load cartridge
 
     // todo: boot doesn't work anymore with the new cartridge setup
@@ -66,7 +70,9 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // update
         // ------------------------------------------------
-        log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+        if args.doctor {
+            log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+        }
         let cpu_prev = cpu;
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
@@ -99,8 +105,9 @@ fn main() {
             }
             // vram io
             3 => {
-                if mem[LY] == 0x90 {
-                    // for gameboy doctor so we don't have to comment out this section all the time
+                if args.doctor {
+                    // todo: this could be rewritten to be compatible with gameboy-doctor,
+                    // but for now it isn't because we make actual use of the mem[LY] location
                     set_lcd_mode(0, &mut mem);
                 } else if lcd_timing >= TICKS_PER_VRAM_IO {
                     // draw the scanline
@@ -194,8 +201,7 @@ fn main() {
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
 
-                    // cerboy::dbg::print_lcdc(&mem);
-                    dump("mem.bin", &mem).unwrap();
+                    if args.doctor { dump("mem.bin", &mem).unwrap() }
                 }
             }
             _ => panic!("invalid LCD mode"),

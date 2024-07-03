@@ -294,7 +294,7 @@ pub mod cpu {
                 0x34 => Ok(inc_HL(cpu, mem)),
                 0x35 => Ok(dec_HL(cpu, mem)),
                 0x36 => Ok(ld_HL_d8(cpu, mem[pc + 1], mem)),
-                0x37 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0x37 => Ok(scf(cpu)),
                 0x38 => Ok(jr_c_r8(cpu, signed(mem[pc + 1]))),
                 0x39 => Ok(add_hl_sp(cpu)),
                 0x3A => Ok(ldd_a_HL(cpu, mem)),
@@ -302,7 +302,7 @@ pub mod cpu {
                 0x3C => Ok(inc_a(cpu)),
                 0x3D => Ok(dec_a(cpu)),
                 0x3E => Ok(ld_a_d8(cpu, mem[pc + 1])),
-                0x3F => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0x3F => Ok(ccf(cpu)),
                 0x40..=0x7F => match op {
                     0x46 => Ok(ld_b_HL(cpu, &mem)),
                     0x4E => Ok(ld_c_HL(cpu, &mem)),
@@ -1749,7 +1749,34 @@ pub mod cpu {
     // GMB CPU-Controlcommands
     // ============================================================================
     //   ccf            3F           4 -00c cy=cy xor 1
+    const fn ccf(cpu: CPUState) -> CPUState {
+        let mut reg = cpu.reg;
+        reg[FLAGS] = reg[FLAGS] & FL_Z | 0 | 0 | (reg[FLAGS] ^ FL_C) & FL_C;
+        
+        CPUState { reg, ..cpu }.adv_pc(1).tick(4)
+    }
+    
     //   scf            37           4 -001 cy=1
+    const fn scf(cpu: CPUState) -> CPUState {
+        let mut reg = cpu.reg;
+        reg[FLAGS] = reg[FLAGS] & FL_Z | 0 | 0 | FL_C;
+
+        CPUState { reg, ..cpu }.adv_pc(1).tick(4)
+    }
+
+    #[test]
+    fn test_ccf_scf() {
+        let cpu = CPUState::new();
+        let cpu_zeroed = CPUState{reg: [0,0,0,0,0,0,0,0], ..cpu};
+
+        let ccf0 = ccf(cpu);
+        let ccf1 = ccf(ccf0);
+        assert_eq!(ccf0.reg[FLAGS] & FL_C, (!(cpu.reg[FLAGS] & FL_C)) & FL_C);
+        assert_eq!(ccf1.reg[FLAGS] & FL_C, cpu.reg[FLAGS] & FL_C);
+
+        assert_eq!(scf(cpu).reg[FLAGS] & FL_C, FL_C);
+        assert_eq!(scf(cpu_zeroed).reg[FLAGS] & FL_C, FL_C);
+    }
 
     //   nop            00           4 ---- no operation
     // ----------------------------------------------------------------------------

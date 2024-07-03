@@ -828,34 +828,39 @@ pub mod cpu {
 
     // GMB 8bit-Arithmetic/logical Commands
     // ============================================================================
-    // const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
-    //     // z0hc
-    //     let mut reg = cpu.reg;
-    //     let reg_a: Byte = cpu.reg[REG_A];
 
-    //     let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 != 0;
-    //     let (result, c) = reg_a.overflowing_add(arg);
-    //     let flags: Byte = if result == 0 { FL_Z } else { 0 }
-    //         | if h { FL_H } else { 0 }
-    //         | if c { FL_C } else { 0 };
-    //     reg[REG_A] = result;
-    //     reg[FLAGS] = flags;
+    /// makes some half-carry operations easier if we think in 4bit terms
+    const fn alu_add_4bit(a: Byte, b: Byte, c_in: bool) -> (Byte, bool) {
+        let ret: Byte = (a & 0x0F) + (b & 0x0F) + if c_in {1} else {0};
+        let c_out = ret & 0x10 != 0;
+        (ret & 0x0F, c_out)
+    }
 
-    //     CPUState { reg, ..cpu }
-    // }
+    const fn impl_add_sub_c(cpu: CPUState, arg: Byte, fl_n: Byte, c_read: bool) -> CPUState {
+        // for SUB, we invert the arg (1s complement) and add. Note that this will result in
+        // an answer that is off-by-one. To correct the result, we leverage the internal
+        // carry-out flag in the ALU. In other words, SUB just becomes an ADD with all args
+        // inverted, including carries.
+        let arg = if fl_n != 0 { !arg } else { arg };
 
-    const fn impl_add_sub(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
-        let arg = if fl_n != 0 { let (r, _) = (!arg).overflowing_add(1); r } else { arg };
+        // inverting the main carry-in:
+        let c_in: bool = if c_read { cpu.reg[FLAGS] & FL_C != 0 } else { false };
+        let c_in = if fl_n != 0 { !c_in } else { c_in };
 
-        let result: Word = cpu.reg[REG_A] as Word + arg as Word;
-        let result_no_carry: Word = (cpu.reg[REG_A] ^ arg) as Word;
-        let carried_bits = result ^ result_no_carry;
-        let fl_h = if carried_bits & 0x10 != 0 {FL_H} else {0};
-        let fl_c = if carried_bits & 0x100 != 0 {FL_C} else {0};
+        let (lo, c_out_lo) = alu_add_4bit(cpu.reg[REG_A], arg, c_in);
+        // c_out_lo would be doubly-inverted while doing the operation
+        // so we don't invert here. However, we do still need to keep 
+        // track of the half carry flag, so keep in mind that it DOES
+        // get inverted before flags are set
+        let (hi, c_out_hi) = alu_add_4bit(cpu.reg[REG_A] >> 4, arg >> 4, c_out_lo);
+
+        // inverting the result of the carry-outs if this was a SUB operation (FL_N != 0):
+        let c_out_hi = if fl_n != 0 { !c_out_hi } else { c_out_hi };
+        let c_out_lo = if fl_n != 0 { !c_out_lo } else { c_out_lo };
 
         let mut reg = cpu.reg;
-        reg[REG_A] = result as Byte;
-        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_h | fl_c;
+        reg[REG_A] = hi << 4 | lo;
+        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_bool(c_out_lo, FL_H) | fl_bool(c_out_hi, FL_C);
 
         CPUState {
             reg,
@@ -863,19 +868,14 @@ pub mod cpu {
         }
     }
 
-    const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
-        let result = impl_add_sub(cpu, arg, fl_n);
-        let mut reg = result.reg;
-        
-        // add in the carry (if flag was set)
-        let c = if cpu.reg[FLAGS] & FL_C != 0 { 1 } else { 0 };
-        let (rst, _) = result.reg[REG_A].overflowing_add(c);
-        reg[REG_A] = rst;
+    const fn impl_add_sub(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
+        // add/sub where we don't care about the carry
+        impl_add_sub_c(cpu, arg, fl_n, false)
+    }
 
-        CPUState {
-            reg,
-            ..cpu
-        }
+    const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
+        // add/sub where we do care about the carry
+        impl_add_sub_c(cpu, arg, fl_n, true)
     }
 
     #[test]
@@ -2061,6 +2061,12 @@ pub mod cpu {
         // ime: false,
         const INITIAL: CPUState = CPUState::new();
 
+        macro_rules! assert_eq_flags {
+            ($left:expr, $right:expr) => {
+                assert_eq!($left, $right, "flags: expected {}, actual {}", flags_string($right), flags_string($left))
+            }
+        }
+
         #[test]
         fn test_impl_xor_r() {
             let result = impl_xor(INITIAL, 0x13).adv_pc(1).tick(4);
@@ -2302,16 +2308,16 @@ pub mod cpu {
             let mut mem = Memory::new();
             mem[cpu.HL()] = cpu.reg[REG_L];
 
-            assert_eq!(cp_r(cpu, REG_B).reg[FLAGS], FL_N);
-            assert_eq!(cp_r(cpu, REG_C).reg[FLAGS], FL_N);
-            assert_eq!(cp_r(cpu, REG_D).reg[FLAGS], FL_N | FL_H);
-            assert_eq!(cp_r(cpu, REG_E).reg[FLAGS], FL_N | FL_H);
-            assert_eq!(cp_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
-            assert_eq!(cp_r(cpu, REG_L).reg[FLAGS], FL_N | FL_H | FL_C);
-            assert_eq!(cp_r(cpu, REG_A).reg[FLAGS], FL_Z | FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_B).reg[FLAGS], FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_C).reg[FLAGS], FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_D).reg[FLAGS], FL_N | FL_H);
+            assert_eq_flags!(cp_r(cpu, REG_E).reg[FLAGS], FL_N | FL_H);
+            assert_eq_flags!(cp_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_L).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_r(cpu, REG_A).reg[FLAGS], FL_Z | FL_N);
 
-            assert_eq!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
-            assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
         }
 
         #[test]
@@ -3413,6 +3419,10 @@ pub mod bits {
         } else {
             0
         }
+    }
+
+    pub const fn fl_bool(set: bool, flag: Byte) -> Byte {
+        if set { flag } else { 0 }
     }
 
     pub const fn bit(idx: Byte, val: Byte) -> Byte {

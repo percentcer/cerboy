@@ -828,54 +828,54 @@ pub mod cpu {
 
     // GMB 8bit-Arithmetic/logical Commands
     // ============================================================================
-    const fn impl_add(cpu: CPUState, arg: Byte) -> CPUState {
-        // z0hc
-        let mut reg = cpu.reg;
-        let reg_a: Byte = cpu.reg[REG_A];
 
-        let h: bool = ((reg_a & 0x0f) + (arg & 0x0f)) & 0x10 != 0;
-        let (result, c) = reg_a.overflowing_add(arg);
-        let flags: Byte = if result == 0 { FL_Z } else { 0 }
-            | if h { FL_H } else { 0 }
-            | if c { FL_C } else { 0 };
-        reg[REG_A] = result;
-        reg[FLAGS] = flags;
-
-        CPUState { reg, ..cpu }
+    /// makes some half-carry operations easier if we think in 4bit terms
+    const fn alu_add_4bit(a: Byte, b: Byte, c_in: bool) -> (Byte, bool) {
+        let ret: Byte = (a & 0x0F) + (b & 0x0F) + if c_in {1} else {0};
+        let c_out = ret & 0x10 != 0;
+        (ret & 0x0F, c_out)
     }
 
-    // const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
-    //     let r_a = cpu.reg[REG_A];
-    //     let c = if cpu.reg[FLAGS] & FL_C != 0 { 1 } else { 0 };
-    //     let sum: usize = r_a + arg + c;
-    //     let fl_c = sum > 0xFF;
-    //     // The overflow flag is set when the sign of the addends is the same and
-    //     // differs from the sign of the sum
-    //     let overflow = !(r_a ^ arg) & (r_a ^ sum) & 0x80;
-    //     zn = a /* (uint8_t) */ = sum;
-    // }
-
-    const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
-        // adc: z0hc sbc: z1hc
+    const fn impl_add_sub_c(cpu: CPUState, arg: Byte, fl_n: Byte, c_read: bool) -> CPUState {
+        // for SUB, we invert the arg (1s complement) and add. Note that this will result in
+        // an answer that is off-by-one. To correct the result, we leverage the internal
+        // carry-out flag in the ALU. In other words, SUB just becomes an ADD with all args
+        // inverted, including carries.
         let arg = if fl_n != 0 { !arg } else { arg };
 
-        let pre_carry_result = impl_add(cpu, arg);
-        let post_carry_result = if cpu.reg[FLAGS] & FL_C != 0 {
-            impl_add(pre_carry_result, 0x01)
-        } else {
-            pre_carry_result
-        };
+        // inverting the main carry-in:
+        let c_in: bool = if c_read { cpu.reg[FLAGS] & FL_C != 0 } else { false };
+        let c_in = if fl_n != 0 { !c_in } else { c_in };
 
-        let mask_h_c = FL_H | FL_C;
-        let fl_h_c = (pre_carry_result.reg[FLAGS] | post_carry_result.reg[FLAGS]) & mask_h_c;
+        let (lo, c_out_lo) = alu_add_4bit(cpu.reg[REG_A], arg, c_in);
+        // c_out_lo would be doubly-inverted while doing the operation
+        // so we don't invert here. However, we do still need to keep 
+        // track of the half carry flag, so keep in mind that it DOES
+        // get inverted before flags are set
+        let (hi, c_out_hi) = alu_add_4bit(cpu.reg[REG_A] >> 4, arg >> 4, c_out_lo);
 
-        let mut reg = post_carry_result.reg;
-        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_h_c;
+        // inverting the result of the carry-outs if this was a SUB operation (FL_N != 0):
+        let c_out_hi = if fl_n != 0 { !c_out_hi } else { c_out_hi };
+        let c_out_lo = if fl_n != 0 { !c_out_lo } else { c_out_lo };
+
+        let mut reg = cpu.reg;
+        reg[REG_A] = hi << 4 | lo;
+        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_bool(c_out_lo, FL_H) | fl_bool(c_out_hi, FL_C);
 
         CPUState {
             reg,
-            ..post_carry_result
+            ..cpu
         }
+    }
+
+    const fn impl_add_sub(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
+        // add/sub where we don't care about the carry
+        impl_add_sub_c(cpu, arg, fl_n, false)
+    }
+
+    const fn impl_adc_sbc(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
+        // add/sub where we do care about the carry
+        impl_add_sub_c(cpu, arg, fl_n, true)
     }
 
     #[test]
@@ -1004,38 +1004,27 @@ pub mod cpu {
     }
     const fn impl_cp(cpu: CPUState, arg: Byte) -> CPUState {
         let mut reg = cpu.reg;
-        let flagged = impl_sub(cpu, arg);
+        let flagged = impl_add_sub(cpu, arg, FL_N);
         reg[FLAGS] = flagged.reg[FLAGS];
         CPUState { reg, ..flagged }
-    }
-    const fn impl_sub(cpu: CPUState, arg: Byte) -> CPUState {
-        // z1hc
-        let mut reg = cpu.reg;
-        let (_, h) = (cpu.reg[REG_A] & 0x0F).overflowing_sub(arg & 0x0F);
-        let (res, c) = cpu.reg[REG_A].overflowing_sub(arg);
-        let z = arg == cpu.reg[REG_A];
-        reg[REG_A] = res;
-        reg[FLAGS] =
-            if z { FL_Z } else { 0 } | FL_N | if h { FL_H } else { 0 } | if c { FL_C } else { 0 };
-        CPUState { reg, ..cpu }
     }
 
     //   add  A,r         8x         4 z0hc A=A+r
     // ----------------------------------------------------------------------------
     const fn add_r(cpu: CPUState, src: usize) -> CPUState {
-        impl_add(cpu, cpu.reg[src]).adv_pc(1).tick(4)
+        impl_add_sub(cpu, cpu.reg[src], 0).adv_pc(1).tick(4)
     }
 
     //   add  A,n         C6 nn      8 z0hc A=A+n
     // ----------------------------------------------------------------------------
     const fn add_d8(cpu: CPUState, d8: Byte) -> CPUState {
-        impl_add(cpu, d8).adv_pc(2).tick(8)
+        impl_add_sub(cpu, d8, 0).adv_pc(2).tick(8)
     }
 
     //   add  A,(HL)      86         8 z0hc A=A+(HL)
     // ----------------------------------------------------------------------------
     fn add_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_add(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+        impl_add_sub(cpu, mem[cpu.HL()], 0).adv_pc(1).tick(8)
     }
 
     //   adc  A,r         8x         4 z0hc A=A+r+cy
@@ -1059,19 +1048,19 @@ pub mod cpu {
     //   sub  r           9x         4 z1hc A=A-r
     // ----------------------------------------------------------------------------
     const fn sub_r(cpu: CPUState, src: usize) -> CPUState {
-        impl_sub(cpu, cpu.reg[src]).adv_pc(1).tick(4)
+        impl_add_sub(cpu, cpu.reg[src], FL_N).adv_pc(1).tick(4)
     }
 
     //   sub  n           D6 nn      8 z1hc A=A-n
     // ----------------------------------------------------------------------------
     const fn sub_d8(cpu: CPUState, d8: Byte) -> CPUState {
-        impl_sub(cpu, d8).adv_pc(2).tick(8)
+        impl_add_sub(cpu, d8, FL_N).adv_pc(2).tick(8)
     }
 
     //   sub  (HL)        96         8 z1hc A=A-(HL)
     // ----------------------------------------------------------------------------
     fn sub_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_sub(cpu, mem[cpu.HL()]).adv_pc(1).tick(8)
+        impl_add_sub(cpu, mem[cpu.HL()], FL_N).adv_pc(1).tick(8)
     }
 
     //   sbc  A,r         9x         4 z1hc A=A-r-cy
@@ -2078,6 +2067,7 @@ pub mod cpu {
     #[cfg(test)]
     mod tests_cpu {
         use super::*;
+        use crate::dbg::*;
 
         // tsc: 0,
         // //    B     C     D     E     H     L     fl    A
@@ -2086,6 +2076,12 @@ pub mod cpu {
         // pc: 0x0000,
         // ime: false,
         const INITIAL: CPUState = CPUState::new();
+
+        macro_rules! assert_eq_flags {
+            ($left:expr, $right:expr) => {
+                assert_eq!($left, $right, "flags: expected {}, actual {}", flags_string($right), flags_string($left))
+            }
+        }
 
         #[test]
         fn test_impl_xor_r() {
@@ -2166,23 +2162,23 @@ pub mod cpu {
         #[test]
         fn test_add() {
             // reg a inits to 0x01
-            assert_eq!(impl_add(INITIAL, 0xFF).reg[REG_A], 0x00, "failed 0xff");
+            assert_eq!(impl_add_sub(INITIAL, 0xFF, 0).reg[REG_A], 0x00, "failed 0xff");
             assert_eq!(
-                impl_add(INITIAL, 0xFF).reg[FLAGS],
+                impl_add_sub(INITIAL, 0xFF, 0).reg[FLAGS],
                 FL_Z | FL_H | FL_C,
                 "failed 0xff flags"
             );
 
-            assert_eq!(impl_add(INITIAL, 0x0F).reg[REG_A], 0x10, "failed 0x0f");
+            assert_eq!(impl_add_sub(INITIAL, 0x0F, 0).reg[REG_A], 0x10, "failed 0x0f");
             assert_eq!(
-                impl_add(INITIAL, 0x0F).reg[FLAGS],
+                impl_add_sub(INITIAL, 0x0F, 0).reg[FLAGS],
                 FL_H,
                 "failed 0x0f flags"
             );
 
-            assert_eq!(impl_add(INITIAL, 0x01).reg[REG_A], 0x02, "failed 0x01");
+            assert_eq!(impl_add_sub(INITIAL, 0x01, 0).reg[REG_A], 0x02, "failed 0x01");
             assert_eq!(
-                impl_add(INITIAL, 0x01).reg[FLAGS],
+                impl_add_sub(INITIAL, 0x01, 0).reg[FLAGS],
                 0x00,
                 "failed 0x01 flags"
             );
@@ -2328,16 +2324,16 @@ pub mod cpu {
             let mut mem = Memory::new();
             mem[cpu.HL()] = cpu.reg[REG_L];
 
-            assert_eq!(cp_r(cpu, REG_B).reg[FLAGS], FL_N);
-            assert_eq!(cp_r(cpu, REG_C).reg[FLAGS], FL_N);
-            assert_eq!(cp_r(cpu, REG_D).reg[FLAGS], FL_N | FL_H);
-            assert_eq!(cp_r(cpu, REG_E).reg[FLAGS], FL_N | FL_H);
-            assert_eq!(cp_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
-            assert_eq!(cp_r(cpu, REG_L).reg[FLAGS], FL_N | FL_H | FL_C);
-            assert_eq!(cp_r(cpu, REG_A).reg[FLAGS], FL_Z | FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_B).reg[FLAGS], FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_C).reg[FLAGS], FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_D).reg[FLAGS], FL_N | FL_H);
+            assert_eq_flags!(cp_r(cpu, REG_E).reg[FLAGS], FL_N | FL_H);
+            assert_eq_flags!(cp_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
+            assert_eq_flags!(cp_r(cpu, REG_L).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_r(cpu, REG_A).reg[FLAGS], FL_Z | FL_N);
 
-            assert_eq!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
-            assert_eq!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_d8(cpu, 0x12).reg[FLAGS], FL_N | FL_H | FL_C);
+            assert_eq_flags!(cp_HL(cpu, &mem).reg[FLAGS], FL_N | FL_H | FL_C);
         }
 
         #[test]
@@ -2350,7 +2346,8 @@ pub mod cpu {
             assert_eq!(sub_r(cpu, REG_B).reg[REG_A], 0x11);
             assert_eq!(sub_r(cpu, REG_C).reg[REG_A], 0x10);
             assert_eq!(sub_r(cpu, REG_D).reg[REG_A], 0x0F);
-            assert_eq!(sub_r(cpu, REG_D).reg[FLAGS], FL_N | FL_H);
+            let result = sub_r(cpu, REG_D).reg[FLAGS];
+            assert_eq!(result, FL_N | FL_H, "expected {}, got {}", flags_string(FL_N|FL_H), flags_string(result));
             assert_eq!(sub_r(cpu, REG_E).reg[REG_A], 0x0E);
             assert_eq!(sub_r(cpu, REG_H).reg[REG_A], 0x00);
             assert_eq!(sub_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
@@ -3440,6 +3437,10 @@ pub mod bits {
         }
     }
 
+    pub const fn fl_bool(set: bool, flag: Byte) -> Byte {
+        if set { flag } else { 0 }
+    }
+
     pub const fn bit(idx: Byte, val: Byte) -> Byte {
         (val >> idx) & 1
     }
@@ -3500,6 +3501,15 @@ pub mod dbg {
     pub fn dump(path: &str, mem: &Memory) -> std::io::Result<()> {
         fs::write(path, mem.data)?;
         Ok(())
+    }
+
+    pub fn flags_string(flags: Byte) -> String {
+        format!("{}{}{}{}", 
+            if flags & FL_C != 0 {"C"} else {"—"},
+            if flags & FL_H != 0 {"H"} else {"—"},
+            if flags & FL_N != 0 {"N"} else {"—"},
+            if flags & FL_Z != 0 {"Z"} else {"—"},
+        )
     }
 
     pub fn print_lcdc(mem: &Memory) {

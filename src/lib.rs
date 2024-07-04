@@ -2707,6 +2707,8 @@ pub mod memory {
     pub const VEC_INT_JOYPAD: Word = 0x0060;
     // named I/O memory locations [FF00..FF7F]
     pub const JOYP: Word = 0xFF00;
+    pub const SB: Word = 0xFF01;
+    pub const SC: Word = 0xFF02;
     // timers
     pub const DIV: Word = 0xFF04;
     pub const TIMA: Word = 0xFF05;
@@ -2970,10 +2972,14 @@ pub mod memory {
         fn index_mut(&mut self, index: Word) -> &mut Self::Output {
             match index {
                 DMA => {
-                    // println!("[write] DMA 0x{:X}", self[index]);
+                    // println!("[DMA] 0x{:X}", self[index]);
                     self.dma_req = true;
-                }
-                // LCDC => println!("[write] LCDC"),
+                },
+                SB => {
+                    // Serial port bytes
+                    println!("[SB] {}", self[index] as char);
+                },
+                // LCDC => println!("[LCDC]"),
                 _ => (),
             }
             &mut self.data[index as usize]

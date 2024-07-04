@@ -2079,7 +2079,7 @@ pub mod cpu {
 
         macro_rules! assert_eq_flags {
             ($left:expr, $right:expr) => {
-                assert_eq!($left, $right, "flags: expected {}, actual {}", flags_string($right), flags_string($left))
+                assert_eq!($left, $right, "flags: expected {}, actual {}", str_flags($right), str_flags($left))
             }
         }
 
@@ -2347,7 +2347,7 @@ pub mod cpu {
             assert_eq!(sub_r(cpu, REG_C).reg[REG_A], 0x10);
             assert_eq!(sub_r(cpu, REG_D).reg[REG_A], 0x0F);
             let result = sub_r(cpu, REG_D).reg[FLAGS];
-            assert_eq!(result, FL_N | FL_H, "expected {}, got {}", flags_string(FL_N|FL_H), flags_string(result));
+            assert_eq!(result, FL_N | FL_H, "expected {}, got {}", str_flags(FL_N|FL_H), str_flags(result));
             assert_eq!(sub_r(cpu, REG_E).reg[REG_A], 0x0E);
             assert_eq!(sub_r(cpu, REG_H).reg[REG_A], 0x00);
             assert_eq!(sub_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
@@ -3503,12 +3503,20 @@ pub mod dbg {
         Ok(())
     }
 
-    pub fn flags_string(flags: Byte) -> String {
-        format!("{}{}{}{}", 
-            if flags & FL_C != 0 {"C"} else {"—"},
-            if flags & FL_H != 0 {"H"} else {"—"},
-            if flags & FL_N != 0 {"N"} else {"—"},
-            if flags & FL_Z != 0 {"Z"} else {"—"},
+    const VEC_NAMES: [&str; 5] = ["VBLANK", "STAT", "TIMER", "SERIAL", "JOYPAD"];
+
+    pub const fn str_interrupt(i: Word) -> &'static str {
+        let idx = (i - VEC_INT_VBLANK) / 0x08;
+        VEC_NAMES[idx as usize]
+    }
+
+    pub fn str_flags(flags: Byte) -> String {
+        format!(
+            "{}{}{}{}",
+            if flags & FL_C != 0 { "C" } else { "—" },
+            if flags & FL_H != 0 { "H" } else { "—" },
+            if flags & FL_N != 0 { "N" } else { "—" },
+            if flags & FL_Z != 0 { "Z" } else { "—" },
         )
     }
 

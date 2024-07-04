@@ -201,7 +201,9 @@ fn main() {
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
 
-                    if args.doctor { dump("mem.bin", &mem).unwrap() }
+                    if args.doctor {
+                        dump("mem.bin", &mem).unwrap()
+                    }
                 }
             }
             _ => panic!("invalid LCD mode"),

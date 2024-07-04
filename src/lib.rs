@@ -831,7 +831,7 @@ pub mod cpu {
 
     /// makes some half-carry operations easier if we think in 4bit terms
     const fn alu_add_4bit(a: Byte, b: Byte, c_in: bool) -> (Byte, bool) {
-        let ret: Byte = (a & 0x0F) + (b & 0x0F) + if c_in {1} else {0};
+        let ret: Byte = (a & 0x0F) + (b & 0x0F) + (c_in as u8);
         let c_out = ret & 0x10 != 0;
         (ret & 0x0F, c_out)
     }
@@ -844,12 +844,12 @@ pub mod cpu {
         let arg = if fl_n != 0 { !arg } else { arg };
 
         // inverting the main carry-in:
-        let c_in: bool = if c_read { cpu.reg[FLAGS] & FL_C != 0 } else { false };
+        let c_in: bool = c_read && (cpu.reg[FLAGS] & FL_C != 0);
         let c_in = if fl_n != 0 { !c_in } else { c_in };
 
         let (lo, c_out_lo) = alu_add_4bit(cpu.reg[REG_A], arg, c_in);
         // c_out_lo would be doubly-inverted while doing the operation
-        // so we don't invert here. However, we do still need to keep 
+        // so we don't invert here. However, we do still need to keep
         // track of the half carry flag, so keep in mind that it DOES
         // get inverted before flags are set
         let (hi, c_out_hi) = alu_add_4bit(cpu.reg[REG_A] >> 4, arg >> 4, c_out_lo);
@@ -860,12 +860,9 @@ pub mod cpu {
 
         let mut reg = cpu.reg;
         reg[REG_A] = hi << 4 | lo;
-        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_bool(c_out_lo, FL_H) | fl_bool(c_out_hi, FL_C);
-
-        CPUState {
-            reg,
-            ..cpu
-        }
+        reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_set(FL_H, c_out_lo) | fl_set(FL_C, c_out_hi);
+ 
+        CPUState { reg, ..cpu }
     }
 
     const fn impl_add_sub(cpu: CPUState, arg: Byte, fl_n: Byte) -> CPUState {
@@ -944,7 +941,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         reg[REG_A] &= arg;
-        reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 } | FL_H;
+        reg[FLAGS] = fl_z(reg[REG_A]) | FL_H;
 
         CPUState { reg, ..cpu }
     }
@@ -953,7 +950,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         reg[REG_A] ^= arg;
-        reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
+        reg[FLAGS] = fl_z(reg[REG_A]);
 
         CPUState { reg, ..cpu }
     }
@@ -962,7 +959,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         reg[REG_A] |= arg;
-        reg[FLAGS] = if reg[REG_A] == 0 { FL_Z } else { 0x00 };
+        reg[FLAGS] = fl_z(reg[REG_A]);
 
         CPUState { reg, ..cpu }
     }
@@ -977,9 +974,9 @@ pub mod cpu {
         };
 
         let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
-    | if res == 0x00 {FL_Z} else {0}
+    | fl_z(res)
     | flag_n
-    | if h {FL_H} else {0};
+    | fl_set(FL_H, h);
 
         reg[dst] = res;
         reg[FLAGS] = flags;
@@ -1187,8 +1184,8 @@ pub mod cpu {
         );
 
         let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
-    | if res == 0x00 {FL_Z} else {0}
-    | if h {FL_H} else {0};
+    | fl_z(res)
+    | fl_set(FL_H, h);
         reg[FLAGS] = flags;
 
         mem[cpu.HL()] = res;
@@ -1230,9 +1227,9 @@ pub mod cpu {
         );
 
         let flags = reg[FLAGS] & FL_C // maintain the carry, we'll set the rest
-            | if res == 0x00 {FL_Z} else {0}
+            | fl_z(res)
             | FL_N
-            | if h {FL_H} else {0};
+            | fl_set(FL_H, h);
         reg[FLAGS] = flags;
 
         mem[cpu.HL()] = res;
@@ -1297,7 +1294,7 @@ pub mod cpu {
 
         let (result, c) = cpu.HL().overflowing_add(rr);
 
-        reg[FLAGS] = (reg[FLAGS] & FL_Z) | if hi_h { FL_H } else { 0 } | if c { FL_C } else { 0 };
+        reg[FLAGS] = (reg[FLAGS] & FL_Z) | fl_set(FL_H, hi_h) | fl_set(FL_C, c);
         reg[REG_H] = hi(result);
         reg[REG_L] = lo(result);
 
@@ -1427,10 +1424,9 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let result = reg[dst].rotate_left(1);
-        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         reg[dst] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, (result & 1) != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1443,10 +1439,9 @@ pub mod cpu {
         let cur = mem[addr];
 
         let result = cur.rotate_left(1);
-        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
 
         mem[addr] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, (result & 1) != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1457,7 +1452,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         reg[dst] = (cpu.reg[dst].rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
-        reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | if reg[dst] == 0 { FL_Z } else { 0 };
+        reg[FLAGS] = (cpu.reg[dst] & 0x80) >> 3 | fl_z(reg[dst]);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1470,7 +1465,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         mem[addr] = (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
-        reg[FLAGS] = (cur & 0x80) >> 3 | if mem[addr] == 0 { FL_Z } else { 0 };
+        reg[FLAGS] = (cur & 0x80) >> 3 | fl_z(mem[addr]);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1481,7 +1476,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let result = reg[dst].rotate_right(1);
-        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
+        let fl_c = fl_set(FL_C, (result & 1) != 0);
 
         reg[dst] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1496,7 +1491,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         let result = cur.rotate_right(1);
-        let fl_c = if (result & 1) != 0 { FL_C } else { 0 };
+        let fl_c = fl_set(FL_C, (result & 1) != 0);
 
         mem[addr] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
@@ -1509,7 +1504,7 @@ pub mod cpu {
     const fn rr_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
+        let fl_c: Byte = fl_set(FL_C, cpu.reg[dst] & 1 != 0);
 
         reg[dst] = (cpu.reg[dst].rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
         reg[FLAGS] = fl_c | fl_z(reg[dst]);
@@ -1524,11 +1519,10 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
 
         mem[addr] = result;
-        reg[FLAGS] = fl_c | fl_z(result);
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1538,10 +1532,8 @@ pub mod cpu {
     const fn sla_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 0x80 != 0 { FL_C } else { 0 };
-
         reg[dst] = reg[dst] << 1;
-        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_set(FL_C, cpu.reg[dst] & 0x80 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1552,12 +1544,11 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
-
-        let fl_c: Byte = if cur & 0x80 != 0 { FL_C } else { 0 };
+        
         let result = cur << 1;
 
         mem[addr] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 0x80 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1593,10 +1584,8 @@ pub mod cpu {
     const fn sra_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
-
         reg[dst] = (cpu.reg[dst] & 0x80) | reg[dst] >> 1;
-        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_set(FL_C, cpu.reg[dst] & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1608,11 +1597,10 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = (cur & 0x80) | cur >> 1;
 
         mem[addr] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1622,10 +1610,8 @@ pub mod cpu {
     const fn srl_r(cpu: CPUState, dst: usize) -> CPUState {
         let mut reg = cpu.reg;
 
-        let fl_c: Byte = if cpu.reg[dst] & 1 != 0 { FL_C } else { 0 };
-
         reg[dst] = reg[dst] >> 1;
-        reg[FLAGS] = fl_z(reg[dst]) | fl_c;
+        reg[FLAGS] = fl_z(reg[dst]) | fl_set(FL_C, cpu.reg[dst] & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1637,11 +1623,10 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        let fl_c: Byte = if cur & 1 != 0 { FL_C } else { 0 };
         let result = cur >> 1;
 
         mem[addr] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }
@@ -1654,8 +1639,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let mask = 1 << bit;
-        reg[FLAGS] =
-            if (cpu.reg[dst] & mask) != 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+        reg[FLAGS] = fl_z(cpu.reg[dst] & mask) | FL_H | cpu.reg[FLAGS] & FL_C;
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
@@ -1668,7 +1652,7 @@ pub mod cpu {
         let cur = mem[addr];
 
         let mask = 1 << bit;
-        reg[FLAGS] = if (cur & mask) != 0 { FL_Z } else { 0 } | FL_H | (cpu.reg[FLAGS] & FL_C);
+        reg[FLAGS] = fl_z(cur & mask) | FL_H | (cpu.reg[FLAGS] & FL_C);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(12)
     }
@@ -1741,10 +1725,10 @@ pub mod cpu {
     const fn ccf(cpu: CPUState) -> CPUState {
         let mut reg = cpu.reg;
         reg[FLAGS] = reg[FLAGS] & FL_Z | 0 | 0 | (reg[FLAGS] ^ FL_C) & FL_C;
-        
+
         CPUState { reg, ..cpu }.adv_pc(1).tick(4)
     }
-    
+
     //   scf            37           4 -001 cy=1
     const fn scf(cpu: CPUState) -> CPUState {
         let mut reg = cpu.reg;
@@ -1756,7 +1740,10 @@ pub mod cpu {
     #[test]
     fn test_ccf_scf() {
         let cpu = CPUState::new();
-        let cpu_zeroed = CPUState{reg: [0,0,0,0,0,0,0,0], ..cpu};
+        let cpu_zeroed = CPUState {
+            reg: [0, 0, 0, 0, 0, 0, 0, 0],
+            ..cpu
+        };
 
         let ccf0 = ccf(cpu);
         let ccf1 = ccf(ccf0);
@@ -2079,8 +2066,14 @@ pub mod cpu {
 
         macro_rules! assert_eq_flags {
             ($left:expr, $right:expr) => {
-                assert_eq!($left, $right, "flags: expected {}, actual {}", str_flags($right), str_flags($left))
-            }
+                assert_eq!(
+                    $left,
+                    $right,
+                    "flags: expected {}, actual {}",
+                    str_flags($right),
+                    str_flags($left)
+                )
+            };
         }
 
         #[test]
@@ -2162,21 +2155,33 @@ pub mod cpu {
         #[test]
         fn test_add() {
             // reg a inits to 0x01
-            assert_eq!(impl_add_sub(INITIAL, 0xFF, 0).reg[REG_A], 0x00, "failed 0xff");
+            assert_eq!(
+                impl_add_sub(INITIAL, 0xFF, 0).reg[REG_A],
+                0x00,
+                "failed 0xff"
+            );
             assert_eq!(
                 impl_add_sub(INITIAL, 0xFF, 0).reg[FLAGS],
                 FL_Z | FL_H | FL_C,
                 "failed 0xff flags"
             );
 
-            assert_eq!(impl_add_sub(INITIAL, 0x0F, 0).reg[REG_A], 0x10, "failed 0x0f");
+            assert_eq!(
+                impl_add_sub(INITIAL, 0x0F, 0).reg[REG_A],
+                0x10,
+                "failed 0x0f"
+            );
             assert_eq!(
                 impl_add_sub(INITIAL, 0x0F, 0).reg[FLAGS],
                 FL_H,
                 "failed 0x0f flags"
             );
 
-            assert_eq!(impl_add_sub(INITIAL, 0x01, 0).reg[REG_A], 0x02, "failed 0x01");
+            assert_eq!(
+                impl_add_sub(INITIAL, 0x01, 0).reg[REG_A],
+                0x02,
+                "failed 0x01"
+            );
             assert_eq!(
                 impl_add_sub(INITIAL, 0x01, 0).reg[FLAGS],
                 0x00,
@@ -2347,7 +2352,13 @@ pub mod cpu {
             assert_eq!(sub_r(cpu, REG_C).reg[REG_A], 0x10);
             assert_eq!(sub_r(cpu, REG_D).reg[REG_A], 0x0F);
             let result = sub_r(cpu, REG_D).reg[FLAGS];
-            assert_eq!(result, FL_N | FL_H, "expected {}, got {}", str_flags(FL_N|FL_H), str_flags(result));
+            assert_eq!(
+                result,
+                FL_N | FL_H,
+                "expected {}, got {}",
+                str_flags(FL_N | FL_H),
+                str_flags(result)
+            );
             assert_eq!(sub_r(cpu, REG_E).reg[REG_A], 0x0E);
             assert_eq!(sub_r(cpu, REG_H).reg[REG_A], 0x00);
             assert_eq!(sub_r(cpu, REG_H).reg[FLAGS], FL_Z | FL_N);
@@ -3429,16 +3440,12 @@ pub mod bits {
         (high as Word) << Byte::BITS | (low as Word)
     }
 
-    pub const fn fl_z(val: Byte) -> Byte {
-        if val == 0 {
-            crate::types::FL_Z
-        } else {
-            0
-        }
+    pub const fn fl_set(flag: Byte, set: bool) -> Byte {
+        (set as u8) * flag
     }
 
-    pub const fn fl_bool(set: bool, flag: Byte) -> Byte {
-        if set { flag } else { 0 }
+    pub const fn fl_z(val: Byte) -> Byte {
+        fl_set(crate::types::FL_Z, val == 0)
     }
 
     pub const fn bit(idx: Byte, val: Byte) -> Byte {

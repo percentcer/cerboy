@@ -1476,13 +1476,14 @@ pub mod cpu {
         let mut reg = cpu.reg;
 
         let result = reg[dst].rotate_right(1);
-        let fl_c = fl_set(FL_C, (result & 1) != 0);
+        let fl_c = fl_set(FL_C, (cpu.reg[dst] & 1) != 0);
 
         reg[dst] = result;
         reg[FLAGS] = fl_z(result) | fl_c;
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(8)
     }
+
     //   rrc  (HL)      CB 0E       16 z00c rotate right
     // ----------------------------------------------------------------------------
     fn rrc_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
@@ -1491,10 +1492,9 @@ pub mod cpu {
         let cur = mem[addr];
 
         let result = cur.rotate_right(1);
-        let fl_c = fl_set(FL_C, (result & 1) != 0);
 
         mem[addr] = result;
-        reg[FLAGS] = fl_z(result) | fl_c;
+        reg[FLAGS] = fl_z(result) | fl_set(FL_C, (cur & 1) != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
     }

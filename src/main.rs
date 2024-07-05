@@ -78,7 +78,9 @@ fn main() {
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
             Err(e) => {
-                write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
+                if args.doctor {
+                    write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
+                }
                 panic!("{}", e.to_string());
             }
         };
@@ -209,5 +211,5 @@ fn main() {
             _ => panic!("invalid LCD mode"),
         };
     }
-    write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
+    if args.doctor { write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!"); }
 }

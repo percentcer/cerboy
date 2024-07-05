@@ -95,8 +95,7 @@ fn main() {
 
         // render
         // ------------------------------------------------
-        let lcd_mode = mem[STAT] & 0b11;
-        match lcd_mode {
+        match lcd_mode(&mem) {
             // oam search
             2 => {
                 if lcd_timing >= TICKS_PER_OAM_SEARCH {

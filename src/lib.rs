@@ -1302,14 +1302,13 @@ pub mod cpu {
     const fn impl_add_hl_rr(cpu: CPUState, rr: Word) -> CPUState {
         let mut reg = cpu.reg;
 
+        let (result, c) = cpu.HL().overflowing_add(rr);
+        let half_carries = result ^ (cpu.HL() ^ rr);
+
         // https://stackoverflow.com/questions/57958631/game-boy-half-carry-flag-and-16-bit-instructions-especially-opcode-0xe8
         // we only test the high byte because of the order of operations of adding (low byte, then high byte).
         // half-carry MAY be set on the low byte, but it doesn't matter for the final result of the flag
-        let hi_h: bool = ((cpu.reg[REG_H] & 0x0f) + (hi(rr) & 0x0f)) & 0x10 != 0;
-
-        let (result, c) = cpu.HL().overflowing_add(rr);
-
-        reg[FLAGS] = (reg[FLAGS] & FL_Z) | fl_set(FL_H, hi_h) | fl_set(FL_C, c);
+        reg[FLAGS] = (reg[FLAGS] & FL_Z) | fl_set(FL_H, half_carries & 0x1000 != 0) | fl_set(FL_C, c);
         reg[REG_H] = hi(result);
         reg[REG_L] = lo(result);
 

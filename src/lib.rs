@@ -413,7 +413,7 @@ pub mod cpu {
                 0xE5 => Ok(push_hl(cpu, mem)),
                 0xE6 => Ok(and_d8(cpu, mem[pc + 1])),
                 0xE7 => Ok(rst_n(cpu, mem, 0xE7)),
-                0xE8 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xE8 => Ok(add_sp_r8(cpu, signed(mem[pc + 1]))),
                 0xE9 => Ok(jp_hl(cpu)),
                 0xEA => Ok(ld_A16_a(mem[pc + 1], mem[pc + 2], cpu, mem)),
                 0xEB => Err(UnknownInstructionError { op, mnm: inst.mnm }),
@@ -429,8 +429,8 @@ pub mod cpu {
                 0xF5 => Ok(push_af(cpu, mem)),
                 0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
                 0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
-                0xF8 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xF9 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0xF8 => Ok(ld_hl_sp_r8(cpu, signed(mem[pc + 1]))),
                 0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
                 0xFB => Ok(ei(cpu)),
                 0xFC => Err(UnknownInstructionError { op, mnm: inst.mnm }),
@@ -1357,7 +1357,40 @@ pub mod cpu {
     }
 
     //   add  SP,dd     E8          16 00hc SP = SP +/- dd ;dd is 8bit signed number
+    const fn add_sp_r8(cpu: CPUState, arg: SByte) -> CPUState {
+        // https://stackoverflow.com/questions/62006764/how-is-xor-applied-when-determining-carry
+        let argx = arg as Word;
+        let sp0 = cpu.sp;
+        let sp1 = cpu.sp.wrapping_add(argx); // == sp0 ^ argx ^ (c << 1)
+        let carry = sp1 ^ (sp0 ^ argx); // removes sp0 and argx from sp1, leaving c << 1
+        
+        let mut reg = cpu.reg;
+        reg[FLAGS] = 0 | 0 | fl_set(FL_H, carry & 0x0010 != 0) | fl_set(FL_C, carry & 0x0100 != 0);
+
+        CPUState {
+            sp: sp1,
+            reg,
+            ..cpu
+        }.tick(16).adv_pc(2)
+    }
+
     //   ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
+    const fn ld_hl_sp_r8(cpu: CPUState, arg: SByte) -> CPUState {
+        // https://stackoverflow.com/questions/62006764/how-is-xor-applied-when-determining-carry
+        let argx = arg as Word;
+        let hl = cpu.sp.wrapping_add(argx); // == sp ^ argx ^ (c << 1)
+        let carry = hl ^ (cpu.sp ^ argx); // removes sp and argx from hl, leaving c << 1
+        
+        let mut reg = cpu.reg;
+        reg[FLAGS] = 0 | 0 | fl_set(FL_H, carry & 0x0010 != 0) | fl_set(FL_C, carry & 0x0100 != 0);
+        reg[REG_H] = hi(hl);
+        reg[REG_L] = lo(hl);
+
+        CPUState {
+            reg,
+            ..cpu
+        }.tick(12).adv_pc(2)
+    }
 
     // GMB Rotate- und Shift-Commands
     // ============================================================================

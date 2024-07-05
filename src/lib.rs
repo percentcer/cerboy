@@ -247,7 +247,7 @@ pub mod cpu {
                 0x05 => Ok(dec_b(cpu)),
                 0x06 => Ok(ld_b_d8(cpu, mem[pc + 1])),
                 0x07 => Ok(rlca(cpu)),
-                0x08 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
+                0x08 => Ok(ld_A16_sp(mem[pc + 1], mem[pc + 2], cpu, mem)),
                 0x09 => Ok(add_hl_bc(cpu)),
                 0x0A => Ok(ld_a_BC(cpu, &mem)),
                 0x0B => Ok(dec_bc(cpu)),
@@ -609,11 +609,18 @@ pub mod cpu {
     fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
         let addr = combine(high, low);
         mem[addr] = cpu.reg[REG_A];
-        CPUState {
-            pc: cpu.pc + 3,
-            tsc: cpu.tsc + 16,
-            ..cpu
-        }
+
+        cpu.tick(16).adv_pc(3)
+    }
+
+    //   ld   (nn),SP      08 nn nn        20 ----
+    // ----------------------------------------------------------------------------
+    fn ld_A16_sp(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
+        let addr = combine(high, low);
+        mem[addr + 0] = lo(cpu.sp);
+        mem[addr + 1] = hi(cpu.sp);
+
+        cpu.tick(20).adv_pc(3)
     }
 
     //   ld   A,(FF00+n)  F0 nn     12 ---- read from io-port n (memory FF00+n)

@@ -64,6 +64,7 @@ fn main() {
     // init logging
     // ------------
     let mut cpu_log_lines: Vec<CPULog> = Vec::new();
+    let mut DOCTOR_MEM_LY: Byte = 0;
 
     // loop
     // ------------
@@ -94,7 +95,8 @@ fn main() {
 
         // render
         // ------------------------------------------------
-        match lcd_mode(&mem) {
+        let lcd_mode = mem[STAT] & 0b11;
+        match lcd_mode {
             // oam search
             2 => {
                 if lcd_timing >= TICKS_PER_OAM_SEARCH {
@@ -105,14 +107,11 @@ fn main() {
             }
             // vram io
             3 => {
-                if args.doctor {
-                    // todo: this could be rewritten to be compatible with gameboy-doctor,
-                    // but for now it isn't because we make actual use of the mem[LY] location
-                    set_lcd_mode(0, &mut mem);
-                } else if lcd_timing >= TICKS_PER_VRAM_IO {
+                if lcd_timing >= TICKS_PER_VRAM_IO {
+                    let cur_line: Byte = if args.doctor { DOCTOR_MEM_LY } else { mem[LY] };
                     // draw the scanline
                     // ===========================================
-                    let ln_start: usize = GB_SCREEN_WIDTH * mem[LY] as usize;
+                    let ln_start: usize = GB_SCREEN_WIDTH * cur_line as usize;
                     let ln_end: usize = ln_start + GB_SCREEN_WIDTH;
 
                     // draw background
@@ -131,7 +130,7 @@ fn main() {
                         (true, MEM_VRAM + 0x1000 as Word)
                         // (true, MEM_VRAM + 0x0800 as Word) // <--- actual range starts at 0x8800 but that is -127, not zero
                     };
-                    let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
+                    let (bg_y, _) = mem[SCY].overflowing_add(cur_line);
                     let bg_tile_line = bg_y as Word % 8;
 
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
@@ -177,10 +176,11 @@ fn main() {
             }
             // hblank
             0 => {
+                let cur_line: &mut Byte = if args.doctor { &mut DOCTOR_MEM_LY } else { &mut mem[LY] };
                 if lcd_timing >= TICKS_PER_HBLANK {
-                    mem[LY] += 1;
+                    *cur_line += 1;
                     lcd_timing -= TICKS_PER_HBLANK;
-                    if mem[LY] == GB_SCREEN_HEIGHT as Byte {
+                    if *cur_line == GB_SCREEN_HEIGHT as Byte {
                         // values 144 to 153 are vblank
                         request_interrupt(&mut mem, FL_INT_VBLANK);
                         set_lcd_mode(1, &mut mem);
@@ -191,9 +191,10 @@ fn main() {
             }
             // vblank
             1 => {
-                mem[LY] = (GB_SCREEN_HEIGHT as u64 + lcd_timing / TICKS_PER_SCANLINE) as Byte;
+                let cur_line: &mut Byte = if args.doctor { &mut DOCTOR_MEM_LY } else { &mut mem[LY] };
+                *cur_line = (GB_SCREEN_HEIGHT as u64 + lcd_timing / TICKS_PER_SCANLINE) as Byte;
                 if lcd_timing >= TICKS_PER_VBLANK {
-                    mem[LY] = 0;
+                    *cur_line = 0;
                     set_lcd_mode(2, &mut mem);
                     lcd_timing -= TICKS_PER_VBLANK;
 

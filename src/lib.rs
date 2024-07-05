@@ -429,8 +429,8 @@ pub mod cpu {
                 0xF5 => Ok(push_af(cpu, mem)),
                 0xF6 => Ok(or_d8(cpu, mem[pc + 1])),
                 0xF7 => Ok(rst_n(cpu, mem, 0xF7)),
-                0xF9 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xF8 => Ok(ld_hl_sp_r8(cpu, signed(mem[pc + 1]))),
+                0xF9 => Ok(ld_sp_hl(cpu)),
                 0xFA => Ok(ld_a_A16(mem[pc + 1], mem[pc + 2], cpu, &mem)),
                 0xFB => Ok(ei(cpu)),
                 0xFC => Err(UnknownInstructionError { op, mnm: inst.mnm }),
@@ -803,6 +803,14 @@ pub mod cpu {
     }
 
     //   ld   SP,HL       F9         8 ---- SP=HL
+    // ----------------------------------------------------------------------------
+    fn ld_sp_hl(cpu: CPUState) -> CPUState {
+        CPUState {
+            sp: cpu.HL(),
+            ..cpu
+        }.tick(8).adv_pc(1)
+    }
+
     //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
     // ----------------------------------------------------------------------------
     fn push_bc(cpu: CPUState, mem: &mut Memory) -> CPUState {

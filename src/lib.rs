@@ -3523,7 +3523,7 @@ pub mod dbg {
 
     pub fn write_cpu_logs(logs: &Vec<CPULog>) -> std::io::Result<()> {
         let f = File::create("cpu.log")?;
-        let mut writer = BufWriter::new(f);
+        let mut writer = BufWriter::with_capacity(1 << 16, f);
         for log in logs {
             writeln!(writer, "{}", log)?;
         }

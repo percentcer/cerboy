@@ -63,7 +63,7 @@ fn main() {
 
     // init logging
     // ------------
-    let mut cpu_log_lines: Vec<String> = Vec::new();
+    let mut cpu_log_lines: Vec<CPULog> = Vec::new();
 
     // loop
     // ------------
@@ -71,13 +71,13 @@ fn main() {
         // update
         // ------------------------------------------------
         if args.doctor {
-            log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+            log_cpu(&mut cpu_log_lines, &cpu, &mem);
         }
         let cpu_prev = cpu;
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
             Err(e) => {
-                std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
+                write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
                 panic!("{}", e.to_string());
             }
         };
@@ -209,5 +209,5 @@ fn main() {
             _ => panic!("invalid LCD mode"),
         };
     }
-    std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
+    write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
 }

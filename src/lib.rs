@@ -3483,31 +3483,51 @@ pub mod bits {
 
 pub mod dbg {
     use std::fs;
+    use std::fs::File;
+    use std::io::{BufWriter, Write};
 
     use crate::bits::bit_test;
     use crate::cpu::*;
     use crate::memory::*;
     use crate::types::*;
 
-    pub fn log_cpu(buffer: &mut Vec<String>, cpu: &CPUState, mem: &Memory) -> std::io::Result<()> {
-        buffer.push(
-            format!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
-                cpu.reg[REG_A],
-                cpu.reg[FLAGS],
-                cpu.reg[REG_B],
-                cpu.reg[REG_C],
-                cpu.reg[REG_D],
-                cpu.reg[REG_E],
-                cpu.reg[REG_H],
-                cpu.reg[REG_L],
-                cpu.sp,
-                cpu.pc,
-                mem[cpu.pc + 0],
-                mem[cpu.pc + 1],
-                mem[cpu.pc + 2],
-                mem[cpu.pc + 3],
+    pub struct CPULog {
+        cpu: CPUState,
+        mem_next: [Byte;4]
+    }
+    
+    impl std::fmt::Display for CPULog {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+                self.cpu.reg[REG_A],
+                self.cpu.reg[FLAGS],
+                self.cpu.reg[REG_B],
+                self.cpu.reg[REG_C],
+                self.cpu.reg[REG_D],
+                self.cpu.reg[REG_E],
+                self.cpu.reg[REG_H],
+                self.cpu.reg[REG_L],
+                self.cpu.sp,
+                self.cpu.pc,
+                self.mem_next[0],
+                self.mem_next[1],
+                self.mem_next[2],
+                self.mem_next[3]
             )
-        );
+        }
+    }
+
+    pub fn log_cpu(buffer: &mut Vec<CPULog>, cpu: &CPUState, mem: &Memory) {
+        buffer.push(CPULog{cpu: cpu.clone(), mem_next: [mem[cpu.pc + 0], mem[cpu.pc + 1], mem[cpu.pc + 2], mem[cpu.pc + 3]]});
+    }
+
+    pub fn write_cpu_logs(logs: &Vec<CPULog>) -> std::io::Result<()> {
+        let f = File::create("cpu.log")?;
+        let mut writer = BufWriter::new(f);
+        for log in logs {
+            writeln!(writer, "{}", log)?;
+        }
+        writer.flush()?;
         Ok(())
     }
 

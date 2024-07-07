@@ -572,12 +572,11 @@ pub mod cpu {
     fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &Memory) -> CPUState {
         let mut reg = cpu.reg;
         reg[REG_A] = mem[combine(high, low)];
+        
         CPUState {
-            pc: cpu.pc + 3,
-            tsc: cpu.tsc + 16,
             reg,
             ..cpu
-        }
+        }.tick(16).adv_pc(3)
     }
 
     //   ld   (BC),A      02         8 ----

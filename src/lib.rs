@@ -82,13 +82,14 @@ pub mod cpu {
     pub struct CPUState {
         // ------------ meta, not part of actual gb hardware but useful
         pub tsc: u64,    // counting cycles since reset
-        pub(crate) inst_count: u64, // counting instructions since reset
-        pub(crate) inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
+        pub inst_count: u64, // counting instructions since reset
+        pub inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
         // ------------ hardware
-        pub(crate) reg: [Byte; 8],
-        pub(crate) sp: Word,
+        pub reg: [Byte; 8],
+        pub sp: Word,
         pub pc: Word,
-        pub(crate) ime: bool, // true == interrupts enabled
+        pub ime: bool, // true == interrupts enabled
+        pub halt: bool, // true == don't execute anything until interrupt
     }
 
     impl CPUState {
@@ -455,7 +456,7 @@ pub mod cpu {
         CPUState { reg, ..cpu }
     }
     fn impl_ld_HL_d8(cpu: CPUState, mem: &mut Memory, val: Byte) -> CPUState {
-        mem[cpu.HL()] = val;
+        mem.write(cpu.HL(), val);
         CPUState { ..cpu }
     }
 
@@ -588,7 +589,7 @@ pub mod cpu {
     //   ld   (BC),A      02         8 ----
     // ----------------------------------------------------------------------------
     fn ld_BC_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
-        mem[cpu.BC()] = cpu.reg[REG_A];
+        mem.write(cpu.BC(), cpu.reg[REG_A]);
         CPUState {
             pc: cpu.pc + 1,
             tsc: cpu.tsc + 8,
@@ -599,7 +600,7 @@ pub mod cpu {
     //   ld   (DE),A      12         8 ----
     // ----------------------------------------------------------------------------
     fn ld_DE_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
-        mem[cpu.DE()] = cpu.reg[REG_A];
+        mem.write(cpu.DE(), cpu.reg[REG_A]);
         CPUState {
             pc: cpu.pc + 1,
             tsc: cpu.tsc + 8,
@@ -611,7 +612,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn ld_A16_a(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
         let addr = combine(high, low);
-        mem[addr] = cpu.reg[REG_A];
+        mem.write(addr, cpu.reg[REG_A]);
 
         cpu.tick(16).adv_pc(3)
     }
@@ -620,8 +621,8 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn ld_A16_sp(low: Byte, high: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
         let addr = combine(high, low);
-        mem[addr + 1] = hi(cpu.sp);
-        mem[addr + 0] = lo(cpu.sp);
+        mem.write(addr + 1, hi(cpu.sp));
+        mem.write(addr + 0, lo(cpu.sp));
 
         cpu.tick(20).adv_pc(3)
     }
@@ -642,7 +643,7 @@ pub mod cpu {
     //   ld   (FF00+n),A  E0 nn     12 ---- write to io-port n (memory FF00+n)
     // ----------------------------------------------------------------------------
     fn ld_FF00_A8_a(off: Byte, cpu: CPUState, mem: &mut Memory) -> CPUState {
-        mem[MEM_IO_PORTS + off as Word] = cpu.reg[REG_A];
+        mem.write(MEM_IO_PORTS + off as Word, cpu.reg[REG_A]);
         CPUState {
             pc: cpu.pc + 2,
             tsc: cpu.tsc + 12,
@@ -666,7 +667,7 @@ pub mod cpu {
     //   ld   (FF00+C),A  E2         8 ---- write to io-port C (memory FF00+C)
     // ----------------------------------------------------------------------------
     fn ld_FF00_C_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
-        mem[MEM_IO_PORTS + cpu.reg[REG_C] as Word] = cpu.reg[REG_A];
+        mem.write(MEM_IO_PORTS + cpu.reg[REG_C] as Word, cpu.reg[REG_A]);
         CPUState {
             pc: cpu.pc + 1,
             tsc: cpu.tsc + 8,
@@ -678,7 +679,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn ldi_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        mem[cpu.HL()] = reg[REG_A];
+        mem.write(cpu.HL(), reg[REG_A]);
 
         let (hli, _) = cpu.HL().overflowing_add(1);
         reg[REG_H] = hi(hli);
@@ -698,7 +699,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
         reg[REG_A] = mem[cpu.HL()];
 
-        let (hli, _) = combine(reg[REG_H], reg[REG_L]).overflowing_add(1);
+        let (hli, _) = cpu.HL().overflowing_add(1);
         reg[REG_H] = hi(hli);
         reg[REG_L] = lo(hli);
 
@@ -714,8 +715,8 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn ldd_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        mem[cpu.HL()] = reg[REG_A];
-
+        mem.write(cpu.HL(), reg[REG_A]);
+        
         let (hld, _) = cpu.HL().overflowing_sub(1);
         reg[REG_H] = hi(hld);
         reg[REG_L] = lo(hld);
@@ -1217,7 +1218,7 @@ pub mod cpu {
     | fl_set(FL_H, h);
         reg[FLAGS] = flags;
 
-        mem[cpu.HL()] = res;
+        mem.write(cpu.HL(), res);
 
         CPUState { reg, ..cpu }.adv_pc(1).tick(12)
     }
@@ -1261,7 +1262,7 @@ pub mod cpu {
             | fl_set(FL_H, h);
         reg[FLAGS] = flags;
 
-        mem[cpu.HL()] = res;
+        mem.write(cpu.HL(), res);
 
         CPUState { reg, ..cpu }.adv_pc(1).tick(12)
     }
@@ -1501,7 +1502,7 @@ pub mod cpu {
 
         let result = cur.rotate_left(1);
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, (result & 1) != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1525,7 +1526,7 @@ pub mod cpu {
         let addr = combine(reg[REG_H], reg[REG_L]);
         let cur = mem[addr];
 
-        mem[addr] = (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4);
+        mem.write(addr, (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4));
         reg[FLAGS] = (cur & 0x80) >> 3 | fl_z(mem[addr]);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1554,7 +1555,7 @@ pub mod cpu {
 
         let result = cur.rotate_right(1);
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, (cur & 1) != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1582,7 +1583,7 @@ pub mod cpu {
 
         let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1608,7 +1609,7 @@ pub mod cpu {
         
         let result = cur << 1;
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 0x80 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1634,7 +1635,7 @@ pub mod cpu {
 
         let result = (cur >> 4) | (cur << 4);
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1660,7 +1661,7 @@ pub mod cpu {
 
         let result = (cur & 0x80) | cur >> 1;
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1686,7 +1687,7 @@ pub mod cpu {
 
         let result = cur >> 1;
 
-        mem[addr] = result;
+        mem.write(addr, result);
         reg[FLAGS] = fl_z(result) | fl_set(FL_C, cur & 1 != 0);
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -2084,12 +2085,12 @@ pub mod cpu {
 
     fn mem_inc(mem: &mut Memory, loc: Word) -> (Byte, bool) {
         let (result, overflow) = mem[loc].overflowing_add(1);
-        mem[loc] = result;
+        mem.write(loc, result);
         (result, overflow)
     }
 
     fn tima_reset(mem: &mut Memory) {
-        mem[TIMA] = mem[TMA];
+        mem.write(TIMA, mem[TMA]);
     }
 
     fn tac_enabled(mem: &Memory) -> bool {
@@ -2111,7 +2112,7 @@ pub mod cpu {
     }
 
     pub fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
-        mem[STAT] = ((mem[STAT] >> 2) << 2) | (mode & 0b11);
+        mem.write(STAT, ((mem[STAT] >> 2) << 2) | (mode & 0b11));
     }
 
     #[cfg(test)]
@@ -2296,7 +2297,7 @@ pub mod cpu {
                 reg: [0, 0, 0, 0, 0, 0x01, 0, 0x01],
                 ..INITIAL
             };
-            mem[cpu.HL()] = 0x0F;
+            mem.write(cpu.HL(), 0x0F);
             assert_eq!(add_HL(cpu, &mem).reg[REG_A], 0x10);
             assert_eq!(add_HL(cpu, &mem).reg[FLAGS], FL_H);
         }
@@ -2310,7 +2311,7 @@ pub mod cpu {
             };
 
             let initial: Byte = 0x0E;
-            mem[cpu.HL()] = initial;
+            mem.write(cpu.HL(), initial);
             cpu = inc_HL(cpu, &mut mem);
 
             assert_eq!(mem[cpu.HL()], initial + 1);
@@ -2322,7 +2323,7 @@ pub mod cpu {
             assert_eq!(cpu.reg[FLAGS], FL_H | FL_C); // FL_H from half-carry
 
             // reset value to 0xFF, confirm we get a FL_Z flag on overflow
-            mem[cpu.HL()] = 0xFF;
+            mem.write(cpu.HL(), 0xFF);
             cpu = inc_HL(cpu, &mut mem);
             assert_eq!(mem[cpu.HL()], 0);
             assert_eq!(cpu.reg[FLAGS], FL_Z | FL_H | FL_C); // todo: should FL_H get set here? it does! but should it?
@@ -2390,7 +2391,7 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[cpu.HL()] = cpu.reg[REG_L];
+            mem.write(cpu.HL(), cpu.reg[REG_L]);
 
             assert_eq_flags!(cp_r(cpu, REG_B).reg[FLAGS], FL_N);
             assert_eq_flags!(cp_r(cpu, REG_C).reg[FLAGS], FL_N);
@@ -2500,7 +2501,7 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[cpu.HL()] = 0x0F;
+            mem.write(cpu.HL(), 0x0F);
             assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
             assert_eq!(ldi_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] + 1);
             assert_eq!(mem[cpu.HL()], cpu.reg[REG_A]);
@@ -2514,7 +2515,7 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[cpu.HL()] = 0x0F;
+            mem.write(cpu.HL(), 0x0F);
             assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_H], cpu.reg[REG_H]);
             assert_eq!(ldd_HL_a(cpu, &mut mem).reg[REG_L], cpu.reg[REG_L] - 1);
             assert_eq!(mem[cpu.HL()], cpu.reg[REG_A]);
@@ -2541,8 +2542,8 @@ pub mod cpu {
             };
 
             let mut mem = Memory::new();
-            mem[0xDEAD + 1] = 0xAD;
-            mem[0xDEAD + 2] = 0xDE;
+            mem.write(0xDEAD + 1, 0xAD);
+            mem.write(0xDEAD + 2, 0xDE);
 
             assert_eq!(pop_bc(cpu, &mem).sp, cpu.sp + 2);
             assert_eq!(pop_bc(cpu, &mem).reg[REG_B], 0xDE);
@@ -2558,8 +2559,8 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[0xFFFE] = 0xBE;
-            mem[0xFFFD] = 0xEF;
+            mem.write(0xFFFE, 0xBE);
+            mem.write(0xFFFD, 0xEF);
             assert_eq!(ret(cpu, &mem).pc, 0xBEEF);
             assert_eq!(ret(cpu, &mem).sp, 0xFFFE);
         }
@@ -2572,8 +2573,8 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[0xBBCC] = 0xAB;
-            mem[0xDDEE] = 0xAD;
+            mem.write(0xBBCC, 0xAB);
+            mem.write(0xDDEE, 0xAD);
             assert_eq!(ld_a_BC(cpu, &mem).reg[REG_A], mem[0xBBCC]);
             assert_eq!(ld_a_DE(cpu, &mem).reg[REG_A], mem[0xDDEE]);
 
@@ -2595,11 +2596,11 @@ pub mod cpu {
                 ..INITIAL
             };
             let mut mem = Memory::new();
-            mem[0xFF00] = 0;
-            mem[0xFF01] = 1;
-            mem[0xFF02] = 2;
-            mem[0xFF03] = 3;
-            mem[0xFFCC] = 0xCC;
+            mem.write(0xFF00, 0);
+            mem.write(0xFF01, 1);
+            mem.write(0xFF02, 2);
+            mem.write(0xFF03, 3);
+            mem.write(0xFFCC, 0xCC);
             assert_eq!(ld_a_FF00_A8(cpu, &mem, 0x02).reg[REG_A], 0x02);
             assert_eq!(ld_a_FF00_C(cpu, &mem).reg[REG_A], 0xCC);
             ld_FF00_A8_a(0x01, cpu, &mut mem);
@@ -2653,11 +2654,11 @@ pub mod cpu {
         #[test]
         fn test_timers() {
             let mut mem = Memory::new();
-            mem[TIMA] = 0;
-            mem[TMA] = 0;
-            mem[TAC] = 0;
+            mem.write(TIMA, 0);
+            mem.write(TMA, 0);
+            mem.write(TAC, 0);
             assert_eq!(tac_enabled(&mem), false);
-            mem[TAC] = 0b100; // (enabled, 1024 cycles per tick)
+            mem.write(TAC, 0b100); // (enabled, 1024 cycles per tick)
             assert_eq!(tac_enabled(&mem), true);
 
             let new_timers = update_clocks(HardwareTimers::new(), &mut mem, 1024);
@@ -2667,16 +2668,16 @@ pub mod cpu {
             tima_reset(&mut mem);
             assert_eq!(mem[TIMA], 0);
 
-            mem[TAC] = 0b111; // (enabled, 256 cycles per tick)
+            mem.write(TAC, 0b111); // (enabled, 256 cycles per tick)
             let new_timers = update_clocks(HardwareTimers::new(), &mut mem, 1024);
             assert_eq!(new_timers.timer, 0);
             assert_eq!(mem[TIMA], 4);
 
-            mem[TMA] = 0xFF;
+            mem.write(TMA, 0xFF);
             tima_reset(&mut mem);
             assert_eq!(mem[TIMA], mem[TMA]);
 
-            mem[TMA] = 0xAA;
+            mem.write(TMA, 0xAA);
             assert_ne!(mem[IF], FL_INT_TIMER);
             let _even_newer_timers = update_clocks(new_timers, &mut mem, 256);
             // should have overflowed as we just set it to 0xFF moments ago
@@ -2954,37 +2955,37 @@ pub mod memory {
                 dma_req: false,
                 doctor: false,
             };
-            mem[TIMA] = 0x00;
-            mem[TMA] = 0x00;
-            mem[TAC] = 0x00;
-            mem[NR10] = 0x80;
-            mem[NR11] = 0xBF;
-            mem[NR12] = 0xF3;
-            mem[NR14] = 0xBF;
-            mem[NR21] = 0x3F;
-            mem[NR22] = 0x00;
-            mem[NR24] = 0xBF;
-            mem[NR30] = 0x7F;
-            mem[NR31] = 0xFF;
-            mem[NR32] = 0x9F;
-            mem[NR33] = 0xBF;
-            mem[NR41] = 0xFF;
-            mem[NR42] = 0x00;
-            mem[NR43] = 0x00;
-            mem[NR44] = 0xBF;
-            mem[NR50] = 0x77;
-            mem[NR51] = 0xF3;
-            mem[NR52] = 0xF1;
-            mem[LCDC] = 0x91;
-            mem[SCY] = 0x00;
-            mem[SCX] = 0x00;
-            mem[LYC] = 0x00;
-            mem[BGP] = 0xFC;
-            mem[OBP0] = 0xFF;
-            mem[OBP1] = 0xFF;
-            mem[WY] = 0x00;
-            mem[WX] = 0x00;
-            mem[IE] = 0x00;
+            mem.write(TIMA, 0x00);
+            mem.write(TMA, 0x00);
+            mem.write(TAC, 0x00);
+            mem.write(NR10, 0x80);
+            mem.write(NR11, 0xBF);
+            mem.write(NR12, 0xF3);
+            mem.write(NR14, 0xBF);
+            mem.write(NR21, 0x3F);
+            mem.write(NR22, 0x00);
+            mem.write(NR24, 0xBF);
+            mem.write(NR30, 0x7F);
+            mem.write(NR31, 0xFF);
+            mem.write(NR32, 0x9F);
+            mem.write(NR33, 0xBF);
+            mem.write(NR41, 0xFF);
+            mem.write(NR42, 0x00);
+            mem.write(NR43, 0x00);
+            mem.write(NR44, 0xBF);
+            mem.write(NR50, 0x77);
+            mem.write(NR51, 0xF3);
+            mem.write(NR52, 0xF1);
+            mem.write(LCDC, 0x91);
+            mem.write(SCY, 0x00);
+            mem.write(SCX, 0x00);
+            mem.write(LYC, 0x00);
+            mem.write(BGP, 0xFC);
+            mem.write(OBP0, 0xFF);
+            mem.write(OBP1, 0xFF);
+            mem.write(WY, 0x00);
+            mem.write(WX, 0x00);
+            mem.write(IE, 0x00);
             mem
         }
         pub fn load_rom(&mut self, cart: &Cartridge) {
@@ -3015,6 +3016,12 @@ pub mod memory {
                 let (main_chunk, oam_chunk) = self.data.split_at_mut(MEM_OAM as usize);
                 oam_chunk[0..0xA0].copy_from_slice(&main_chunk[dma_start..dma_end]);
             }
+        }
+        pub fn write(&mut self, addr: Word, val: Byte) {
+            if (addr != DIV && addr != STAT) {
+                // println!("[${:04X}]={:02X}", addr, val);
+            }
+            self[addr] = val;
         }
     }
     impl Index<Word> for Memory {

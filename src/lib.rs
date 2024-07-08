@@ -1497,7 +1497,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn rlc_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = cur.rotate_left(1);
@@ -1523,7 +1523,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn rl_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         mem.write(addr, (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4));
@@ -1550,7 +1550,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn rrc_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = cur.rotate_right(1);
@@ -1578,7 +1578,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn rr_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = (cur.rotate_right(1) & 0x7F) | ((cpu.reg[FLAGS] & FL_C) << 3);
@@ -1604,7 +1604,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn sla_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
         
         let result = cur << 1;
@@ -1630,7 +1630,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn swap_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = (cur >> 4) | (cur << 4);
@@ -1656,7 +1656,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn sra_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = (cur & 0x80) | cur >> 1;
@@ -1682,7 +1682,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn srl_hl(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let result = cur >> 1;
@@ -1710,7 +1710,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn bit_hl(cpu: CPUState, mem: &mut Memory, bit: Byte) -> CPUState {
         let mut reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
         let cur = mem[addr];
 
         let mask = 1 << bit;
@@ -1734,7 +1734,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn set_hl(cpu: CPUState, mem: &mut Memory, bit: Byte) -> CPUState {
         let reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
 
         let mask = 1 << bit;
         mem[addr] |= mask;
@@ -1757,7 +1757,7 @@ pub mod cpu {
     // ----------------------------------------------------------------------------
     fn res_n_hl(cpu: CPUState, mem: &mut Memory, n: Byte) -> CPUState {
         let reg = cpu.reg;
-        let addr = combine(reg[REG_H], reg[REG_L]);
+        let addr = cpu.HL();
 
         let mask = 1 << n;
         mem[addr] &= !mask;

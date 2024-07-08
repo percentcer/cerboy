@@ -106,6 +106,7 @@ pub mod cpu {
                 sp: 0xFFFE,
                 pc: ROM_ENTRY,
                 ime: false,
+                halt: false,
             }
         }
 
@@ -212,6 +213,8 @@ pub mod cpu {
         let op = mem[pc];
         // cerboy::decode::print_op(op);
 
+        // todo; inst count is not the same as tick, halt state makes this above incorrect
+
         // check interrupts
         // -----------------
         // https://gbdev.io/pandocs/single.html#ime-interrupt-master-enable-flag-write-only
@@ -220,7 +223,11 @@ pub mod cpu {
         // allow interrupts between the EI and the DI.
         let ei_valid_delay = (cpu.inst_count - cpu.inst_ei) > 1;
         let enabled_flags = mem[IE] & mem[IF];
-        if cpu.ime && enabled_flags != 0 && ei_valid_delay {
+
+        // possibly unhalt the cpu
+        let cpu = if enabled_flags != 0 { CPUState { halt: false, ..cpu } } else { cpu };
+
+        if cpu.ime && ei_valid_delay && enabled_flags != 0 {
             if (enabled_flags & FL_INT_VBLANK) != 0 {
                 Ok(jump_to_int_vec(cpu, mem, FL_INT_VBLANK, VEC_INT_VBLANK))
             } else if (enabled_flags & FL_INT_STAT) != 0 {
@@ -234,6 +241,9 @@ pub mod cpu {
             } else {
                 panic!("interrupt enabled but unknown flag?")
             }
+        } else if cpu.halt {
+            // halted, just pass the time
+            Ok(cpu.tick(4))
         } else {
             // todo: is this correct? I'm assuming it can't handle an interrupt
             // and then go right into the next instruction, it's one or the other
@@ -310,11 +320,7 @@ pub mod cpu {
                     0x5E => Ok(ld_e_HL(cpu, &mem)),
                     0x66 => Ok(ld_h_HL(cpu, &mem)),
                     0x6E => Ok(ld_l_HL(cpu, &mem)),
-                    0x76 => Err(UnknownInstructionError {
-                        // HALT
-                        op,
-                        mnm: inst.mnm,
-                    }),
+                    0x76 => Ok(halt(cpu)),
                     0x7E => Ok(ld_a_HL(cpu, &mem)),
                     0x70 => Ok(ld_HL_b(cpu, mem)),
                     0x71 => Ok(ld_HL_c(cpu, mem)),
@@ -1816,6 +1822,12 @@ pub mod cpu {
     }
 
     //   halt           76         N*4 ---- halt until interrupt occurs (low power)
+    const fn halt(cpu: CPUState) -> CPUState {
+        CPUState{
+            halt: true,
+            ..cpu
+        }.adv_pc(1).tick(4)
+    }
 
     //   stop           10 00        ? ---- low power standby mode (VERY low power)
     // ----------------------------------------------------------------------------

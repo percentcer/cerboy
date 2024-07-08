@@ -3069,7 +3069,7 @@ pub mod memory {
     // --- pushes and popses ---
     pub fn push_d8 (cpu: CPUState, mem: &mut Memory, val: Byte) -> CPUState {
         let sp = cpu.sp - 1;
-        mem[sp + 1] = val;
+        mem.write(sp, val);
         CPUState {
             sp,
             ..cpu
@@ -3077,15 +3077,15 @@ pub mod memory {
     }
     pub fn push_d16 (cpu: CPUState, mem: &mut Memory, val: Word) -> CPUState {
         let sp = cpu.sp - 2;
-        mem[sp + 2] = hi(val);
-        mem[sp + 1] = lo(val);
+        mem.write(sp + 1, hi(val));
+        mem.write(sp + 0, lo(val));
         CPUState {
             sp,
             ..cpu
         }
     }
     pub fn pop_d8 (cpu: CPUState, mem: &Memory) -> (CPUState, Byte) {
-        let val: Byte = mem[cpu.sp + 1];
+        let val: Byte = mem[cpu.sp];
         let sp = cpu.sp + 1;
         (
             CPUState {
@@ -3095,8 +3095,8 @@ pub mod memory {
         )
     }
     pub fn pop_d16 (cpu: CPUState, mem: &Memory) -> (CPUState, Word) {
-        let h: Byte = mem[cpu.sp + 2];
-        let l: Byte = mem[cpu.sp + 1];
+        let h: Byte = mem[cpu.sp + 1];
+        let l: Byte = mem[cpu.sp + 0];
         let val: Word = combine(h,l);
         let sp = cpu.sp + 2;
         (

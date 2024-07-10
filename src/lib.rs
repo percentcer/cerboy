@@ -2107,6 +2107,17 @@ pub mod cpu {
         }
     }
 
+    pub fn lcd_compare_ly_lyc(mem: &mut Memory) -> bool {
+        // https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
+        let equal = mem[LY] == mem[LYC];
+        mem[STAT] = bit_set(BIT_2, mem[STAT], equal);
+        if equal && mem[STAT] & BIT_6 != 0 {
+            // if LYC int select (bit 6) is enabled, request an interrupt
+            request_interrupt(mem, FL_INT_STAT);
+        }
+        equal
+    }
+
     pub fn lcd_mode(mem: &Memory) -> Byte {
         mem[STAT] & 0b11
     }
@@ -3018,8 +3029,12 @@ pub mod memory {
             }
         }
         pub fn write(&mut self, addr: Word, val: Byte) {
-            if (addr != DIV && addr != STAT) {
-                // println!("[${:04X}]={:02X}", addr, val);
+            let blocked = vec![
+                DIV,
+                // 0xFF41, // stat
+                ];
+            if !blocked.contains(&addr) {
+                println!("[${:04X}]={:02X}", addr, val);
             }
             self[addr] = val;
         }
@@ -3575,6 +3590,14 @@ pub mod bits {
 
     pub const fn bit_test(idx: Byte, val: Byte) -> bool {
         bit(idx, val) != 0
+    }
+
+    pub const fn bit_set(idx: Byte, val: Byte, set: bool) -> Byte {
+        if set {
+            val | idx
+        } else {
+            val & !idx
+        }
     }
 
     #[test]

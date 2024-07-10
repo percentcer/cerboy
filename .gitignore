@@ -13,3 +13,4 @@ mem.bin
 cpu.log
 mem.raw
 rom/tetris.log
+tetris.cerb.log

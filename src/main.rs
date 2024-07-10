@@ -63,7 +63,8 @@ fn main() {
 
     // init logging
     // ------------
-    let mut cpu_log_lines: Vec<String> = Vec::new();
+    let mut cpu_log_lines: Vec<CPULog> = Vec::new();
+    let mut DOCTOR_MEM_LY: Byte = 0;
 
     // loop
     // ------------
@@ -71,35 +72,7 @@ fn main() {
         // update
         // ------------------------------------------------
         if args.doctor {
-            // let do_log = cpu.pc != VEC_INT_JOYPAD && 
-            // cpu.pc != VEC_INT_SERIAL && 
-            // cpu.pc != VEC_INT_STAT && 
-            // cpu.pc != VEC_INT_TIMER && 
-            // cpu.pc != VEC_INT_VBLANK;
-
-            // let do_log = true;
-            // if do_log {
-            //     log_cpu(&mut cpu_log_lines, &cpu, &mem);
-            // }
-
-            // log_cpu(&mut cpu_log_lines, &cpu, &mem);
-
-            println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
-                cpu.reg[REG_A],
-                cpu.reg[FLAGS],
-                cpu.reg[REG_B],
-                cpu.reg[REG_C],
-                cpu.reg[REG_D],
-                cpu.reg[REG_E],
-                cpu.reg[REG_H],
-                cpu.reg[REG_L],
-                cpu.sp,
-                cpu.pc,
-                mem[cpu.pc+0],
-                mem[cpu.pc+1],
-                mem[cpu.pc+2],
-                mem[cpu.pc+3]
-            )
+            log_cpu(&mut cpu_log_lines, &cpu, &mem);
         } else {
             println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
                 cpu.reg[REG_A],
@@ -122,7 +95,9 @@ fn main() {
         cpu = match next(cpu_prev, &mut mem) {
             Ok(cpu) => cpu,
             Err(e) => {
-                std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
+                if args.doctor {
+                    write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!");
+                }
                 panic!("{}", e.to_string());
             }
         };
@@ -151,14 +126,11 @@ fn main() {
             }
             // vram io
             3 => {
-                if args.doctor {
-                    // todo: this could be rewritten to be compatible with gameboy-doctor,
-                    // but for now it isn't because we make actual use of the mem[LY] location
-                    set_lcd_mode(0, &mut mem);
-                } else if lcd_timing >= TICKS_PER_VRAM_IO {
+                if lcd_timing >= TICKS_PER_VRAM_IO {
+                    let cur_line: Byte = if args.doctor { DOCTOR_MEM_LY } else { mem[LY] };
                     // draw the scanline
                     // ===========================================
-                    let ln_start: usize = GB_SCREEN_WIDTH * mem[LY] as usize;
+                    let ln_start: usize = GB_SCREEN_WIDTH * cur_line as usize;
                     let ln_end: usize = ln_start + GB_SCREEN_WIDTH;
 
                     // draw background
@@ -177,7 +149,7 @@ fn main() {
                         (true, MEM_VRAM + 0x1000 as Word)
                         // (true, MEM_VRAM + 0x0800 as Word) // <--- actual range starts at 0x8800 but that is -127, not zero
                     };
-                    let (bg_y, _) = mem[SCY].overflowing_add(mem[LY]);
+                    let (bg_y, _) = mem[SCY].overflowing_add(cur_line);
                     let bg_tile_line = bg_y as Word % 8;
 
                     for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
@@ -223,10 +195,11 @@ fn main() {
             }
             // hblank
             0 => {
+                let cur_line: &mut Byte = if args.doctor { &mut DOCTOR_MEM_LY } else { &mut mem[LY] };
                 if lcd_timing >= TICKS_PER_HBLANK {
-                    mem[LY] += 1;
+                    *cur_line += 1;
                     lcd_timing -= TICKS_PER_HBLANK;
-                    if mem[LY] == GB_SCREEN_HEIGHT as Byte {
+                    if *cur_line == GB_SCREEN_HEIGHT as Byte {
                         // values 144 to 153 are vblank
                         request_interrupt(&mut mem, FL_INT_VBLANK);
                         set_lcd_mode(1, &mut mem);
@@ -237,9 +210,10 @@ fn main() {
             }
             // vblank
             1 => {
-                mem[LY] = (GB_SCREEN_HEIGHT as u64 + lcd_timing / TICKS_PER_SCANLINE) as Byte;
+                let cur_line: &mut Byte = if args.doctor { &mut DOCTOR_MEM_LY } else { &mut mem[LY] };
+                *cur_line = (GB_SCREEN_HEIGHT as u64 + lcd_timing / TICKS_PER_SCANLINE) as Byte;
                 if lcd_timing >= TICKS_PER_VBLANK {
-                    mem[LY] = 0;
+                    *cur_line = 0;
                     set_lcd_mode(2, &mut mem);
                     lcd_timing -= TICKS_PER_VBLANK;
 
@@ -247,11 +221,13 @@ fn main() {
                         .update_with_buffer(&buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
                         .unwrap();
 
-                    if args.doctor { dump("mem.bin", &mem).unwrap() }
+                    if args.doctor {
+                        dump("mem.bin", &mem).unwrap()
+                    }
                 }
             }
             _ => panic!("invalid LCD mode"),
         };
     }
-    std::fs::write("cpu.log", &mut cpu_log_lines.join("\n")).expect("");
+    if args.doctor { write_cpu_logs(&cpu_log_lines).expect("Failed to write logs!"); }
 }

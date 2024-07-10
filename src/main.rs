@@ -71,7 +71,52 @@ fn main() {
         // update
         // ------------------------------------------------
         if args.doctor {
-            log_cpu(&mut cpu_log_lines, &cpu, &mem).unwrap();
+            // let do_log = cpu.pc != VEC_INT_JOYPAD && 
+            // cpu.pc != VEC_INT_SERIAL && 
+            // cpu.pc != VEC_INT_STAT && 
+            // cpu.pc != VEC_INT_TIMER && 
+            // cpu.pc != VEC_INT_VBLANK;
+
+            // let do_log = true;
+            // if do_log {
+            //     log_cpu(&mut cpu_log_lines, &cpu, &mem);
+            // }
+
+            // log_cpu(&mut cpu_log_lines, &cpu, &mem);
+
+            println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+                cpu.reg[REG_A],
+                cpu.reg[FLAGS],
+                cpu.reg[REG_B],
+                cpu.reg[REG_C],
+                cpu.reg[REG_D],
+                cpu.reg[REG_E],
+                cpu.reg[REG_H],
+                cpu.reg[REG_L],
+                cpu.sp,
+                cpu.pc,
+                mem[cpu.pc+0],
+                mem[cpu.pc+1],
+                mem[cpu.pc+2],
+                mem[cpu.pc+3]
+            )
+        } else {
+            println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+                cpu.reg[REG_A],
+                cpu.reg[FLAGS],
+                cpu.reg[REG_B],
+                cpu.reg[REG_C],
+                cpu.reg[REG_D],
+                cpu.reg[REG_E],
+                cpu.reg[REG_H],
+                cpu.reg[REG_L],
+                cpu.sp,
+                cpu.pc,
+                mem[cpu.pc+0],
+                mem[cpu.pc+1],
+                mem[cpu.pc+2],
+                mem[cpu.pc+3]
+            )
         }
         let cpu_prev = cpu;
         cpu = match next(cpu_prev, &mut mem) {
@@ -94,6 +139,7 @@ fn main() {
 
         // render
         // ------------------------------------------------
+        lcd_compare_ly_lyc(&mut mem);
         match lcd_mode(&mem) {
             // oam search
             2 => {

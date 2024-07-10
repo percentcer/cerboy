@@ -12,3 +12,4 @@ Cargo.lock
 mem.bin
 cpu.log
 mem.raw
+rom/tetris.log

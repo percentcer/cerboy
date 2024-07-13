@@ -2108,26 +2108,6 @@ pub mod cpu {
         }
     }
 
-    pub fn lcd_compare_ly_lyc(mem: &mut Memory) -> bool {
-        // https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
-        let equal = mem.read(LY) == mem.read(LYC);
-        let comparison = bit_set(BIT_2, mem.read(STAT), equal);
-        mem.write(STAT, comparison);
-        if equal && comparison & BIT_6 != 0 {
-            // if LYC int select (bit 6) is enabled, request an interrupt
-            request_interrupt(mem, FL_INT_STAT);
-        }
-        equal
-    }
-
-    pub fn lcd_mode(mem: &Memory) -> Byte {
-        mem.read(STAT) & 0b11
-    }
-
-    pub fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
-        mem.write(STAT, ((mem.read(STAT) >> 2) << 2) | (mode & 0b11));
-    }
-
     #[cfg(test)]
     mod tests_cpu {
         use super::*;
@@ -3036,7 +3016,7 @@ pub mod memory {
                 // 0xFF41, // stat
                 ];
             if !blocked.contains(&addr) {
-                println!("[${:04X}]={:02X}", addr, val);
+                // println!("[${:04X}]={:02X}", addr, val);
             }
             match addr {
                 JOYP => {
@@ -3224,6 +3204,53 @@ pub mod types {
                 _ => panic!("mnemonic only intended for instructions with args"),
             }
         }
+    }
+}
+
+#[rustfmt::skip]
+pub mod lcd {
+    use crate::bits::*;
+    use crate::cpu::*;
+    use crate::memory::*;
+    use crate::types::*;
+
+    // lcdc
+    pub const LCDC_BIT_ENABLE                     :Byte = BIT_7;
+    pub const LCDC_BIT_WINDOW_TILE_MAP_SELECT     :Byte = BIT_6;
+    pub const LCDC_BIT_WINDOW_ENABLE              :Byte = BIT_5;
+    pub const LCDC_BIT_BG_WINDOW_TILE_DATA_SELECT :Byte = BIT_4;
+    pub const LCDC_BIT_BG_TILE_MAP_SELECT         :Byte = BIT_3;
+    pub const LCDC_BIT_OBJ_SIZE                   :Byte = BIT_2;
+    pub const LCDC_BIT_OBJ_ENABLE                 :Byte = BIT_1;
+    pub const LCDC_BIT_BG_WINDOW_ENABLE           :Byte = BIT_0;
+
+    // lcd status
+    pub const STAT_BIT_NULL              :Byte = BIT_7;
+    pub const STAT_BIT_LYC_INT_SELECT    :Byte = BIT_6;
+    pub const STAT_BIT_MODE_2_INT_SELECT :Byte = BIT_5;
+    pub const STAT_BIT_MODE_1_INT_SELECT :Byte = BIT_4;
+    pub const STAT_BIT_MODE_0_INT_SELECT :Byte = BIT_3;
+    pub const STAT_BIT_LY_LYC_EQ         :Byte = BIT_2;
+    pub const STAT_MASK_PPU_MODE         :Byte = 0b011;
+    
+    pub fn lcd_compare_ly_lyc(mem: &mut Memory) -> bool {
+        // https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
+        let equal = mem.read(LY) == mem.read(LYC);
+        let comparison = bit_set(STAT_BIT_LY_LYC_EQ, mem.read(STAT), equal);
+        mem.write(STAT, comparison);
+        if equal && comparison & STAT_BIT_LYC_INT_SELECT != 0 {
+            // if LYC int select is enabled, request an interrupt
+            request_interrupt(mem, FL_INT_STAT);
+        }
+        equal
+    }
+
+    pub fn lcd_mode(mem: &Memory) -> Byte {
+        mem.read(STAT) & STAT_MASK_PPU_MODE
+    }
+
+    pub fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
+        mem.write(STAT, (mem.read(STAT) & !STAT_MASK_PPU_MODE) | (mode & STAT_MASK_PPU_MODE));
     }
 }
 
@@ -3647,6 +3674,7 @@ pub mod dbg {
 
     use crate::bits::bit_test;
     use crate::cpu::*;
+    use crate::lcd::*;
     use crate::memory::*;
     use crate::types::*;
 
@@ -3714,26 +3742,26 @@ pub mod dbg {
 
     pub fn print_lcdc(mem: &Memory) {
         // print LCDC diagnostics
-        let lcdc_7 = if bit_test(7, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_6 = if bit_test(6, mem.read(LCDC)) {
+        let lcdc_7 = if bit_test(LCDC_BIT_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
+        let lcdc_6 = if bit_test(LCDC_BIT_WINDOW_TILE_MAP_SELECT, mem.read(LCDC)) {
             "0x9C00"
         } else {
             "0x9800"
         };
-        let lcdc_5 = if bit_test(5, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_4 = if bit_test(4, mem.read(LCDC)) {
+        let lcdc_5 = if bit_test(LCDC_BIT_WINDOW_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
+        let lcdc_4 = if bit_test(LCDC_BIT_BG_WINDOW_TILE_DATA_SELECT, mem.read(LCDC)) {
             "0x8000"
         } else {
             "0x8800"
         };
-        let lcdc_3 = if bit_test(3, mem.read(LCDC)) {
+        let lcdc_3 = if bit_test(LCDC_BIT_BG_TILE_MAP_SELECT, mem.read(LCDC)) {
             "0x9C00"
         } else {
             "0x9800"
         };
-        let lcdc_2 = if bit_test(2, mem.read(LCDC)) { "16" } else { " 8" };
-        let lcdc_1 = if bit_test(1, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_0 = if bit_test(0, mem.read(LCDC)) { " on" } else { "off" };
+        let lcdc_2 = if bit_test(LCDC_BIT_OBJ_SIZE, mem.read(LCDC)) { "16" } else { " 8" };
+        let lcdc_1 = if bit_test(LCDC_BIT_OBJ_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
+        let lcdc_0 = if bit_test(LCDC_BIT_BG_WINDOW_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
         let lcdc_v = mem.read(LCDC);
         println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
     }

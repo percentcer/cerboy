@@ -3739,29 +3739,18 @@ pub mod dbg {
             if flags & FL_Z != 0 { "Z" } else { "—" },
         )
     }
-
+    
+    #[rustfmt::skip]
     pub fn print_lcdc(mem: &Memory) {
         // print LCDC diagnostics
-        let lcdc_7 = if bit_test(LCDC_BIT_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_6 = if bit_test(LCDC_BIT_WINDOW_TILE_MAP_SELECT, mem.read(LCDC)) {
-            "0x9C00"
-        } else {
-            "0x9800"
-        };
-        let lcdc_5 = if bit_test(LCDC_BIT_WINDOW_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_4 = if bit_test(LCDC_BIT_BG_WINDOW_TILE_DATA_SELECT, mem.read(LCDC)) {
-            "0x8000"
-        } else {
-            "0x8800"
-        };
-        let lcdc_3 = if bit_test(LCDC_BIT_BG_TILE_MAP_SELECT, mem.read(LCDC)) {
-            "0x9C00"
-        } else {
-            "0x9800"
-        };
-        let lcdc_2 = if bit_test(LCDC_BIT_OBJ_SIZE, mem.read(LCDC)) { "16" } else { " 8" };
-        let lcdc_1 = if bit_test(LCDC_BIT_OBJ_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
-        let lcdc_0 = if bit_test(LCDC_BIT_BG_WINDOW_ENABLE, mem.read(LCDC)) { " on" } else { "off" };
+        let lcdc_7 = if bit_test(LCDC_BIT_ENABLE, mem.read(LCDC))                     { " on" }    else { "off" };
+        let lcdc_6 = if bit_test(LCDC_BIT_WINDOW_TILE_MAP_SELECT, mem.read(LCDC))     { "0x9C00" } else { "0x9800" };
+        let lcdc_5 = if bit_test(LCDC_BIT_WINDOW_ENABLE, mem.read(LCDC))              { " on" }    else { "off" };
+        let lcdc_4 = if bit_test(LCDC_BIT_BG_WINDOW_TILE_DATA_SELECT, mem.read(LCDC)) { "0x8000" } else { "0x8800" };
+        let lcdc_3 = if bit_test(LCDC_BIT_BG_TILE_MAP_SELECT, mem.read(LCDC))         { "0x9C00" } else { "0x9800" };
+        let lcdc_2 = if bit_test(LCDC_BIT_OBJ_SIZE, mem.read(LCDC))                   { "16" }     else { " 8" };
+        let lcdc_1 = if bit_test(LCDC_BIT_OBJ_ENABLE, mem.read(LCDC))                 { " on" }    else { "off" };
+        let lcdc_0 = if bit_test(LCDC_BIT_BG_WINDOW_ENABLE, mem.read(LCDC))           { " on" }    else { "off" };
         let lcdc_v = mem.read(LCDC);
         println!("{lcdc_v:#10b} LCDC [scr: {lcdc_7}, wnd_map: {lcdc_6}, wnd: {lcdc_5}, bg/wnd_dat: {lcdc_4}, bg_map: {lcdc_3}, obj_sz: {lcdc_2}, obj: {lcdc_1}, bg: {lcdc_0}]");
     }

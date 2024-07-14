@@ -26,6 +26,22 @@ pub mod cpu {
     // Sound        - 4 channels with stereo sound
     // Power        - DC6V 0.7W (DC3V 0.7W for GB Pocket, DC3V 0.6W for CGB)
 
+    // indices
+    pub const REG_B: usize = 0;
+    pub const REG_C: usize = 1;
+    pub const REG_D: usize = 2;
+    pub const REG_E: usize = 3;
+    pub const REG_H: usize = 4;
+    pub const REG_L: usize = 5;
+    pub const FLAGS: usize = 6;
+    pub const REG_A: usize = 7;
+
+    // cpu flags
+    pub const FL_Z: Byte = 1 << 7;
+    pub const FL_N: Byte = 1 << 6;
+    pub const FL_H: Byte = 1 << 5;
+    pub const FL_C: Byte = 1 << 4;
+
     pub const GB_SCREEN_WIDTH: usize = 160;
     pub const GB_SCREEN_HEIGHT: usize = 144;
 
@@ -3065,7 +3081,7 @@ pub mod memory {
                 },
                 SB => {
                     // Serial port bytes
-                    println!("[SB] {}", self[index] as char);
+                    // println!("[SB] {}", self[index] as char);
                 },
                 // LCDC => println!("[LCDC]"),
                 _ => {
@@ -3130,32 +3146,6 @@ pub mod types {
     pub type SByte = i8;
     pub type SWord = i16;
 
-    // indices
-    pub const REG_B: usize = 0;
-    pub const REG_C: usize = 1;
-    pub const REG_D: usize = 2;
-    pub const REG_E: usize = 3;
-    pub const REG_H: usize = 4;
-    pub const REG_L: usize = 5;
-    pub const FLAGS: usize = 6;
-    pub const REG_A: usize = 7;
-
-    // cpu flags
-    pub const FL_Z: Byte = 1 << 7;
-    pub const FL_N: Byte = 1 << 6;
-    pub const FL_H: Byte = 1 << 5;
-    pub const FL_C: Byte = 1 << 4;
-
-    // bit masks
-    pub const BIT_0: Byte = 1 << 0;
-    pub const BIT_1: Byte = 1 << 1;
-    pub const BIT_2: Byte = 1 << 2;
-    pub const BIT_3: Byte = 1 << 3;
-    pub const BIT_4: Byte = 1 << 4;
-    pub const BIT_5: Byte = 1 << 5;
-    pub const BIT_6: Byte = 1 << 6;
-    pub const BIT_7: Byte = 1 << 7;
-
     #[derive(PartialEq, Debug)]
     pub struct Instruction {
         pub mnm: String,
@@ -3211,8 +3201,10 @@ pub mod types {
 pub mod lcd {
     use crate::bits::*;
     use crate::cpu::*;
+    use crate::dbg::dump;
     use crate::memory::*;
     use crate::types::*;
+    use minifb::Window;
 
     // lcdc
     pub const LCDC_BIT_ENABLE                     :Byte = BIT_7;
@@ -3232,6 +3224,144 @@ pub mod lcd {
     pub const STAT_BIT_MODE_0_INT_SELECT :Byte = BIT_3;
     pub const STAT_BIT_LY_LYC_EQ         :Byte = BIT_2;
     pub const STAT_MASK_PPU_MODE         :Byte = 0b011;
+
+    pub struct Display {
+        buffer: Vec<u32>,
+        lcd_timing: u64,
+        // debug
+        pub doctor: bool,
+        doctor_LY: Byte,
+    }
+
+    impl Display {
+        pub fn new() -> Display {
+            Display {
+                buffer: vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT],
+                lcd_timing: 0,
+                doctor: false,
+                doctor_LY: 0
+            }
+        }
+
+        pub fn update(&mut self, mem: &mut Memory, window: &mut Window, dt: u64 ) {
+            self.lcd_timing += dt;
+            lcd_compare_ly_lyc(mem);
+
+            match lcd_mode(&mem) {
+                // oam search
+                2 => {
+                    if self.lcd_timing >= TICKS_PER_OAM_SEARCH {
+                        // todo: oam search
+                        set_lcd_mode(3, mem);
+                        self.lcd_timing -= TICKS_PER_OAM_SEARCH;
+                    }
+                }
+                // vram io
+                3 => {
+                    if self.lcd_timing >= TICKS_PER_VRAM_IO {
+                        let cur_line: Byte = if self.doctor { self.doctor_LY } else { mem[LY] };
+                        // draw the scanline
+                        // ===========================================
+                        let ln_start: usize = GB_SCREEN_WIDTH * cur_line as usize;
+                        let ln_end: usize = ln_start + GB_SCREEN_WIDTH;
+
+                        // draw background
+                        // -------------------------------------------
+                        // todo: acc: this code is inaccurate, LCDC can actually be modified mid-scanline
+                        // but cerboy currently only draws the line in a single shot (instead of per-dot)
+                        let bg_tilemap_start: Word = if bit_test(3, mem[LCDC]) {
+                            0x9C00
+                        } else {
+                            0x9800
+                        };
+                        let (bg_signed_addressing, bg_tile_data_start) = if bit_test(4, mem[LCDC]) {
+                            (false, MEM_VRAM as Word)
+                        } else {
+                            // in signed addressing the 0 tile is at 0x9000
+                            (true, MEM_VRAM + 0x1000 as Word)
+                            // (true, MEM_VRAM + 0x0800 as Word) // <--- actual range starts at 0x8800 but that is -127, not zero
+                        };
+                        let (bg_y, _) = mem[SCY].overflowing_add(cur_line);
+                        let bg_tile_line = bg_y as Word % 8;
+
+                        for (c, i) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
+                            let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
+                            let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
+                            let bg_tile_id = mem[bg_tilemap_start + bg_tile_index];
+                            let bg_tile_data_offset = if bg_signed_addressing {
+                                (signed(bg_tile_id) as Word).wrapping_mul(BYTES_PER_TILE)
+                            } else {
+                                bg_tile_id as Word * BYTES_PER_TILE
+                            };
+                            let bg_tile_data = bg_tile_data_start.wrapping_add(bg_tile_data_offset);
+                            let bg_tile_line_offset = bg_tile_data + bg_tile_line * 2;
+                            let bg_tile_line_low_byte = mem[bg_tile_line_offset];
+                            let bg_tile_line_high_byte = mem[bg_tile_line_offset + 1];
+                            let bg_tile_current_pixel = 7 - ((c as Byte + mem[SCX]) % 8);
+                            let bg_tile_pixel_mask = 1 << bg_tile_current_pixel;
+                            let bg_tile_high_value = ((bg_tile_line_high_byte & bg_tile_pixel_mask)
+                                >> bg_tile_current_pixel)
+                                << 1;
+                            let bg_tile_low_value =
+                                (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
+                            let bg_tile_pixel_color_id = bg_tile_high_value | bg_tile_low_value;
+                            *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_CLASSIC);
+                        }
+
+                        // draw sprites
+                        // FE00-FE9F   Sprite Attribute Table (OAM)
+                        // -------------------------------------------
+                        // for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
+                        // oijf
+                        // }
+
+                        // draw window
+                        // -------------------------------------------
+                        // for i in buffer[ln_start..ln_end].iter_mut() {}
+
+                        // ===========================================
+
+                        set_lcd_mode(0, mem);
+                        self.lcd_timing -= TICKS_PER_VRAM_IO;
+                    }
+                }
+                // hblank
+                0 => {
+                    let cur_line: &mut Byte = if self.doctor { &mut self.doctor_LY } else { &mut mem[LY] };
+                    if self.lcd_timing >= TICKS_PER_HBLANK {
+                        *cur_line += 1;
+                        self.lcd_timing -= TICKS_PER_HBLANK;
+                        if *cur_line == GB_SCREEN_HEIGHT as Byte {
+                            // values 144 to 153 are vblank
+                            request_interrupt(mem, FL_INT_VBLANK);
+                            set_lcd_mode(1, mem);
+                        } else {
+                            set_lcd_mode(2, mem);
+                        }
+                    }
+                }
+                // vblank
+                1 => {
+                    let cur_line: &mut Byte = if self.doctor { &mut self.doctor_LY } else { &mut mem[LY] };
+                    *cur_line = (GB_SCREEN_HEIGHT as u64 + self.lcd_timing / TICKS_PER_SCANLINE) as Byte;
+                    if self.lcd_timing >= TICKS_PER_VBLANK {
+                        *cur_line = 0;
+                        set_lcd_mode(2, mem);
+                        self.lcd_timing -= TICKS_PER_VBLANK;
+
+                        window
+                            .update_with_buffer(&self.buffer, GB_SCREEN_WIDTH, GB_SCREEN_HEIGHT)
+                            .unwrap();
+
+                        if self.doctor {
+                            dump("mem.bin", &mem).unwrap()
+                        }
+                    }
+                }
+                _ => panic!("invalid LCD mode"),
+            };
+        }
+    }
     
     pub fn lcd_compare_ly_lyc(mem: &mut Memory) -> bool {
         // https://gbdev.io/pandocs/STAT.html#ff45--lyc-ly-compare
@@ -3255,6 +3385,7 @@ pub mod lcd {
 }
 
 pub mod decode {
+    use crate::cpu::*;
     use crate::types::*;
 
     // https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
@@ -3607,6 +3738,16 @@ pub mod io {
 pub mod bits {
     use crate::types::{Byte, SByte, Word};
 
+    // bit masks
+    pub const BIT_0: Byte = 1 << 0;
+    pub const BIT_1: Byte = 1 << 1;
+    pub const BIT_2: Byte = 1 << 2;
+    pub const BIT_3: Byte = 1 << 3;
+    pub const BIT_4: Byte = 1 << 4;
+    pub const BIT_5: Byte = 1 << 5;
+    pub const BIT_6: Byte = 1 << 6;
+    pub const BIT_7: Byte = 1 << 7;
+
     pub const HIGH_MASK: Word = 0xFF00;
     pub const LOW_MASK: Word = 0x00FF;
     pub const HIGH_MASK_NIB: Byte = 0xF0;
@@ -3629,7 +3770,7 @@ pub mod bits {
     }
 
     pub const fn fl_z(val: Byte) -> Byte {
-        fl_set(crate::types::FL_Z, val == 0)
+        fl_set(crate::cpu::FL_Z, val == 0)
     }
 
     pub const fn bit(idx: Byte, val: Byte) -> Byte {
@@ -3672,7 +3813,6 @@ pub mod dbg {
     use std::fs::File;
     use std::io::{BufWriter, Write};
 
-    use crate::bits::bit_test;
     use crate::cpu::*;
     use crate::lcd::*;
     use crate::memory::*;

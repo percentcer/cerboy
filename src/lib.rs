@@ -97,14 +97,14 @@ pub mod cpu {
     #[derive(Copy, Clone, Debug)]
     pub struct CPUState {
         // ------------ meta, not part of actual gb hardware but useful
-        pub tsc: u64,    // counting cycles since reset
+        pub tsc: u64,        // counting cycles since reset
         pub inst_count: u64, // counting instructions since reset
         pub inst_ei: u64, // timestamp when ei was set, used to keep track of the two-instruction-delay
         // ------------ hardware
         pub reg: [Byte; 8],
         pub sp: Word,
         pub pc: Word,
-        pub ime: bool, // true == interrupts enabled
+        pub ime: bool,  // true == interrupts enabled
         pub halt: bool, // true == don't execute anything until interrupt
     }
 
@@ -242,7 +242,11 @@ pub mod cpu {
         let enabled_flags = mem.read(IE) & mem.read(IF);
 
         // possibly unhalt the cpu
-        let cpu = if enabled_flags != 0 { CPUState { halt: false, ..cpu } } else { cpu };
+        let cpu = if enabled_flags != 0 {
+            CPUState { halt: false, ..cpu }
+        } else {
+            cpu
+        };
 
         if cpu.ime && ei_valid_delay && enabled_flags != 0 {
             if (enabled_flags & FL_INT_VBLANK) != 0 {
@@ -366,7 +370,13 @@ pub mod cpu {
                 0xC1 => Ok(pop_bc(cpu, &mem)),
                 0xC2 => Ok(jp_f_d16(cpu, mem.read(pc + 1), mem.read(pc + 2), 0xC2)),
                 0xC3 => Ok(jp_d16(cpu, mem.read(pc + 1), mem.read(pc + 2))),
-                0xC4 => Ok(call_f_d16(mem.read(pc + 1), mem.read(pc + 2), cpu, mem, 0xC4)),
+                0xC4 => Ok(call_f_d16(
+                    mem.read(pc + 1),
+                    mem.read(pc + 2),
+                    cpu,
+                    mem,
+                    0xC4,
+                )),
                 0xC5 => Ok(push_bc(cpu, mem)),
                 0xC6 => Ok(add_d8(cpu, mem.read(pc + 1))),
                 0xC7 => Ok(rst_n(cpu, mem, 0xC7)),
@@ -408,7 +418,13 @@ pub mod cpu {
                         }
                     }
                 }
-                0xCC => Ok(call_f_d16(mem.read(pc + 1), mem.read(pc + 2), cpu, mem, 0xCC)),
+                0xCC => Ok(call_f_d16(
+                    mem.read(pc + 1),
+                    mem.read(pc + 2),
+                    cpu,
+                    mem,
+                    0xCC,
+                )),
                 0xCD => Ok(call_d16(mem.read(pc + 1), mem.read(pc + 2), cpu, mem)),
                 0xCE => Ok(adc_d8(cpu, mem.read(pc + 1))),
                 0xCF => Ok(rst_n(cpu, mem, 0xCF)),
@@ -416,7 +432,13 @@ pub mod cpu {
                 0xD1 => Ok(pop_de(cpu, &mem)),
                 0xD2 => Ok(jp_f_d16(cpu, mem.read(pc + 1), mem.read(pc + 2), 0xD2)),
                 0xD3 => Err(UnknownInstructionError { op, mnm: inst.mnm }),
-                0xD4 => Ok(call_f_d16(mem.read(pc + 1), mem.read(pc + 2), cpu, mem, 0xD4)),
+                0xD4 => Ok(call_f_d16(
+                    mem.read(pc + 1),
+                    mem.read(pc + 2),
+                    cpu,
+                    mem,
+                    0xD4,
+                )),
                 0xD5 => Ok(push_de(cpu, mem)),
                 0xD6 => Ok(sub_d8(cpu, mem.read(pc + 1))),
                 0xD7 => Ok(rst_n(cpu, mem, 0xD7)),
@@ -424,7 +446,13 @@ pub mod cpu {
                 0xD9 => Ok(reti(cpu, &mem)),
                 0xDA => Ok(jp_f_d16(cpu, mem.read(pc + 1), mem.read(pc + 2), 0xDA)),
                 0xDB => Err(UnknownInstructionError { op, mnm: inst.mnm }),
-                0xDC => Ok(call_f_d16(mem.read(pc + 1), mem.read(pc + 2), cpu, mem, 0xDC)),
+                0xDC => Ok(call_f_d16(
+                    mem.read(pc + 1),
+                    mem.read(pc + 2),
+                    cpu,
+                    mem,
+                    0xDC,
+                )),
                 0xDD => Err(UnknownInstructionError { op, mnm: inst.mnm }),
                 0xDE => Ok(sbc_d8(cpu, mem.read(pc + 1))),
                 0xDF => Ok(rst_n(cpu, mem, 0xDF)),
@@ -513,25 +541,39 @@ pub mod cpu {
     //   ld   r,(HL)      xx         8 ---- r=(HL)
     // ----------------------------------------------------------------------------
     fn ld_b_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_B, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_B, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_c_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_C, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_C, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_d_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_D, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_D, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_e_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_E, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_E, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_h_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_H, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_H, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_l_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_L, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_L, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
     fn ld_a_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_ld_r_d8(cpu, REG_A, mem.read(cpu.HL())).adv_pc(1).tick(8)
+        impl_ld_r_d8(cpu, REG_A, mem.read(cpu.HL()))
+            .adv_pc(1)
+            .tick(8)
     }
 
     //   ld   (HL),r      7x         8 ---- (HL)=r
@@ -595,11 +637,8 @@ pub mod cpu {
     fn ld_a_A16(low: Byte, high: Byte, cpu: CPUState, mem: &Memory) -> CPUState {
         let mut reg = cpu.reg;
         reg[REG_A] = mem.read(combine(high, low));
-        
-        CPUState {
-            reg,
-            ..cpu
-        }.tick(16).adv_pc(3)
+
+        CPUState { reg, ..cpu }.tick(16).adv_pc(3)
     }
 
     //   ld   (BC),A      02         8 ----
@@ -732,7 +771,7 @@ pub mod cpu {
     fn ldd_HL_a(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
         mem.write(cpu.HL(), reg[REG_A]);
-        
+
         let (hld, _) = cpu.HL().overflowing_sub(1);
         reg[REG_H] = hi(hld);
         reg[REG_L] = lo(hld);
@@ -750,7 +789,7 @@ pub mod cpu {
     fn ldd_a_HL(cpu: CPUState, mem: &mut Memory) -> CPUState {
         let mut reg = cpu.reg;
         reg[REG_A] = mem.read(cpu.HL());
-        
+
         let (hld, _) = cpu.HL().overflowing_sub(1);
         reg[REG_H] = hi(hld);
         reg[REG_L] = lo(hld);
@@ -839,7 +878,9 @@ pub mod cpu {
         CPUState {
             sp: cpu.HL(),
             ..cpu
-        }.tick(8).adv_pc(1)
+        }
+        .tick(8)
+        .adv_pc(1)
     }
 
     //   push rr          x5        16 ---- SP=SP-2  (SP)=rr   (rr may be BC,DE,HL,AF)
@@ -907,7 +948,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
         reg[REG_A] = hi << 4 | lo;
         reg[FLAGS] = fl_z(reg[REG_A]) | fl_n | fl_set(FL_H, c_out_lo) | fl_set(FL_C, c_out_hi);
- 
+
         CPUState { reg, ..cpu }
     }
 
@@ -1103,7 +1144,9 @@ pub mod cpu {
     //   sub  (HL)        96         8 z1hc A=A-(HL)
     // ----------------------------------------------------------------------------
     fn sub_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_add_sub(cpu, mem.read(cpu.HL()), FL_N).adv_pc(1).tick(8)
+        impl_add_sub(cpu, mem.read(cpu.HL()), FL_N)
+            .adv_pc(1)
+            .tick(8)
     }
 
     //   sbc  A,r         9x         4 z1hc A=A-r-cy
@@ -1119,7 +1162,9 @@ pub mod cpu {
     //   sbc  A,(HL)      9E         8 z1hc A=A-(HL)-cy
     // ----------------------------------------------------------------------------
     fn sbc_HL(cpu: CPUState, mem: &Memory) -> CPUState {
-        impl_adc_sbc(cpu, mem.read(cpu.HL()), FL_N).adv_pc(1).tick(8)
+        impl_adc_sbc(cpu, mem.read(cpu.HL()), FL_N)
+            .adv_pc(1)
+            .tick(8)
     }
 
     //   and  r           Ax         4 z010 A=A & r
@@ -1339,7 +1384,8 @@ pub mod cpu {
         // https://stackoverflow.com/questions/57958631/game-boy-half-carry-flag-and-16-bit-instructions-especially-opcode-0xe8
         // we only test the high byte because of the order of operations of adding (low byte, then high byte).
         // half-carry MAY be set on the low byte, but it doesn't matter for the final result of the flag
-        reg[FLAGS] = (reg[FLAGS] & FL_Z) | fl_set(FL_H, half_carries & 0x1000 != 0) | fl_set(FL_C, c);
+        reg[FLAGS] =
+            (reg[FLAGS] & FL_Z) | fl_set(FL_H, half_carries & 0x1000 != 0) | fl_set(FL_C, c);
         reg[REG_H] = hi(result);
         reg[REG_L] = lo(result);
 
@@ -1408,7 +1454,7 @@ pub mod cpu {
         let sp0 = cpu.sp;
         let sp1 = cpu.sp.wrapping_add(argx); // == sp0 ^ argx ^ (c << 1)
         let carry = sp1 ^ (sp0 ^ argx); // removes sp0 and argx from sp1, leaving c << 1
-        
+
         let mut reg = cpu.reg;
         reg[FLAGS] = 0 | 0 | fl_set(FL_H, carry & 0x0010 != 0) | fl_set(FL_C, carry & 0x0100 != 0);
 
@@ -1416,7 +1462,9 @@ pub mod cpu {
             sp: sp1,
             reg,
             ..cpu
-        }.tick(16).adv_pc(2)
+        }
+        .tick(16)
+        .adv_pc(2)
     }
 
     //   ld   HL,SP+dd  F8          12 00hc HL = SP +/- dd ;dd is 8bit signed number
@@ -1425,16 +1473,13 @@ pub mod cpu {
         let argx = arg as Word;
         let hl = cpu.sp.wrapping_add(argx); // == sp ^ argx ^ (c << 1)
         let carry = hl ^ (cpu.sp ^ argx); // removes sp and argx from hl, leaving c << 1
-        
+
         let mut reg = cpu.reg;
         reg[FLAGS] = 0 | 0 | fl_set(FL_H, carry & 0x0010 != 0) | fl_set(FL_C, carry & 0x0100 != 0);
         reg[REG_H] = hi(hl);
         reg[REG_L] = lo(hl);
 
-        CPUState {
-            reg,
-            ..cpu
-        }.tick(12).adv_pc(2)
+        CPUState { reg, ..cpu }.tick(12).adv_pc(2)
     }
 
     // GMB Rotate- und Shift-Commands
@@ -1542,7 +1587,10 @@ pub mod cpu {
         let addr = cpu.HL();
         let cur = mem.read(addr);
 
-        mem.write(addr, (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4));
+        mem.write(
+            addr,
+            (cur.rotate_left(1) & 0xFE) | ((cpu.reg[FLAGS] & FL_C) >> 4),
+        );
         reg[FLAGS] = (cur & 0x80) >> 3 | fl_z(mem.read(addr));
 
         CPUState { reg, ..cpu }.adv_pc(2).tick(16)
@@ -1622,7 +1670,7 @@ pub mod cpu {
         let mut reg = cpu.reg;
         let addr = cpu.HL();
         let cur = mem.read(addr);
-        
+
         let result = cur << 1;
 
         mem.write(addr, result);
@@ -1840,10 +1888,7 @@ pub mod cpu {
 
     //   halt           76         N*4 ---- halt until interrupt occurs (low power)
     const fn halt(cpu: CPUState) -> CPUState {
-        CPUState{
-            halt: true,
-            ..cpu
-        }.adv_pc(1).tick(4)
+        CPUState { halt: true, ..cpu }.adv_pc(1).tick(4)
     }
 
     //   stop           10 00        ? ---- low power standby mode (VERY low power)
@@ -2090,7 +2135,8 @@ pub mod cpu {
             // interrupts until those are handled.
             pc: vec_int,
             ..cpu_pushed
-        }.tick(20) // https://gbdev.io/pandocs/Interrupts.html#interrupt-handling
+        }
+        .tick(20) // https://gbdev.io/pandocs/Interrupts.html#interrupt-handling
     }
 
     // ============================================================================
@@ -2732,9 +2778,9 @@ pub mod cpu {
 }
 
 pub mod memory {
-    use crate::types::*;
+    use crate::bits::{combine, hi, lo};
     use crate::cpu::CPUState;
-    use crate::bits::{hi, lo, combine};
+    use crate::types::*;
     use std::{
         ops::{Index, IndexMut},
         str::from_utf8,
@@ -3030,14 +3076,14 @@ pub mod memory {
             let blocked = vec![
                 DIV,
                 // 0xFF41, // stat
-                ];
+            ];
             if !blocked.contains(&addr) {
                 // println!("[${:04X}]={:02X}", addr, val);
             }
             match addr {
                 JOYP => {
                     self[addr] |= 0x30 & val; // lower nibble is read only
-                },
+                }
                 _ => self[addr] = val,
             }
         }
@@ -3047,13 +3093,9 @@ pub mod memory {
                     let bitset = if 0x30 & self[addr] == 0x30 { 0x0F } else { 0 };
                     self[addr] | bitset
                 }
-                IE => {
-                    self[addr] & 0x1F
-                }
-                IF => {
-                    self[addr] & 0x1F
-                }
-                _ => self[addr]
+                IE => self[addr] & 0x1F,
+                IF => self[addr] & 0x1F,
+                _ => self[addr],
             }
         }
     }
@@ -3078,15 +3120,15 @@ pub mod memory {
                 DMA => {
                     // println!("[DMA] 0x{:X}", self[index]);
                     self.dma_req = true;
-                },
+                }
                 SB => {
                     // Serial port bytes
                     // println!("[SB] {}", self[index] as char);
-                },
+                }
                 // LCDC => println!("[LCDC]"),
                 _ => {
                     // println!("[{:04X}] {:02X}", index, self[index]);
-                },
+                }
             }
             &mut self.data[index as usize]
         }
@@ -3099,44 +3141,28 @@ pub mod memory {
     }
 
     // --- pushes and popses ---
-    pub fn push_d8 (cpu: CPUState, mem: &mut Memory, val: Byte) -> CPUState {
+    pub fn push_d8(cpu: CPUState, mem: &mut Memory, val: Byte) -> CPUState {
         let sp = cpu.sp - 1;
         mem.write(sp, val);
-        CPUState {
-            sp,
-            ..cpu
-        }
+        CPUState { sp, ..cpu }
     }
-    pub fn push_d16 (cpu: CPUState, mem: &mut Memory, val: Word) -> CPUState {
+    pub fn push_d16(cpu: CPUState, mem: &mut Memory, val: Word) -> CPUState {
         let sp = cpu.sp - 2;
         mem.write(sp + 1, hi(val));
         mem.write(sp + 0, lo(val));
-        CPUState {
-            sp,
-            ..cpu
-        }
+        CPUState { sp, ..cpu }
     }
-    pub fn pop_d8 (cpu: CPUState, mem: &Memory) -> (CPUState, Byte) {
+    pub fn pop_d8(cpu: CPUState, mem: &Memory) -> (CPUState, Byte) {
         let val: Byte = mem.read(cpu.sp);
         let sp = cpu.sp + 1;
-        (
-            CPUState {
-                sp,
-                ..cpu
-            }, val
-        )
+        (CPUState { sp, ..cpu }, val)
     }
-    pub fn pop_d16 (cpu: CPUState, mem: &Memory) -> (CPUState, Word) {
+    pub fn pop_d16(cpu: CPUState, mem: &Memory) -> (CPUState, Word) {
         let h: Byte = mem.read(cpu.sp + 1);
         let l: Byte = mem.read(cpu.sp + 0);
-        let val: Word = combine(h,l);
+        let val: Word = combine(h, l);
         let sp = cpu.sp + 2;
-        (
-            CPUState {
-                sp,
-                ..cpu
-            }, val
-        )
+        (CPUState { sp, ..cpu }, val)
     }
 }
 
@@ -3820,9 +3846,9 @@ pub mod dbg {
 
     pub struct CPULog {
         cpu: CPUState,
-        mem_next: [Byte;4]
+        mem_next: [Byte; 4],
     }
-    
+
     impl std::fmt::Display for CPULog {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             write!(f, "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
@@ -3845,7 +3871,15 @@ pub mod dbg {
     }
 
     pub fn log_cpu(buffer: &mut Vec<CPULog>, cpu: &CPUState, mem: &Memory) {
-        buffer.push(CPULog{cpu: cpu.clone(), mem_next: [mem.read(cpu.pc + 0), mem.read(cpu.pc + 1), mem.read(cpu.pc + 2), mem.read(cpu.pc + 3)]});
+        buffer.push(CPULog {
+            cpu: cpu.clone(),
+            mem_next: [
+                mem.read(cpu.pc + 0),
+                mem.read(cpu.pc + 1),
+                mem.read(cpu.pc + 2),
+                mem.read(cpu.pc + 3),
+            ],
+        });
     }
 
     pub fn write_cpu_logs(logs: &Vec<CPULog>) -> std::io::Result<()> {
@@ -3879,7 +3913,7 @@ pub mod dbg {
             if flags & FL_Z != 0 { "Z" } else { "—" },
         )
     }
-    
+
     #[rustfmt::skip]
     pub fn print_lcdc(mem: &Memory) {
         // print LCDC diagnostics

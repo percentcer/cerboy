@@ -3251,8 +3251,49 @@ pub mod lcd {
     pub const STAT_BIT_LY_LYC_EQ         :Byte = BIT_2;
     pub const STAT_MASK_PPU_MODE         :Byte = 0b011;
 
+    // object attribute flags
+    pub const OAM_BIT_PRIORITY           :Byte = BIT_7;
+    pub const OAM_BIT_FLIP_Y             :Byte = BIT_6;
+    pub const OAM_BIT_FLIP_X             :Byte = BIT_5;
+    pub const OAM_BIT_DMG_PAL            :Byte = BIT_4; // dmg only
+    pub const OAM_BIT_BANK               :Byte = BIT_3;
+    pub const OAM_MASK_CGB_PAL           :Byte = 0b111; // color gameboy only
+    pub const OBJ_ATTR_SIZE              :Word = 4;
+    
+    pub struct Sprite {
+        idx: Word
+    }
+    impl Sprite {
+        fn y(&self, mem: &Memory) -> Byte {
+            mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 0]
+        }
+        fn x(&self, mem: &Memory) -> Byte {
+            mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 1]
+        }
+        fn tile(&self, mem: &Memory) -> Byte {
+            let offset: Word = if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 {
+                // todo: CGB can reference VRAM in bank 0 or bank 1
+                mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 2] & 0xFE // masked, ignore least sig. bit (hardware-enforced)
+            } else {
+                mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 2]
+            } as Word;
+            mem[MEM_VRAM + offset]
+        }
+        fn flags(&self, mem: &Memory) -> Byte {
+            mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 3]
+        }
+        fn hit(&self, mem: &Memory) -> bool {
+            let ly = mem[LY];
+            let height = if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 { 16 } else { 8 };
+            self.x(mem) > 0 && 
+            ly + 16 >= self.y(mem) &&
+            ly + 16 < self.y(mem) + height
+        }
+    }
+
     pub struct Display {
         buffer: Vec<u32>,
+        buffer_sprites: Vec<Sprite>,
         lcd_timing: u64,
         // debug
         pub doctor: bool,
@@ -3263,6 +3304,7 @@ pub mod lcd {
         pub fn new() -> Display {
             Display {
                 buffer: vec![0; GB_SCREEN_WIDTH * GB_SCREEN_HEIGHT],
+                buffer_sprites: vec![],
                 lcd_timing: 0,
                 doctor: false,
                 doctor_LY: 0
@@ -3272,12 +3314,17 @@ pub mod lcd {
         pub fn update(&mut self, mem: &mut Memory, window: &mut Window, dt: u64 ) {
             self.lcd_timing += dt;
             lcd_compare_ly_lyc(mem);
-
             match lcd_mode(&mem) {
                 // oam search
                 2 => {
                     if self.lcd_timing >= TICKS_PER_OAM_SEARCH {
-                        // todo: oam search
+                        self.buffer_sprites.clear();
+                        for n in 0..40 {
+                            let s = Sprite { idx: n };
+                            if self.buffer_sprites.len() < 10 && s.hit(&mem) {
+                                self.buffer_sprites.push(s);
+                            }
+                        }
                         set_lcd_mode(3, mem);
                         self.lcd_timing -= TICKS_PER_OAM_SEARCH;
                     }
@@ -3285,9 +3332,9 @@ pub mod lcd {
                 // vram io
                 3 => {
                     if self.lcd_timing >= TICKS_PER_VRAM_IO {
-                        let cur_line: Byte = if self.doctor { self.doctor_LY } else { mem[LY] };
                         // draw the scanline
                         // ===========================================
+                        let cur_line: Byte = if self.doctor { self.doctor_LY } else { mem[LY] };
                         let ln_start: usize = GB_SCREEN_WIDTH * cur_line as usize;
                         let ln_end: usize = ln_start + GB_SCREEN_WIDTH;
 
@@ -3337,9 +3384,21 @@ pub mod lcd {
                         // draw sprites
                         // FE00-FE9F   Sprite Attribute Table (OAM)
                         // -------------------------------------------
-                        // for (c, i) in buffer[ln_start..ln_end].iter_mut().enumerate() {
-                        // oijf
-                        // }
+                        for (c, i) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
+                            // the x attr for the sprite is an offset from -8 to allow
+                            // for off-screen (left side) positions.
+                            // We can simply adjust the value of c on this line 
+                            // to account for this.
+                            let c_off = (c + 8) as Byte; 
+
+                            // todo: this is debug code just to see positions
+                            if self.buffer_sprites.len() > 0 {
+                                let s: &Sprite = &self.buffer_sprites[0];
+                                if c_off >= s.x(&mem) && c_off < (s.x(&mem) + 8) {
+                                    *i = 0x00FFFF;
+                                }
+                            }
+                        }
 
                         // draw window
                         // -------------------------------------------

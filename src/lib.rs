@@ -3259,6 +3259,9 @@ pub mod lcd {
     pub const OAM_BIT_BANK               :Byte = BIT_3;
     pub const OAM_MASK_CGB_PAL           :Byte = 0b111; // color gameboy only
     pub const OBJ_ATTR_SIZE              :Word = 4;
+
+    // other constants
+    pub const PPU_TILE_WIDTH             :usize = 8;
     
     pub struct Sprite {
         idx: Word
@@ -3271,29 +3274,48 @@ pub mod lcd {
             mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 1]
         }
         fn tile(&self, mem: &Memory) -> Byte {
-            let offset: Word = if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 {
+            if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 {
                 // todo: CGB can reference VRAM in bank 0 or bank 1
                 mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 2] & 0xFE // masked, ignore least sig. bit (hardware-enforced)
             } else {
                 mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 2]
-            } as Word;
-            mem[MEM_VRAM + offset]
+            }
         }
         fn flags(&self, mem: &Memory) -> Byte {
             mem[MEM_OAM + self.idx * OBJ_ATTR_SIZE + 3]
         }
-        fn hit(&self, mem: &Memory) -> bool {
-            let ly = mem[LY];
-            let height = if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 { 16 } else { 8 };
-            self.x(mem) > 0 && 
-            ly + 16 >= self.y(mem) &&
-            ly + 16 < self.y(mem) + height
+        fn hit(&self, mem: &Memory) -> Byte {
+            if self.x(mem) != 0 {
+                let scanline = mem[LY] + 16;
+                let height = if mem[LCDC] & LCDC_BIT_OBJ_SIZE != 0 { 16 } else { 8 };
+                if scanline >= self.y(mem) && scanline < self.y(mem) + height {
+                    // todo: does this work for double height?
+                    let yy = self.y(mem);
+                    if self.flags(mem) & OAM_BIT_FLIP_Y != 0 {
+                        (height - 1) - (scanline - yy)
+                    } 
+                    else 
+                    {
+                        scanline - yy
+                    }
+                } else {
+                    SPRITE_NOT_HIT
+                }
+            } else {
+                SPRITE_NOT_HIT
+            }
         }
+    }
+
+    const SPRITE_NOT_HIT: Byte = 0xFF;
+    pub struct SpriteHit {
+        sprite: Sprite,
+        line: Byte
     }
 
     pub struct Display {
         buffer: Vec<u32>,
-        buffer_sprites: Vec<Sprite>,
+        buffer_sprites: Vec<SpriteHit>,
         lcd_timing: u64,
         // debug
         pub doctor: bool,
@@ -3321,8 +3343,9 @@ pub mod lcd {
                         self.buffer_sprites.clear();
                         for n in 0..40 {
                             let s = Sprite { idx: n };
-                            if self.buffer_sprites.len() < 10 && s.hit(&mem) {
-                                self.buffer_sprites.push(s);
+                            let l = s.hit(&mem);
+                            if self.buffer_sprites.len() < 10 && l != SPRITE_NOT_HIT {
+                                self.buffer_sprites.push(SpriteHit{sprite: s, line: l});
                             }
                         }
                         set_lcd_mode(3, mem);
@@ -3357,7 +3380,7 @@ pub mod lcd {
                         let (bg_y, _) = mem[SCY].overflowing_add(cur_line);
                         let bg_tile_line = bg_y as Word % 8;
 
-                        for (c, i) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
+                        for (c, it) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
                             let (bg_x, _) = mem[SCX].overflowing_add(c as Byte);
                             let bg_tile_index: Word = bg_x as Word / 8 + bg_y as Word / 8 * 32;
                             let bg_tile_id = mem[bg_tilemap_start + bg_tile_index];
@@ -3368,34 +3391,39 @@ pub mod lcd {
                             };
                             let bg_tile_data = bg_tile_data_start.wrapping_add(bg_tile_data_offset);
                             let bg_tile_line_offset = bg_tile_data + bg_tile_line * 2;
-                            let bg_tile_line_low_byte = mem[bg_tile_line_offset];
-                            let bg_tile_line_high_byte = mem[bg_tile_line_offset + 1];
+                            let bg_tile_line_data = ppu_decode_tile_line(mem[bg_tile_line_offset], mem[bg_tile_line_offset + 1]);
                             let bg_tile_current_pixel = 7 - ((c as Byte + mem[SCX]) % 8);
-                            let bg_tile_pixel_mask = 1 << bg_tile_current_pixel;
-                            let bg_tile_high_value = ((bg_tile_line_high_byte & bg_tile_pixel_mask)
-                                >> bg_tile_current_pixel)
-                                << 1;
-                            let bg_tile_low_value =
-                                (bg_tile_line_low_byte & bg_tile_pixel_mask) >> bg_tile_current_pixel;
-                            let bg_tile_pixel_color_id = bg_tile_high_value | bg_tile_low_value;
-                            *i = palette_lookup(bg_tile_pixel_color_id, mem[BGP], &PAL_CLASSIC);
+                            *it = palette_lookup(bg_tile_line_data[bg_tile_current_pixel as usize], mem[BGP], &PAL_CLASSIC);
                         }
 
                         // draw sprites
                         // FE00-FE9F   Sprite Attribute Table (OAM)
                         // -------------------------------------------
-                        for (c, i) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
+                        for (c, it) in self.buffer[ln_start..ln_end].iter_mut().enumerate() {
                             // the x attr for the sprite is an offset from -8 to allow
                             // for off-screen (left side) positions.
                             // We can simply adjust the value of c on this line 
                             // to account for this.
-                            let c_off = (c + 8) as Byte; 
-
-                            // todo: this is debug code just to see positions
-                            if self.buffer_sprites.len() > 0 {
-                                let s: &Sprite = &self.buffer_sprites[0];
-                                if c_off >= s.x(&mem) && c_off < (s.x(&mem) + 8) {
-                                    *i = 0x00FFFF;
+                            let c_off = (c + 8) as Byte;
+                            // nyctrip
+                            // todo: non-cgb: lower-x sprites are drawn on top of higher-x
+                            for hit in self.buffer_sprites.iter() {
+                                let spr = &hit.sprite;
+                                if c_off >= spr.x(&mem) && c_off < (spr.x(&mem) + 8) {
+                                    let data_size_mul = if hit.line > 7 { 2 } else { 1 }; // for double height sprites
+                                    let spr_tile_data_offset = spr.tile(&mem) as Word * BYTES_PER_TILE * data_size_mul;
+                                    let tile_hit_line = hit.line % 8;
+                                    // from here we can work in a tile-local context
+                                    let spr_tile_data_line_offset = 
+                                        MEM_VRAM + 
+                                        spr_tile_data_offset + 
+                                        tile_hit_line as Word * 2;
+                                    let spr_tile_line_data = ppu_decode_tile_line(mem[spr_tile_data_line_offset], mem[spr_tile_data_line_offset + 1]);
+                                    let spr_pix = 7 - (c_off - spr.x(&mem));
+                                    if spr_tile_line_data[spr_pix as usize] != 0 {
+                                        // todo: draw in correct priority order for opaque pixels
+                                        *it = palette_lookup(spr_tile_line_data[spr_pix as usize], mem[OBP0], &PAL_ICE_CREAM); // todo: OBP1
+                                    }
                                 }
                             }
                         }
@@ -3466,6 +3494,21 @@ pub mod lcd {
 
     pub fn set_lcd_mode(mode: Byte, mem: &mut Memory) {
         mem.write(STAT, (mem.read(STAT) & !STAT_MASK_PPU_MODE) | (mode & STAT_MASK_PPU_MODE));
+    }
+
+    pub fn ppu_decode_tile_line(low: Byte, high: Byte) -> [Byte; PPU_TILE_WIDTH] {
+        let mut result = [0; PPU_TILE_WIDTH];
+        for i in 0..PPU_TILE_WIDTH {
+            let mask = 1 << i;
+            let masked_low = (low & mask) >> i;
+            let masked_high = if i > 0 {
+                (high & mask) >> (i - 1)
+            } else {
+                (high & mask) << 1
+            };
+            result[i] = masked_high | masked_low;
+        }
+        result
     }
 }
 
